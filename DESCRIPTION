@@ -30,6 +30,7 @@ Suggests:
     gsm.reporting,
     knitr,
     pharmaversesdtm,
+    readxl,
     rmarkdown,
     testthat (>= 3.0.0),
     withr

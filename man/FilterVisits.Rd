@@ -28,9 +28,8 @@ visits. \code{NULL} disables the exclusion.}
 }
 \description{
 Applied before any CTAS timeseries is constructed. Both patterns are
-deliberately parameterised: sponsors encode scheduled visits differently
-(e.g. \code{"^SCHED_VISIT_"}), so the defaults must stay permissive and any
-sponsor-specific convention must be supplied through the workflow YAML
-rather than baked into the mapping layer.
+deliberately parameterised: sponsors encode scheduled visits differently, so
+the defaults must stay permissive and any sponsor-specific convention must be
+supplied through the workflow YAML rather than baked into the mapping layer.
 }
 \keyword{internal}
