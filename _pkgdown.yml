@@ -1,0 +1,24 @@
+template:
+  bootstrap: 5
+
+navbar:
+  structure:
+    left: [articles, reference, news]
+    right: [search, github]
+
+reference:
+- title: Mapping
+  desc: Map SDTM domains into CTAS input frames.
+  contents:
+  - starts_with("Input_")
+  - Combine_CTAS_Input
+- title: Preparation
+  desc: Make values comparable across parameters.
+  contents:
+  - starts_with("Prepare_")
+- title: Analysis
+  desc: Run CTAS and bridge into the gsm analysis contract.
+  contents:
+  - Analyze_CTAS
+  - Summarize_CTAS
+  - Flag_CTAS
