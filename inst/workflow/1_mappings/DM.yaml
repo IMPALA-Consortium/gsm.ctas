@@ -1,0 +1,21 @@
+meta:
+  Type: Mapped
+  ID: DM
+  Description: SDTM DM (Demographics) Data Mapping
+  Priority: 1
+spec:
+  Raw_DM:
+    STUDYID:
+      type: character
+    USUBJID:
+      type: character
+    SITEID:
+      type: character
+    COUNTRY:
+      type: character
+steps:
+  - output: Mapped_DM
+    name: workr::RunQuery
+    params:
+      df: Raw_DM
+      strQuery: "SELECT * FROM df"

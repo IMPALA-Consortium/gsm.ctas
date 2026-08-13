@@ -1,0 +1,30 @@
+meta:
+  Type: Mapped
+  ID: STUDY
+  Description: Study Metadata Derived from DM
+  Priority: 2
+spec:
+  Mapped_DM:
+    STUDYID:
+      type: character
+    USUBJID:
+      type: character
+    SITEID:
+      type: character
+steps:
+  - output: Temp_StudyWide
+    name: workr::RunQuery
+    params:
+      df: Mapped_DM
+      strQuery: |
+        SELECT
+          STUDYID as GroupID,
+          COUNT(DISTINCT USUBJID) as ParticipantCount,
+          COUNT(DISTINCT SITEID) as SiteCount
+        FROM df
+        GROUP BY STUDYID
+  - output: Mapped_STUDY
+    name: gsm.mapping::MakeLongMeta
+    params:
+      data: Temp_StudyWide
+      strGroupLevel: Study

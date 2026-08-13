@@ -1,0 +1,75 @@
+meta:
+  Type: Mapped
+  ID: CTAS_SiteScores
+  Description: Run the CTAS engine once per study and share the site scores
+  Priority: 3
+  Features: autocorr;average;sd;unique_value_count_relative
+  MinTimepoints: 3
+  MinSubjects: 3
+  MaxShareMissing: 0.5
+  ScoringMethod: ks
+  PadjustMethod: fdr
+  Seed: 20260813
+spec:
+  Mapped_DM:
+    USUBJID:
+      type: character
+    SITEID:
+      type: character
+    COUNTRY:
+      type: character
+  Mapped_VS:
+    USUBJID:
+      type: character
+    VSTESTCD:
+      type: character
+    VSTEST:
+      type: character
+    VSSTRESN:
+      type: numeric
+    VISIT:
+      type: character
+    VISITNUM:
+      type: numeric
+steps:
+  - output: Temp_CTAS_Subjects
+    name: gsm.ctas::Input_Subjects
+    params:
+      dfDM: Mapped_DM
+      strSubjectCol: USUBJID
+      strSiteCol: SITEID
+      strCountryCol: COUNTRY
+  - output: Temp_CTAS_VS
+    name: gsm.ctas::Input_Numeric
+    params:
+      dfDomain: Mapped_VS
+      strSubjectCol: USUBJID
+      strTestCDCol: VSTESTCD
+      strTestCol: VSTEST
+      strValueCol: VSSTRESN
+      strVisitCol: VISIT
+      strVisitNumCol: VISITNUM
+      strExcludePattern: unsch
+      strCategory: Vital Signs
+      strPrefix: VS
+  - output: Temp_CTAS_Input
+    name: gsm.ctas::Combine_CTAS_Input
+    params:
+      dfVS: Temp_CTAS_VS
+      dfSubjects: Temp_CTAS_Subjects
+  - output: Temp_CTAS_Result
+    name: gsm.ctas::Analyze_CTAS
+    params:
+      lInput: Temp_CTAS_Input
+      strFeatures: Features
+      nMinTimepoints: MinTimepoints
+      nMinSubjects: MinSubjects
+      dMaxShareMissing: MaxShareMissing
+      strScoringMethod: ScoringMethod
+      strPadjustMethod: PadjustMethod
+      nSeed: Seed
+  - output: Mapped_CTAS_SiteScores
+    name: "[["
+    params:
+      x: Temp_CTAS_Result
+      i: site_scores

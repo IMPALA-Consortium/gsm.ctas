@@ -1,0 +1,25 @@
+meta:
+  Type: Mapped
+  ID: VS
+  Description: SDTM VS (Vital Signs) Data Mapping
+  Priority: 1
+spec:
+  Raw_VS:
+    USUBJID:
+      type: character
+    VSTESTCD:
+      type: character
+    VSTEST:
+      type: character
+    VSSTRESN:
+      type: numeric
+    VISIT:
+      type: character
+    VISITNUM:
+      type: numeric
+steps:
+  - output: Mapped_VS
+    name: workr::RunQuery
+    params:
+      df: Raw_VS
+      strQuery: "SELECT * FROM df"

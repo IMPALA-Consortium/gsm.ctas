@@ -19,6 +19,6 @@ reference:
 - title: Analysis
   desc: Run CTAS and bridge into the gsm analysis contract.
   contents:
-  # Summarize_CTAS (WP4) and Flag_CTAS (WP5) get added here in the same commit
-  # that adds the functions; listing them early breaks the pkgdown build.
   - Analyze_CTAS
+  - Summarize_CTAS
+  - Flag_CTAS
