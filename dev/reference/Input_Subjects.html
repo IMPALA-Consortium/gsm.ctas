@@ -87,10 +87,10 @@ country vector. Overrides <code>strCountryCol</code> when supplied.</p></dd>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
-    <p>The country derivation is parameterised rather than hard-coded. PDQRM derives
-country from characters 11-13 of the site identifier; that is a sponsor
-convention, not a property of SDTM, so it must be supplied by the caller via
-<code>fnCountry</code> instead of being inherited.</p>
+    <p>The country derivation is parameterised rather than hard-coded. Deriving
+country from a substring of the site identifier is a sponsor convention, not
+a property of SDTM, so it must be supplied by the caller via <code>fnCountry</code>
+instead of being assumed.</p>
     </div>
 
     <div class="section level2">

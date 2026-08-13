@@ -1,8 +1,8 @@
 # Filter a domain to the visits of interest
 
 Applied before any CTAS timeseries is constructed. Both patterns are
-deliberately parameterised: sponsors encode scheduled visits differently
-(e.g. `"^SCHED_VISIT_"`), so the defaults must stay permissive and any
+deliberately parameterised: sponsors encode scheduled visits
+differently, so the defaults must stay permissive and any
 sponsor-specific convention must be supplied through the workflow YAML
 rather than baked into the mapping layer.
 

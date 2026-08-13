@@ -51,10 +51,10 @@ Input_Subjects(
 
 ## Details
 
-The country derivation is parameterised rather than hard-coded. PDQRM
-derives country from characters 11-13 of the site identifier; that is a
-sponsor convention, not a property of SDTM, so it must be supplied by
-the caller via `fnCountry` instead of being inherited.
+The country derivation is parameterised rather than hard-coded. Deriving
+country from a substring of the site identifier is a sponsor convention,
+not a property of SDTM, so it must be supplied by the caller via
+`fnCountry` instead of being assumed.
 
 ## Examples
 

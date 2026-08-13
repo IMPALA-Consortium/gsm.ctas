@@ -49,3 +49,9 @@ Run CTAS and bridge into the gsm analysis contract.
 - [`Analyze_CTAS()`](Analyze_CTAS.md) : Run the CTAS engine over a
   combined study input
 
+- [`Summarize_CTAS()`](Summarize_CTAS.md) :
+
+  Aggregate CTAS site scores into the gsm `Analysis_Analyzed` contract
+
+- [`Flag_CTAS()`](Flag_CTAS.md) : Flag aggregated CTAS scores
+
