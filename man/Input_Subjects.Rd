@@ -37,10 +37,10 @@ CTAS requires one row per subject carrying the grouping variables it uses as
 reference groups: \code{site}, \code{country} and \code{region}.
 }
 \details{
-The country derivation is parameterised rather than hard-coded. PDQRM derives
-country from characters 11-13 of the site identifier; that is a sponsor
-convention, not a property of SDTM, so it must be supplied by the caller via
-\code{fnCountry} instead of being inherited.
+The country derivation is parameterised rather than hard-coded. Deriving
+country from a substring of the site identifier is a sponsor convention, not
+a property of SDTM, so it must be supplied by the caller via \code{fnCountry}
+instead of being assumed.
 }
 \examples{
 Input_Subjects(data.frame(
