@@ -22,8 +22,10 @@ Imports:
     dplyr,
     purrr,
     rlang,
-    tidyr
+    tidyr,
+    utils
 Suggests:
+    arrow,
     gsm.core,
     gsm.kri,
     gsm.mapping,

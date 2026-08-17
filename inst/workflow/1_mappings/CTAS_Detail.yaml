@@ -1,0 +1,16 @@
+meta:
+  Type: Mapped
+  ID: CTAS_Detail
+  Description: Timeseries-level CTAS detail retained for ctasapp drill-down
+  # Runs after CTAS_SiteScores, whose output it labels. Nothing in gsm consumes
+  # this object: it is a parallel output of the same CTAS run, kept so that a
+  # site flagged in the KRI report can be investigated in the ctasapp
+  # dashboard, which reads timeseries-level data the aggregation discards.
+  Priority: 5
+spec: {}
+steps:
+  - output: Mapped_CTAS_Detail
+    name: gsm.ctas::Combine_CTAS_Detail
+    params:
+      dfScores: Mapped_CTAS_SiteScores
+      lInput: Mapped_CTAS_Input

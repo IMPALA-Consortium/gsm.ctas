@@ -16,6 +16,40 @@ test_that("one CTAS run covers all three parameter families", {
   expect_setequal(vPrefix, c("VS", "LB_NORM", "LB_MISS"))
 })
 
+test_that("the mapping layer emits the ctasapp drill-down detail object", {
+  lDetail <- lMapped$Mapped_CTAS_Detail
+
+  expect_named(lDetail, c("Results", "Input", "Untransformed"))
+  # ctasapp's mandatory results contract, which the aggregated gsm output does
+  # not satisfy.
+  expect_true(all(
+    c("site", "timeseries_id", "parameter_id", "feature",
+      "fdr_corrected_pvalue_logp") %in% names(lDetail$Results)
+  ))
+  expect_true(all(
+    c("subject_id", "site", "parameter_id", "parameter_name",
+      "parameter_category_3", "timepoint_1_name", "timepoint_rank",
+      "result") %in% names(lDetail$Input)
+  ))
+  expect_gt(nrow(lDetail$Untransformed), 0)
+})
+
+test_that("every group flagged in the report can be traced to its timeseries", {
+  # The drill-down path: a GroupID in Analysis_Flagged must be resolvable to the
+  # timeseries and parameters that produced its score.
+  vGroups <- unique(lAnalysis$Analysis_ctas0002$Analysis_Flagged$GroupID)
+  vGroups <- vGroups[vGroups %in% lMapped$Mapped_CTAS_Detail$Results$site]
+
+  expect_gt(length(vGroups), 0)
+
+  dfHits <- lMapped$Mapped_CTAS_Detail$Results[
+    lMapped$Mapped_CTAS_Detail$Results$site %in% vGroups,
+  ]
+
+  expect_gt(nrow(dfHits), 0)
+  expect_true(all(dfHits$parameter_id %in% lMapped$Mapped_CTAS_Detail$Input$parameter_id))
+})
+
 test_that("the mapping layer produces the group metadata the report needs", {
   expect_setequal(names(lMapped$Mapped_SITE), c("GroupID", "Param", "Value", "GroupLevel"))
   expect_setequal(unique(lMapped$Mapped_SITE$GroupLevel), "Site")
