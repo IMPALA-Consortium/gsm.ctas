@@ -1,0 +1,74 @@
+meta:
+  Type: Analysis
+  ID: ctas0010
+  GroupLevel: Site
+  Abbreviation: CTASLMSD
+  Metric: CTAS Labs Missingness Standard Deviation
+  Numerator: Triggered Timeseries
+  Denominator: Evaluated Timeseries
+  Model: CTAS Anomaly Detection
+  Score: FDR-Corrected -log10(p)
+  AnalysisType: identity
+  Threshold: 0.842, 2.326
+  Feature: sd
+  Domain: "Labs"
+  Transformation: "ratio_missing"
+  TriggerHigh: 2.326
+  TriggerLow: 0.842
+spec:
+  Mapped_SITE:
+    GroupID:
+      type: character
+  Mapped_CTAS_SiteScores:
+    site:
+      type: character
+    parameter_category_1:
+      type: character
+    parameter_category_3:
+      type: character
+    feature:
+      type: character
+    fdr_corrected_pvalue_logp:
+      type: numeric
+steps:
+  - output: Temp_GroupIDs
+    name: workr::RunQuery
+    params:
+      df: Mapped_SITE
+      strQuery: "SELECT DISTINCT GroupID FROM df"
+  - output: vGroupIDs
+    name: dplyr::pull
+    params:
+      .data: Temp_GroupIDs
+      var: GroupID
+  - output: vThreshold
+    name: gsm.core::ParseThreshold
+    params:
+      strThreshold: Threshold
+  - output: Analysis_Analyzed
+    name: gsm.ctas::Summarize_CTAS
+    params:
+      dfSiteScores: Mapped_CTAS_SiteScores
+      strFeature: Feature
+      strGroupLevel: GroupLevel
+      strDomain: Domain
+      strTransformation: Transformation
+      vGroupIDs: vGroupIDs
+      dHigh: TriggerHigh
+      dLow: TriggerLow
+  - output: Analysis_Flagged
+    name: gsm.ctas::Flag_CTAS
+    params:
+      dfAnalyzed: Analysis_Analyzed
+      vThreshold: vThreshold
+  - output: Analysis_Summary
+    name: gsm.core::Summarize
+    params:
+      dfFlagged: Analysis_Flagged
+  - output: lAnalysis
+    name: list
+    params:
+      ID: ID
+      Analysis_Analyzed: Analysis_Analyzed
+      Analysis_Flagged: Analysis_Flagged
+      Analysis_Summary: Analysis_Summary

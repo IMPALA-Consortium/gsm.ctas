@@ -31,19 +31,19 @@ test_that("Reporting_Results stacks every metric and meets the column contract",
     ) %in% names(dfResults)
   ))
 
-  expect_setequal(
-    unique(dfResults$MetricID),
-    paste0("Analysis_ctas", c("0001", "0002", "0003", "0004"))
-  )
+  expect_setequal(unique(dfResults$MetricID), paste0("Analysis_", vMetricIDs))
   expect_setequal(unique(dfResults$GroupLevel), "Site")
-  expect_equal(nrow(dfResults), 4 * dplyr::n_distinct(dmSmall$SITEID))
+  expect_equal(
+    nrow(dfResults),
+    length(vMetricIDs) * dplyr::n_distinct(dmSmall$SITEID)
+  )
   expect_length(unique(dfResults$StudyID), 1)
 })
 
 test_that("Reporting_Metrics exposes the metadata the report labels with", {
   dfMetrics <- lReporting$Reporting_Metrics
 
-  expect_equal(nrow(dfMetrics), 4)
+  expect_equal(nrow(dfMetrics), length(vMetricIDs))
   expect_true(all(
     c("MetricID", "GroupLevel", "Metric", "Threshold", "AnalysisType") %in%
       names(dfMetrics)
@@ -113,15 +113,31 @@ test_that("the report module wires DropChart between MakeCharts and Report_KRI",
 })
 
 test_that("Denominator counts evaluated timeseries, not participants", {
-  # The scatter plot is dropped from the report module because of this: the
-  # denominator is a coverage count that is normally identical across sites, so
-  # plotting it on x collapses every point onto one position.
+  # The scatter plot is dropped from the report module because of this: within a
+  # metric the denominator is a coverage count that is identical across sites, so
+  # plotting it on x collapses every point onto one position. It varies *between*
+  # metrics only because the parameter families have different sizes.
   dfResults <- lReporting$Reporting_Results
 
-  expect_length(unique(dfResults$Denominator), 1)
+  dfPerMetric <- dfResults |>
+    dplyr::summarise(N = dplyr::n_distinct(.data$Denominator), .by = "MetricID")
+  expect_true(all(dfPerMetric$N == 1))
+
+  # VS contributes one timeseries per parameter. Labs contribute two, because
+  # CTAS autogenerates a separate timeseries per timepoint combination and lab
+  # visit schedules differ between subjects where vital-signs ones do not. So
+  # the denominator is a count of timeseries, not of parameters or of tests.
   expect_equal(
-    unique(dfResults$Denominator),
+    unique(dfResults$Denominator[dfResults$MetricID == "Analysis_ctas0001"]),
     dplyr::n_distinct(vsSmall$VSTESTCD)
+  )
+  expect_equal(
+    unique(dfResults$Denominator[dfResults$MetricID == "Analysis_ctas0006"]),
+    dplyr::n_distinct(
+      lMapped$Mapped_CTAS_SiteScores$timeseries_id[
+        grepl("^LB_NORM_", lMapped$Mapped_CTAS_SiteScores$parameter_id)
+      ]
+    )
   )
 
   # It is a count of timeseries, so it must not track participant count.

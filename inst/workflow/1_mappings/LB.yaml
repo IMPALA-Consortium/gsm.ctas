@@ -1,0 +1,29 @@
+meta:
+  Type: Mapped
+  ID: LB
+  Description: SDTM LB (Laboratory Test Results) Data Mapping
+  Priority: 1
+spec:
+  Raw_LB:
+    USUBJID:
+      type: character
+    LBTESTCD:
+      type: character
+    LBTEST:
+      type: character
+    LBSTRESN:
+      type: numeric
+    LBSTNRLO:
+      type: numeric
+    LBSTNRHI:
+      type: numeric
+    VISIT:
+      type: character
+    VISITNUM:
+      type: numeric
+steps:
+  - output: Mapped_LB
+    name: workr::RunQuery
+    params:
+      df: Raw_LB
+      strQuery: "SELECT * FROM df"

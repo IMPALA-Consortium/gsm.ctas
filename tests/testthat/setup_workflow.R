@@ -1,14 +1,19 @@
 # Shared end-to-end workflow run for test_workflow.R.
 #
 # `ctas::process_a_study()` is expensive, so the run is deliberately restricted
-# to the same small slice used to build `fixtures/ctas_result.rds`: 6 sites and
-# 3 vital-signs parameters.
+# to a small slice: 6 sites, 3 vital-signs parameters and 3 lab tests. The lab
+# domain is mapped twice, as range-normalised values and as missingness, so the
+# slice exercises all three parameter families.
 
 vSites <- sort(unique(pharmaversesdtm::dm$SITEID))[1:6]
 dmSmall <- pharmaversesdtm::dm[pharmaversesdtm::dm$SITEID %in% vSites, ]
 vsSmall <- pharmaversesdtm::vs[
   pharmaversesdtm::vs$USUBJID %in% dmSmall$USUBJID &
     pharmaversesdtm::vs$VSTESTCD %in% c("SYSBP", "DIABP", "PULSE"),
+]
+lbSmall <- pharmaversesdtm::lb[
+  pharmaversesdtm::lb$USUBJID %in% dmSmall$USUBJID &
+    pharmaversesdtm::lb$LBTESTCD %in% c("ALB", "BILI", "CREAT"),
 ]
 
 lMappingWorkflows <- workr::MakeWorkflowList(
@@ -23,9 +28,15 @@ lMetricWorkflows <- workr::MakeWorkflowList(
   strPackage = NULL
 )
 
+# 4 VS features + 4 range-normalised lab features + 3 lab missingness features.
+# Missingness gets three rather than four because CTAS returns no `autocorr` for
+# those timeseries.
+vMetricIDs <- sprintf("ctas%04d", 1:11)
+
 lRaw <- list(
   Raw_DM = as.data.frame(dmSmall),
-  Raw_VS = as.data.frame(vsSmall)
+  Raw_VS = as.data.frame(vsSmall),
+  Raw_LB = as.data.frame(lbSmall)
 )
 
 lIngest <- gsm.mapping::Ingest(lRaw, gsm.mapping::CombineSpecs(lMappingWorkflows))

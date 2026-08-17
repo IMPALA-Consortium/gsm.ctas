@@ -9,6 +9,12 @@
 devtools::load_all(quiet = TRUE)
 
 # A small but non-degenerate slice: 6 sites, 3 vital-signs parameters.
+#
+# Deliberately VS-only, even though the workflow now also maps LB. This fixture
+# exists to make the `Analyze_CTAS()` / `Summarize_CTAS()` unit tests cheap, and
+# a single domain is enough for that. Multi-domain behaviour - in particular the
+# parameter filtering each metric relies on - is covered end to end in
+# `test_workflow.R`, which runs the engine over VS and both lab views.
 vs <- pharmaversesdtm::vs
 dm <- pharmaversesdtm::dm
 
@@ -20,10 +26,10 @@ vsSmall <- vs[
 
 lInput <- Combine_CTAS_Input(
   Input_Numeric(vsSmall),
-  dfSubjects = Input_Subjects(dmSmall)
-)
-
-lCTAS <- Analyze_CTAS(lInput, nSeed = 20260813)
+  Input_Range(lbSmall),
+  Input_Missing(lbSmall),
+  Input_Numeric(vsSmall),
+  dfSubjectslyze_CTAS(lInput, nSeed = 20260813)
 
 saveRDS(
   list(input = lInput, result = lCTAS),
