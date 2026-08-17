@@ -1,0 +1,20 @@
+meta:
+  Type: Reporting
+  ID: Groups
+  Description: Reporting Groups Data
+  Priority: 1
+  Active: true
+spec:
+  Mapped_STUDY:
+    _all:
+      required: true
+  Mapped_SITE:
+    _all:
+      required: true
+steps:
+  # gsm.ctas v1 scores each site against all others, so no COUNTRY level is bound.
+  - output: Reporting_Groups
+    name: dplyr::bind_rows
+    params:
+      Study: Mapped_STUDY
+      Site: Mapped_SITE

@@ -23,6 +23,7 @@ steps:
           SITEID as GroupID,
           MAX(STUDYID) as StudyID,
           MAX(COUNTRY) as Country,
+          SITEID as InvestigatorLastName,
           COUNT(DISTINCT USUBJID) as ParticipantCount
         FROM df
         GROUP BY SITEID

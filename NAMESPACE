@@ -2,6 +2,7 @@
 
 export(Analyze_CTAS)
 export(Combine_CTAS_Input)
+export(DropChart)
 export(Flag_CTAS)
 export(Input_Missing)
 export(Input_Numeric)

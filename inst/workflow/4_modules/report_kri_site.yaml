@@ -1,0 +1,69 @@
+meta:
+  Type: Report
+  ID: report_kri_site
+  Output: html
+  Name: Site-Level CTAS Key Risk Indicator Report
+  Description: A report summarizing CTAS anomaly detection key risk indicators at the site level
+  Active: true
+spec:
+  # No `Reporting_Input`: CTAS has no subject-level numerator/denominator, and the
+  # stock gsm.kri report does not consume one.
+  Reporting_Results:
+    _all:
+      required: true
+    Numerator:
+      type: numeric
+    Denominator:
+      type: numeric
+    Metric:
+      type: numeric
+    Score:
+      type: numeric
+    Flag:
+      type: numeric
+  Reporting_Metrics:
+    _all:
+      required: true
+  Reporting_Groups:
+    _all:
+      required: true
+steps:
+  - output: Reporting_Results_Site
+    name: workr::RunQuery
+    params:
+      df: Reporting_Results
+      strQuery: "SELECT * FROM df WHERE GroupLevel == 'Site'"
+  - output: Reporting_Metrics_Site
+    name: workr::RunQuery
+    params:
+      df: Reporting_Metrics
+      strQuery: "SELECT * FROM df WHERE GroupLevel == 'Site'"
+  # `dfBounds` is null: every gsm.ctas metric uses an identity AnalysisType, for
+  # which `MakeBounds()` returns no rows, and `Visualize_Metric()` cannot consume an
+  # empty frame. `Reporting_Bounds` is still produced in 3_reporting so a study
+  # adding rate-type metrics only has to change this one parameter.
+  - output: lCharts_Site_All
+    name: gsm.kri::MakeCharts
+    params:
+      dfResults: Reporting_Results_Site
+      dfGroups: Reporting_Groups
+      dfBounds: null
+      dfMetrics: Reporting_Metrics_Site
+  # Drop the scatter plot. It plots Denominator (x) against Numerator (y), but for
+  # CTAS the denominator is the count of timeseries evaluated for the feature, which
+  # is the same for every site unless a site is missing a parameter entirely. The
+  # points therefore collapse onto one or two x positions and the chart implies a
+  # site-size relationship that is not there. The bar chart and KRI table carry the
+  # same information on a scale that is meaningful.
+  - output: lCharts_Site
+    name: gsm.ctas::DropChart
+    params:
+      lCharts: lCharts_Site_All
+      strChart: scatterPlot
+  - output: lReport
+    name: gsm.kri::Report_KRI
+    params:
+      lCharts: lCharts_Site
+      dfResults: Reporting_Results_Site
+      dfGroups: Reporting_Groups
+      dfMetrics: Reporting_Metrics_Site

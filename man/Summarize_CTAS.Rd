@@ -46,6 +46,12 @@ Groups with no evaluated timeseries for the feature are retained with
 not silently drop them. Supply \code{vGroupIDs} to complete the grid against a
 known group list; otherwise only groups present in \code{dfSiteScores} appear.
 
+\code{Denominator} counts the timeseries evaluated for the feature, not
+participants. Every site is normally assessed on the same timeseries, so the
+denominator is usually constant across sites and varies only where a site
+contributes no data at all for a parameter. It is a coverage denominator, not
+an exposure one, and should not be read as site size.
+
 The default thresholds \code{2.326} / \code{0.842} are drawn from experience rather
 than derived. They are one-sided normal z-quantiles (99\% / 80\%) applied to a
 -log10(p) scale, where they correspond to p = 0.0047 and p = 0.144. Override
