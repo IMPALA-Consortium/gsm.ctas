@@ -20,5 +20,6 @@ reference:
   desc: Run CTAS and bridge into the gsm analysis contract.
   contents:
   - Analyze_CTAS
+  - Combine_CTAS_Scores
   - Summarize_CTAS
   - Flag_CTAS

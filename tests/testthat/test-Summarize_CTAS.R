@@ -80,6 +80,158 @@ test_that("CountTriggered can count other categories and group columns", {
   )
 })
 
+# --- FilterParameters ---------------------------------------------------------
+
+MakeMultiDomainScores <- function() {
+  dplyr::tibble(
+    timeseries_id = c("ts1", "ts2", "ts3"),
+    site = c("001", "001", "001"),
+    country = "USA",
+    parameter_id = c("VS_SYSBP", "LB_NORM_ALB", "LB_MISS_ALB"),
+    parameter_category_1 = c("Vital Signs", "Labs", "Labs"),
+    parameter_category_3 = c("numeric", "range_normalized", "ratio_missing"),
+    feature = "average",
+    fdr_corrected_pvalue_logp = c(3.0, 0.5, 1.0)
+  )
+}
+
+test_that("FilterParameters is a no-op without a selector", {
+  # Single-domain studies must keep working without any parameter columns.
+  dfScores <- MakeSiteScores()
+
+  expect_equal(FilterParameters(dfScores), dfScores)
+  expect_equal(FilterParameters(dfScores, strParameterPattern = NULL), dfScores)
+})
+
+test_that("FilterParameters selects one family on the category pair", {
+  dfLabs <- FilterParameters(
+    MakeMultiDomainScores(),
+    strDomain = "Labs", strTransformation = "ratio_missing"
+  )
+
+  expect_equal(dfLabs$parameter_id, "LB_MISS_ALB")
+})
+
+test_that("FilterParameters requires both categories", {
+  # Neither identifies a family alone: category_3 is "numeric" for every plain
+  # numeric domain, and category_1 is "Labs" for both lab views.
+  expect_error(
+    FilterParameters(MakeMultiDomainScores(), strDomain = "Labs"),
+    "together"
+  )
+  expect_error(
+    FilterParameters(MakeMultiDomainScores(), strTransformation = "numeric"),
+    "together"
+  )
+})
+
+test_that("FilterParameters explains how to recover missing categories", {
+  # CTAS drops them, so the fix is upstream in Combine_CTAS_Scores().
+  expect_error(
+    FilterParameters(
+      MakeSiteScores(), strDomain = "Labs", strTransformation = "numeric"
+    ),
+    "Combine_CTAS_Scores"
+  )
+})
+
+test_that("FilterParameters rejects a category pair that matches nothing", {
+  # An empty result would present every site as unevaluated, which is
+  # indistinguishable from a genuinely absent domain.
+  expect_error(
+    FilterParameters(
+      MakeMultiDomainScores(), strDomain = "ECG", strTransformation = "numeric"
+    ),
+    "No parameter"
+  )
+})
+
+test_that("FilterParameters refuses both selectors at once", {
+  expect_error(
+    FilterParameters(
+      MakeMultiDomainScores(),
+      strDomain = "Labs", strTransformation = "ratio_missing",
+      strParameterPattern = "^LB_MISS_"
+    ),
+    "not both"
+  )
+})
+
+test_that("FilterParameters still supports the parameter_id pattern", {
+  expect_equal(
+    FilterParameters(
+      MakeMultiDomainScores(), strParameterPattern = "^LB_NORM_"
+    )$parameter_id,
+    "LB_NORM_ALB"
+  )
+
+  # "^LB_" straddles both lab families - the reason the categories are preferred.
+  expect_equal(
+    nrow(FilterParameters(MakeMultiDomainScores(), strParameterPattern = "^LB_")),
+    2
+  )
+})
+
+test_that("FilterParameters requires parameter_id when a pattern is given", {
+  expect_error(
+    FilterParameters(MakeSiteScores(), strParameterPattern = "^VS_"),
+    "parameter_id"
+  )
+})
+
+test_that("FilterParameters rejects a pattern that matches nothing", {
+  expect_error(
+    FilterParameters(MakeMultiDomainScores(), strParameterPattern = "^RS_"),
+    "No parameter"
+  )
+})
+
+test_that("FilterParameters validates its selector arguments", {
+  expect_error(
+    FilterParameters(MakeMultiDomainScores(), strParameterPattern = 1),
+    "single string"
+  )
+  expect_error(
+    FilterParameters(
+      MakeMultiDomainScores(),
+      strDomain = c("Labs", "Vital Signs"), strTransformation = "numeric"
+    ),
+    "single string"
+  )
+})
+
+test_that("Summarize_CTAS restricts the metric to one parameter family", {
+  # Without this, a study mapping VS and LB would give the same score to every
+  # "average" metric, because one CTAS run covers all domains at once.
+  dfAll <- Summarize_CTAS(MakeMultiDomainScores(), strFeature = "average")
+  dfVS <- Summarize_CTAS(
+    MakeMultiDomainScores(),
+    strFeature = "average", strDomain = "Vital Signs", strTransformation = "numeric"
+  )
+
+  expect_equal(dfAll$Denominator, 3)
+  expect_equal(dfVS$Denominator, 1)
+  expect_equal(dfVS$Score, 3.0)
+  expect_equal(dfVS$Numerator, 1)
+})
+
+test_that("Summarize_CTAS separates the two lab views of the same domain", {
+  # Both are parameter_category_1 == "Labs"; only category_3 tells them apart.
+  dfNorm <- Summarize_CTAS(
+    MakeMultiDomainScores(),
+    strFeature = "average", strDomain = "Labs", strTransformation = "range_normalized"
+  )
+  dfMiss <- Summarize_CTAS(
+    MakeMultiDomainScores(),
+    strFeature = "average", strDomain = "Labs", strTransformation = "ratio_missing"
+  )
+
+  expect_equal(dfNorm$Denominator, 1)
+  expect_equal(dfNorm$Score, 0.5)
+  expect_equal(dfMiss$Denominator, 1)
+  expect_equal(dfMiss$Score, 1.0)
+})
+
 # --- Summarize_CTAS -----------------------------------------------------------
 
 test_that("Summarize_CTAS returns the Analysis_Analyzed contract", {

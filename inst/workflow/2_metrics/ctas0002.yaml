@@ -11,6 +11,8 @@ meta:
   AnalysisType: identity
   Threshold: 0.842, 2.326
   Feature: average
+  Domain: "Vital Signs"
+  Transformation: "numeric"
   TriggerHigh: 2.326
   TriggerLow: 0.842
 spec:
@@ -19,6 +21,10 @@ spec:
       type: character
   Mapped_CTAS_SiteScores:
     site:
+      type: character
+    parameter_category_1:
+      type: character
+    parameter_category_3:
       type: character
     feature:
       type: character
@@ -45,6 +51,8 @@ steps:
       dfSiteScores: Mapped_CTAS_SiteScores
       strFeature: Feature
       strGroupLevel: GroupLevel
+      strDomain: Domain
+      strTransformation: Transformation
       vGroupIDs: vGroupIDs
       dHigh: TriggerHigh
       dLow: TriggerLow

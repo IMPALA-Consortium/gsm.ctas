@@ -31,6 +31,23 @@ spec:
       type: character
     VISITNUM:
       type: numeric
+  Mapped_LB:
+    USUBJID:
+      type: character
+    LBTESTCD:
+      type: character
+    LBTEST:
+      type: character
+    LBSTRESN:
+      type: numeric
+    LBSTNRLO:
+      type: numeric
+    LBSTNRHI:
+      type: numeric
+    VISIT:
+      type: character
+    VISITNUM:
+      type: numeric
 steps:
   - output: Temp_CTAS_Subjects
     name: gsm.ctas::Input_Subjects
@@ -52,10 +69,45 @@ steps:
       strExcludePattern: unsch
       strCategory: Vital Signs
       strPrefix: VS
+  # Labs are mapped twice from the same domain, because the two questions are
+  # different: LB_NORM asks whether a site's *values* deviate once the reference
+  # range has made tests comparable, LB_MISS asks whether its *completeness*
+  # does. The value-based input drops missing results, so it cannot see the
+  # second.
+  - output: Temp_CTAS_LB_Range
+    name: gsm.ctas::Input_Range
+    params:
+      dfDomain: Mapped_LB
+      strSubjectCol: USUBJID
+      strTestCDCol: LBTESTCD
+      strTestCol: LBTEST
+      strValueCol: LBSTRESN
+      strLowCol: LBSTNRLO
+      strHighCol: LBSTNRHI
+      strVisitCol: VISIT
+      strVisitNumCol: VISITNUM
+      strExcludePattern: unsch
+      strCategory: Labs
+      strPrefix: LB_NORM
+  - output: Temp_CTAS_LB_Missing
+    name: gsm.ctas::Input_Missing
+    params:
+      dfDomain: Mapped_LB
+      strSubjectCol: USUBJID
+      strTestCDCol: LBTESTCD
+      strTestCol: LBTEST
+      strValueCol: LBSTRESN
+      strVisitCol: VISIT
+      strVisitNumCol: VISITNUM
+      strExcludePattern: unsch
+      strCategory: Labs
+      strPrefix: LB_MISS
   - output: Temp_CTAS_Input
     name: gsm.ctas::Combine_CTAS_Input
     params:
       dfVS: Temp_CTAS_VS
+      dfLBRange: Temp_CTAS_LB_Range
+      dfLBMissing: Temp_CTAS_LB_Missing
       dfSubjects: Temp_CTAS_Subjects
   - output: Temp_CTAS_Result
     name: gsm.ctas::Analyze_CTAS
@@ -68,8 +120,12 @@ steps:
       strScoringMethod: ScoringMethod
       strPadjustMethod: PadjustMethod
       nSeed: Seed
+  # `site_scores` alone no longer identifies a metric: one CTAS run now covers
+  # vital signs and both lab views, so "average" spans all three. Pass the input
+  # as well as the result, because CTAS returns neither `parameter_id` (which is
+  # on `timeseries`) nor the parameter categories (which it drops entirely).
   - output: Mapped_CTAS_SiteScores
-    name: "[["
+    name: gsm.ctas::Combine_CTAS_Scores
     params:
-      x: Temp_CTAS_Result
-      i: site_scores
+      lResult: Temp_CTAS_Result
+      lInput: Temp_CTAS_Input
