@@ -37,3 +37,26 @@ lMapped <- suppressWarnings(
 )
 
 lAnalysis <- gsm.core::RunWorkflows(lWorkflows = lMetricWorkflows, lData = lMapped)
+
+lReportingWorkflows <- workr::MakeWorkflowList(
+  strNames = NULL,
+  strPath = system.file("workflow/3_reporting", package = "gsm.ctas"),
+  strPackage = NULL
+)
+
+lReporting <- gsm.core::RunWorkflows(
+  lWorkflows = lReportingWorkflows,
+  lData = c(
+    lMapped,
+    list(
+      lAnalyzed = lAnalysis,
+      lWorkflows = lMetricWorkflows
+    )
+  )
+)
+
+lModuleWorkflows <- workr::MakeWorkflowList(
+  strNames = NULL,
+  strPath = system.file("workflow/4_modules", package = "gsm.ctas"),
+  strPackage = NULL
+)

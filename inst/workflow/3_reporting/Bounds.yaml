@@ -1,0 +1,32 @@
+meta:
+  Type: Reporting
+  ID: Bounds
+  Description: >-
+    Calculate bounds for scatter plot confidence intervals. All gsm.ctas metrics
+    use an identity AnalysisType, for which MakeBounds() returns no rows; the
+    step is retained so the stock gsm.kri report module runs unmodified.
+  Priority: 2
+  Active: true
+spec:
+  Reporting_Results:
+    _all:
+      required: true
+    Numerator:
+      type: numeric
+    Denominator:
+      type: numeric
+    Metric:
+      type: numeric
+    Score:
+      type: numeric
+    Flag:
+      type: numeric
+  Reporting_Metrics:
+    _all:
+      required: true
+steps:
+  - output: Reporting_Bounds
+    name: gsm.reporting::MakeBounds
+    params:
+      dfResults: Reporting_Results
+      dfMetrics: Reporting_Metrics

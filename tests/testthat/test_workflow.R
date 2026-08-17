@@ -37,7 +37,8 @@ test_that("each metric workflow returns the gsm lAnalysis contract", {
 })
 
 test_that("Analysis_Input and Analysis_Transformed are deliberately absent", {
-  # CTAS has no subject-level numerator/denominator; see PLAN.md 5a.
+  # CTAS scores a site as a whole against the rest of the study, so there is no
+  # subject-level numerator/denominator and nothing to transform.
   purrr::walk(lAnalysis, function(lResult) {
     expect_false("Analysis_Input" %in% names(lResult))
     expect_false("Analysis_Transformed" %in% names(lResult))
