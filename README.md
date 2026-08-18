@@ -1,9 +1,23 @@
 # gsm.ctas
 
 <!-- badges: start -->
-[![R-CMD-check](https://github.com/IMPALA-Consortium/gsm.ctas/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/IMPALA-Consortium/gsm.ctas/actions/workflows/R-CMD-check.yaml)
-[![test-coverage](https://github.com/IMPALA-Consortium/gsm.ctas/actions/workflows/test-coverage.yaml/badge.svg)](https://github.com/IMPALA-Consortium/gsm.ctas/actions/workflows/test-coverage.yaml)
-[![pkgdown](https://github.com/IMPALA-Consortium/gsm.ctas/actions/workflows/pkgdown-all.yaml/badge.svg)](https://github.com/IMPALA-Consortium/gsm.ctas/actions/workflows/pkgdown-all.yaml)
+
+<div class="pkgdown-release">
+
+[![R-CMD-check](https://github.com/IMPALA-Consortium/gsm.ctas/actions/workflows/R-CMD-check.yaml/badge.svg?branch=main)](https://github.com/IMPALA-Consortium/gsm.ctas/actions/workflows/R-CMD-check.yaml)
+[![test-coverage](https://github.com/IMPALA-Consortium/gsm.ctas/actions/workflows/test-coverage.yaml/badge.svg?branch=main)](https://github.com/IMPALA-Consortium/gsm.ctas/actions/workflows/test-coverage.yaml)
+[![pkgdown-all](https://github.com/IMPALA-Consortium/gsm.ctas/actions/workflows/pkgdown-all.yaml/badge.svg?branch=main)](https://github.com/IMPALA-Consortium/gsm.ctas/actions/workflows/pkgdown-all.yaml)
+
+</div>
+
+<div class="pkgdown-devel">
+
+[![R-CMD-check](https://github.com/IMPALA-Consortium/gsm.ctas/actions/workflows/R-CMD-check.yaml/badge.svg?branch=dev)](https://github.com/IMPALA-Consortium/gsm.ctas/actions/workflows/R-CMD-check.yaml)
+[![test-coverage](https://github.com/IMPALA-Consortium/gsm.ctas/actions/workflows/test-coverage.yaml/badge.svg?branch=dev)](https://github.com/IMPALA-Consortium/gsm.ctas/actions/workflows/test-coverage.yaml)
+[![pkgdown-all](https://github.com/IMPALA-Consortium/gsm.ctas/actions/workflows/pkgdown-all.yaml/badge.svg?branch=dev)](https://github.com/IMPALA-Consortium/gsm.ctas/actions/workflows/pkgdown-all.yaml)
+
+</div>
+
 <!-- badges: end -->
 
 `gsm.ctas` runs the [ctas](https://github.com/IMPALA-Consortium/ctas) clinical
