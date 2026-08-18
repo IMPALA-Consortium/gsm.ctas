@@ -15,7 +15,12 @@
     </button>
 
     <div id="navbar" class="collapse navbar-collapse ms-3">
-      <ul class="navbar-nav me-auto"><li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
+      <ul class="navbar-nav me-auto"><li class="nav-item dropdown">
+  <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
+  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/gsm-ctas.html">gsm.ctas end to end</a></li>
+  </ul></li>
+<li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
+<li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json"></form></li>
       </ul></div>
@@ -136,6 +141,13 @@
 
         <dt>
 
+          <code><a href="Combine_CTAS_Scores.html">Combine_CTAS_Scores()</a></code>
+
+        </dt>
+        <dd>Attach parameter identity and category to CTAS site scores</dd>
+
+        <dt>
+
           <code><a href="Summarize_CTAS.html">Summarize_CTAS()</a></code>
 
         </dt>
@@ -147,6 +159,61 @@
 
         </dt>
         <dd>Flag aggregated CTAS scores</dd>
+      </dl></div><div class="section level2">
+      <h2 id="reporting">Reporting<a class="anchor" aria-label="anchor" href="#reporting"></a></h2>
+
+      <div class="section-desc"><p>Adjust the stock gsm.kri report for CTAS metrics.</p></div>
+
+      <dl></dl></div><div class="section level2">
+
+
+
+
+      <dl><dt>
+
+          <code><a href="DropChart.html">DropChart()</a></code>
+
+        </dt>
+        <dd>Remove named charts from a <code>gsm.kri</code> chart list</dd>
+      </dl></div><div class="section level2">
+      <h2 id="drill-down">Drill-down<a class="anchor" aria-label="anchor" href="#drill-down"></a></h2>
+
+      <div class="section-desc"><p>Retain and export timeseries-level detail for the ctasapp dashboard.</p></div>
+
+      <dl></dl></div><div class="section level2">
+
+
+
+
+      <dl><dt>
+
+          <code><a href="Combine_CTAS_Detail.html">Combine_CTAS_Detail()</a></code>
+
+        </dt>
+        <dd>Assemble the timeseries-level detail object for <code>ctasapp</code> drill-down</dd>
+
+        <dt>
+
+          <code><a href="Write_CTAS_Detail.html">Write_CTAS_Detail()</a></code>
+
+        </dt>
+        <dd>Write the CTAS detail object to files <code>ctasapp</code> can load</dd>
+      </dl></div><div class="section level2">
+      <h2 id="package">Package<a class="anchor" aria-label="anchor" href="#package"></a></h2>
+
+
+
+      <dl></dl></div><div class="section level2">
+
+
+
+
+      <dl><dt>
+
+          <code><a href="gsm.ctas-package.html">gsm.ctas</a></code> <code><a href="gsm.ctas-package.html">gsm.ctas-package</a></code>
+
+        </dt>
+        <dd>gsm.ctas: Add CTAS Anomaly Detection to gsm</dd>
       </dl></div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside></div>

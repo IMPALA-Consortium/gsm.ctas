@@ -32,7 +32,14 @@
 
     <div id="navbar" class="collapse navbar-collapse ms-3">
       <ul class="navbar-nav me-auto">
+<li class="nav-item dropdown">
+  <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
+  <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
+<li><a class="dropdown-item" href="articles/gsm-ctas.html">gsm.ctas end to end</a></li>
+  </ul>
+</li>
 <li class="nav-item"><a class="nav-link" href="reference/index.html">Reference</a></li>
+<li class="nav-item"><a class="nav-link" href="news/index.html">Changelog</a></li>
       </ul>
 <ul class="navbar-nav">
 <li class="nav-item"><form class="form-inline" role="search">
@@ -45,8 +52,144 @@
   </div>
 </nav><div class="container template-home">
 <div class="row">
-  <main id="main" class="col-md-9">
-Integrates the 'ctas' clinical trial anomaly detection statistics engine into the Good Statistical Monitoring ('gsm') framework. Provides mappings from SDTM domains into the long-format input 'ctas' expects, data preparation by data type, and aggregation of 'ctas' site scores into the gsm analysis contract, together with declarative workflow YAML.
+  <main id="main" class="col-md-9"><div class="section level1">
+<div class="page-header"><h1 id="gsmctas">gsm.ctas<a class="anchor" aria-label="anchor" href="#gsmctas"></a>
+</h1></div>
+<!-- badges: start -->
+
+<p><code>gsm.ctas</code> runs the <a href="https://github.com/IMPALA-Consortium/ctas" class="external-link">ctas</a> clinical trial anomaly detection engine inside the <a href="https://github.com/Gilead-Public/gsm.core" class="external-link">gsm</a> workflow framework, so that CTAS site scores appear alongside the usual KRIs in a standard gsm site report.</p>
+<p>The two frameworks answer different questions. gsm KRIs count events against exposure – enrolment rate, AE rate, query age. CTAS instead compares the <em>distribution</em> of a site’s measurements against the rest of the study, and so detects patterns a rate-based metric cannot: values that are too consistent, too smooth over time, too rounded, or missing in a structured way. This package is the adapter that lets one report carry both.</p>
+<div class="section level2">
+<h2 id="installation">Installation<a class="anchor" aria-label="anchor" href="#installation"></a>
+</h2>
+<div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/install.packages.html" class="external-link">install.packages</a></span><span class="op">(</span><span class="st">"pak"</span><span class="op">)</span></span>
+<span><span class="fu">pak</span><span class="fu">::</span><span class="fu"><a href="https://pak.r-lib.org/reference/pak.html" class="external-link">pak</a></span><span class="op">(</span><span class="st">"IMPALA-Consortium/gsm.ctas"</span><span class="op">)</span></span></code></pre></div>
+<p>The gsm framework packages and <code>ctas</code> are declared in <code>Remotes</code> and will be pulled in automatically. They are <code>Suggests</code>, not <code>Imports</code>: the mapping and aggregation functions are usable on their own, and only the workflow layer needs the full framework.</p>
+</div>
+<div class="section level2">
+<h2 id="usage">Usage<a class="anchor" aria-label="anchor" href="#usage"></a>
+</h2>
+<p><code>gsm.ctas</code> ships all four gsm workflow layers in <code>inst/workflow/</code>, so a full run is a sequence of <code>RunWorkflows()</code> calls over SDTM input:</p>
+<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va">gsm.ctas</span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">lRaw</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
+<span>  Raw_DM <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/as.data.frame.html" class="external-link">as.data.frame</a></span><span class="op">(</span><span class="fu">pharmaversesdtm</span><span class="fu">::</span><span class="va"><a href="https://pharmaverse.github.io/pharmaversesdtm/reference/dm.html" class="external-link">dm</a></span><span class="op">)</span>,</span>
+<span>  Raw_VS <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/as.data.frame.html" class="external-link">as.data.frame</a></span><span class="op">(</span><span class="fu">pharmaversesdtm</span><span class="fu">::</span><span class="va"><a href="https://pharmaverse.github.io/pharmaversesdtm/reference/vs.html" class="external-link">vs</a></span><span class="op">)</span>,</span>
+<span>  Raw_LB <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/as.data.frame.html" class="external-link">as.data.frame</a></span><span class="op">(</span><span class="fu">pharmaversesdtm</span><span class="fu">::</span><span class="va"><a href="https://pharmaverse.github.io/pharmaversesdtm/reference/lb.html" class="external-link">lb</a></span><span class="op">)</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">lMappingWorkflows</span> <span class="op">&lt;-</span> <span class="fu">workr</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/workr/man/MakeWorkflowList.html" class="external-link">MakeWorkflowList</a></span><span class="op">(</span></span>
+<span>  strNames <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  strPath <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/system.file.html" class="external-link">system.file</a></span><span class="op">(</span><span class="st">"workflow/1_mappings"</span>, package <span class="op">=</span> <span class="st">"gsm.ctas"</span><span class="op">)</span>,</span>
+<span>  strPackage <span class="op">=</span> <span class="cn">NULL</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">lIngest</span> <span class="op">&lt;-</span> <span class="fu">gsm.mapping</span><span class="fu">::</span><span class="fu"><a href="https://gilead-public.github.io/gsm.mapping/reference/Ingest.html" class="external-link">Ingest</a></span><span class="op">(</span></span>
+<span>  <span class="va">lRaw</span>,</span>
+<span>  <span class="fu">gsm.mapping</span><span class="fu">::</span><span class="fu"><a href="https://gilead-public.github.io/gsm.mapping/reference/CombineSpecs.html" class="external-link">CombineSpecs</a></span><span class="op">(</span><span class="va">lMappingWorkflows</span><span class="op">)</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">lMapped</span> <span class="op">&lt;-</span> <span class="fu">gsm.core</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/gsm.core/man/RunWorkflows.html" class="external-link">RunWorkflows</a></span><span class="op">(</span><span class="va">lMappingWorkflows</span>, <span class="va">lIngest</span><span class="op">)</span></span></code></pre></div>
+<p><code>lMapped$Mapped_CTAS_SiteScores</code> is then filtered by each metric workflow in <code>2_metrics</code>, summarised into the gsm analysis contract, and rendered by the stock <code>gsm.kri</code> site report. The full path – including reporting and the rendered HTML – is in <code><a href="articles/gsm-ctas.html">vignette("gsm-ctas")</a></code>.</p>
+</div>
+<div class="section level2">
+<h2 id="how-it-fits-together">How it fits together<a class="anchor" aria-label="anchor" href="#how-it-fits-together"></a>
+</h2>
+<pre><code>lRaw --Ingest--&gt; lIngest --1_mappings--&gt; lMapped --2_metrics--&gt; lAnalysis
+     --3_reporting--&gt; Reporting_* --4_modules--&gt; HTML report</code></pre>
+<table class="table">
+<colgroup>
+<col width="50%">
+<col width="50%">
+</colgroup>
+<thead><tr>
+<th>Layer</th>
+<th>Contents</th>
+</tr></thead>
+<tbody>
+<tr>
+<td><code>1_mappings</code></td>
+<td>
+<code>DM</code>, <code>VS</code>, <code>LB</code>, <code>SITE</code>, <code>STUDY</code>, plus <code>CTAS_Input</code> -&gt; <code>CTAS_SiteScores</code> -&gt; <code>CTAS_Detail</code>
+</td>
+</tr>
+<tr>
+<td><code>2_metrics</code></td>
+<td>
+<code>ctas0001</code>-<code>ctas0011</code>, one per parameter family x CTAS feature</td>
+</tr>
+<tr>
+<td><code>3_reporting</code></td>
+<td>
+<code>Groups</code>, <code>Metrics</code>, <code>Results</code>, <code>Bounds</code>
+</td>
+</tr>
+<tr>
+<td><code>4_modules</code></td>
+<td><code>report_kri_site</code></td>
+</tr>
+</tbody>
+</table>
+<p>The key structural point is that CTAS is an <em>all-metrics-at-once</em> engine. A single <code><a href="https://rdrr.io/pkg/ctas/man/process_a_study.html" class="external-link">ctas::process_a_study()</a></code> call scores every timeseries x feature x site, so it runs <strong>once</strong>, in <code>1_mappings/CTAS_SiteScores.yaml</code>. Each metric workflow then merely filters that shared result down to one parameter family and one feature. Adding a metric is therefore a YAML change, not a code change.</p>
+</div>
+<div class="section level2">
+<h2 id="extending">Extending<a class="anchor" aria-label="anchor" href="#extending"></a>
+</h2>
+<p>Both common customisations are config-only and are documented in the vignette:</p>
+<ul>
+<li>
+<strong>Thresholds</strong> are exposed the gsm-native way, through <code>meta</code> and <code>ParseThreshold</code> in each metric YAML.</li>
+<li>
+<strong>New metrics</strong> are added by copying a metric YAML and changing the <code>Feature</code>, <code>Domain</code> and <code>Transformation</code> fields.</li>
+</ul>
+</div>
+<div class="section level2">
+<h2 id="related-packages">Related packages<a class="anchor" aria-label="anchor" href="#related-packages"></a>
+</h2>
+<table class="table">
+<colgroup>
+<col width="50%">
+<col width="50%">
+</colgroup>
+<thead><tr>
+<th>Package</th>
+<th>Role</th>
+</tr></thead>
+<tbody>
+<tr>
+<td><a href="https://github.com/IMPALA-Consortium/ctas" class="external-link"><code>ctas</code></a></td>
+<td>The statistics engine</td>
+</tr>
+<tr>
+<td><a href="https://github.com/Gilead-Public/gsm.core" class="external-link"><code>gsm.core</code></a></td>
+<td>Workflow execution</td>
+</tr>
+<tr>
+<td><a href="https://github.com/Gilead-Public/gsm.kri" class="external-link"><code>gsm.kri</code></a></td>
+<td>Report rendering</td>
+</tr>
+<tr>
+<td><code>ctasapp</code></td>
+<td>Dashboard for drilling into a flagged site</td>
+</tr>
+</tbody>
+</table>
+<p>The division of labour between the last two is deliberate: the gsm report detects signals, <code>ctasapp</code> investigates them. <code><a href="reference/Combine_CTAS_Detail.html">Combine_CTAS_Detail()</a></code> and <code><a href="reference/Write_CTAS_Detail.html">Write_CTAS_Detail()</a></code> retain the timeseries-level detail that aggregation discards, for handoff to the dashboard.</p>
+</div>
+<div class="section level2">
+<h2 id="contributing">Contributing<a class="anchor" aria-label="anchor" href="#contributing"></a>
+</h2>
+<p>Issues and pull requests are welcome. Please use the issue templates in <code>.github/ISSUE_TEMPLATE/</code>.</p>
+<p>Exported functions follow a stage-based naming scheme – <code>Input_*</code> (SDTM to CTAS input), <code>Prepare_*</code> (make values comparable), <code>Analyze_*</code> / <code>Summarize_*</code> / <code>Flag_*</code> (run CTAS and bridge into gsm), <code>Combine_*</code> and <code>Write_*</code> (assemble and export). Note that <code>Transform_*</code> is <strong>not</strong> used, as it carries a specific and different meaning within gsm itself.</p>
+</div>
+<div class="section level2">
+<h2 id="license">License<a class="anchor" aria-label="anchor" href="#license"></a>
+</h2>
+<p>MIT. See <a href="LICENSE.html">LICENSE.md</a>.</p>
+</div>
+</div>
   </main><aside class="col-md-3"><div class="license">
 <h2 data-toc-skip>License</h2>
 <ul class="list-unstyled">
@@ -71,7 +214,14 @@ Integrates the 'ctas' clinical trial anomaly detection statistics engine into th
 </ul>
 </div>
 
-
+<div class="dev-status">
+<h2 data-toc-skip>Dev status</h2>
+<ul class="list-unstyled">
+<li><a href="https://github.com/IMPALA-Consortium/gsm.ctas/actions/workflows/R-CMD-check.yaml" class="external-link"><img src="https://github.com/IMPALA-Consortium/gsm.ctas/actions/workflows/R-CMD-check.yaml/badge.svg" alt="R-CMD-check"></a></li>
+<li><a href="https://github.com/IMPALA-Consortium/gsm.ctas/actions/workflows/test-coverage.yaml" class="external-link"><img src="https://github.com/IMPALA-Consortium/gsm.ctas/actions/workflows/test-coverage.yaml/badge.svg" alt="test-coverage"></a></li>
+<li><a href="https://github.com/IMPALA-Consortium/gsm.ctas/actions/workflows/pkgdown-all.yaml" class="external-link"><img src="https://github.com/IMPALA-Consortium/gsm.ctas/actions/workflows/pkgdown-all.yaml/badge.svg" alt="pkgdown"></a></li>
+</ul>
+</div>
 
   </aside>
 </div>

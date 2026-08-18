@@ -21,7 +21,12 @@ timeseries."><meta name="robots" content="noindex"></head><body>
     </button>
 
     <div id="navbar" class="collapse navbar-collapse ms-3">
-      <ul class="navbar-nav me-auto"><li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
+      <ul class="navbar-nav me-auto"><li class="nav-item dropdown">
+  <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
+  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/gsm-ctas.html">gsm.ctas end to end</a></li>
+  </ul></li>
+<li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
+<li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json"></form></li>
       </ul></div>
@@ -50,6 +55,9 @@ timeseries.</p>
 <span>  <span class="va">dfSiteScores</span>,</span>
 <span>  <span class="va">strFeature</span>,</span>
 <span>  strGroupLevel <span class="op">=</span> <span class="st">"Site"</span>,</span>
+<span>  strDomain <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  strTransformation <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  strParameterPattern <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  vGroupIDs <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  dHigh <span class="op">=</span> <span class="fl">2.326</span>,</span>
 <span>  dLow <span class="op">=</span> <span class="fl">0.842</span></span>
@@ -62,7 +70,7 @@ timeseries.</p>
 
 <dl><dt id="arg-dfsitescores">dfSiteScores<a class="anchor" aria-label="anchor" href="#arg-dfsitescores"></a></dt>
 <dd><p><code>data.frame</code> The <code>site_scores</code> element of
-<code><a href="Analyze_CTAS.html">Analyze_CTAS()</a></code>.</p></dd>
+<code><a href="Analyze_CTAS.html">Analyze_CTAS()</a></code>, normally via <code><a href="Combine_CTAS_Scores.html">Combine_CTAS_Scores()</a></code>.</p></dd>
 
 
 <dt id="arg-strfeature">strFeature<a class="anchor" aria-label="anchor" href="#arg-strfeature"></a></dt>
@@ -72,6 +80,22 @@ timeseries.</p>
 
 <dt id="arg-strgrouplevel">strGroupLevel<a class="anchor" aria-label="anchor" href="#arg-strgrouplevel"></a></dt>
 <dd><p><code>character</code> gsm group level, <code>"Site"</code> or <code>"Country"</code>.</p></dd>
+
+
+<dt id="arg-strdomain">strDomain<a class="anchor" aria-label="anchor" href="#arg-strdomain"></a></dt>
+<dd><p><code>character</code> Optional <code>parameter_category_1</code> to keep, e.g.
+<code>"Labs"</code>. Must be given together with <code>strTransformation</code>.</p></dd>
+
+
+<dt id="arg-strtransformation">strTransformation<a class="anchor" aria-label="anchor" href="#arg-strtransformation"></a></dt>
+<dd><p><code>character</code> Optional <code>parameter_category_3</code> to keep,
+e.g. <code>"ratio_missing"</code>. Must be given together with <code>strDomain</code>.</p></dd>
+
+
+<dt id="arg-strparameterpattern">strParameterPattern<a class="anchor" aria-label="anchor" href="#arg-strparameterpattern"></a></dt>
+<dd><p><code>character</code> Optional regular expression matched
+against <code>parameter_id</code>, as an alternative to the category pair for inputs
+that lack the category columns.</p></dd>
 
 
 <dt id="arg-vgroupids">vGroupIDs<a class="anchor" aria-label="anchor" href="#arg-vgroupids"></a></dt>
@@ -95,10 +119,31 @@ timeseries.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
-    <p>Groups with no evaluated timeseries for the feature are retained with
+    <p>A single CTAS run covers every domain in the study, so <code>feature</code> alone does
+not identify a metric once more than one domain is mapped: "average" spans
+vital signs, range-normalised labs and lab missingness at the same time.
+A metric must therefore also say which family of parameters it summarises.</p>
+<p>There are two ways to do so, and the category pair is preferred:</p><ul><li><p><code>strDomain</code> and <code>strTransformation</code> match <code>parameter_category_1</code> (e.g.
+<code>"Labs"</code>) and <code>parameter_category_3</code> (e.g. <code>"ratio_missing"</code>). These are
+the structured fields the <code>Input_*()</code> functions set, recovered by
+<code><a href="Combine_CTAS_Scores.html">Combine_CTAS_Scores()</a></code>. <strong>Both</strong> are needed to identify a family:
+<code>parameter_category_3</code> is <code>"numeric"</code> for every plain numeric domain, so
+it would select vital signs and ECG together.</p></li>
+<li><p><code>strParameterPattern</code> matches a regular expression against <code>parameter_id</code>.
+This works without the category columns, but re-derives from a string what
+the categories already state, and is easy to get subtly wrong - <code>"^LB_"</code>
+selects both lab families where <code>"^LB_MISS_"</code> selects one.</p></li>
+</ul><p>Groups with no evaluated timeseries for the feature are retained with
 <code>Denominator = 0</code>, <code>Metric = NA</code> and <code>Score = NA</code>, so that the report does
 not silently drop them. Supply <code>vGroupIDs</code> to complete the grid against a
 known group list; otherwise only groups present in <code>dfSiteScores</code> appear.</p>
+<p><code>Denominator</code> counts the timeseries evaluated for the feature, not
+participants. Sites are normally assessed on the same timeseries, so the
+denominator is usually constant across sites within a metric, and varies only
+where a site contributes no data at all for a parameter. It differs <em>between</em>
+metrics, because CTAS autogenerates one timeseries per timepoint combination
+and those differ by domain. It is a coverage denominator, not an exposure
+one, and should not be read as site size.</p>
 <p>The default thresholds <code>2.326</code> / <code>0.842</code> are drawn from experience rather
 than derived. They are one-sided normal z-quantiles (99% / 80%) applied to a
 -log10(p) scale, where they correspond to p = 0.0047 and p = 0.144. Override
@@ -112,15 +157,23 @@ wanted.</p>
 <span class="r-in"><span>  timeseries_id <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"ts1"</span>, <span class="st">"ts2"</span>, <span class="st">"ts1"</span><span class="op">)</span>,</span></span>
 <span class="r-in"><span>  site <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"001"</span>, <span class="st">"001"</span>, <span class="st">"002"</span><span class="op">)</span>,</span></span>
 <span class="r-in"><span>  country <span class="op">=</span> <span class="st">"USA"</span>,</span></span>
+<span class="r-in"><span>  parameter_id <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"VS_SYSBP"</span>, <span class="st">"LB_NORM_ALB"</span>, <span class="st">"VS_SYSBP"</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span>  parameter_category_1 <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Vital Signs"</span>, <span class="st">"Labs"</span>, <span class="st">"Vital Signs"</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span>  parameter_category_3 <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"numeric"</span>, <span class="st">"range_normalized"</span>, <span class="st">"numeric"</span><span class="op">)</span>,</span></span>
 <span class="r-in"><span>  feature <span class="op">=</span> <span class="st">"average"</span>,</span></span>
 <span class="r-in"><span>  fdr_corrected_pvalue_logp <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">3.1</span>, <span class="fl">0.5</span>, <span class="fl">1.0</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="fu">Summarize_CTAS</span><span class="op">(</span><span class="va">dfSiteScores</span>, strFeature <span class="op">=</span> <span class="st">"average"</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="fu">Summarize_CTAS</span><span class="op">(</span></span></span>
+<span class="r-in"><span>  <span class="va">dfSiteScores</span>,</span></span>
+<span class="r-in"><span>  strFeature <span class="op">=</span> <span class="st">"average"</span>,</span></span>
+<span class="r-in"><span>  strDomain <span class="op">=</span> <span class="st">"Vital Signs"</span>,</span></span>
+<span class="r-in"><span>  strTransformation <span class="op">=</span> <span class="st">"numeric"</span></span></span>
+<span class="r-in"><span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #949494;"># A tibble: 2 × 6</span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   GroupID GroupLevel Numerator Denominator Metric Score</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>   <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>          <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>       <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>  <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;">1</span> 001     Site               1           2    0.5   3.1</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;">2</span> 002     Site               0           1    0     1  </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;">1</span> 001     Site               1           1      1   3.1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;">2</span> 002     Site               0           1      0   1  </span>
 <span class="r-in"><span></span></span>
 </code></pre></div>
     </div>

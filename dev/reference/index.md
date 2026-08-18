@@ -43,8 +43,37 @@ Run CTAS and bridge into the gsm analysis contract.
 - [`Analyze_CTAS()`](Analyze_CTAS.md) : Run the CTAS engine over a
   combined study input
 
+- [`Combine_CTAS_Scores()`](Combine_CTAS_Scores.md) : Attach parameter
+  identity and category to CTAS site scores
+
 - [`Summarize_CTAS()`](Summarize_CTAS.md) :
 
   Aggregate CTAS site scores into the gsm `Analysis_Analyzed` contract
 
 - [`Flag_CTAS()`](Flag_CTAS.md) : Flag aggregated CTAS scores
+
+## Reporting
+
+Adjust the stock gsm.kri report for CTAS metrics.
+
+- [`DropChart()`](DropChart.md) :
+
+  Remove named charts from a `gsm.kri` chart list
+
+## Drill-down
+
+Retain and export timeseries-level detail for the ctasapp dashboard.
+
+- [`Combine_CTAS_Detail()`](Combine_CTAS_Detail.md) :
+
+  Assemble the timeseries-level detail object for `ctasapp` drill-down
+
+- [`Write_CTAS_Detail()`](Write_CTAS_Detail.md) :
+
+  Write the CTAS detail object to files `ctasapp` can load
+
+## Package
+
+- [`gsm.ctas`](gsm.ctas-package.md)
+  [`gsm.ctas-package`](gsm.ctas-package.md) : gsm.ctas: Add CTAS Anomaly
+  Detection to gsm
