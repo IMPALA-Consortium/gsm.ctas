@@ -6,6 +6,12 @@ navbar:
     left: [articles, reference, news]
     right: [search, github]
 
+articles:
+- title: Get started
+  navbar: ~
+  contents:
+  - gsm-ctas
+
 reference:
 - title: Mapping
   desc: Map SDTM domains into CTAS input frames.
@@ -23,3 +29,15 @@ reference:
   - Combine_CTAS_Scores
   - Summarize_CTAS
   - Flag_CTAS
+- title: Reporting
+  desc: Adjust the stock gsm.kri report for CTAS metrics.
+  contents:
+  - DropChart
+- title: Drill-down
+  desc: Retain and export timeseries-level detail for the ctasapp dashboard.
+  contents:
+  - Combine_CTAS_Detail
+  - Write_CTAS_Detail
+- title: Package
+  contents:
+  - gsm.ctas-package

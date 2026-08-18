@@ -35,7 +35,8 @@ Suggests:
     readxl,
     rmarkdown,
     testthat (>= 3.0.0),
-    withr
+    withr,
+    yaml
 Config/testthat/edition: 3
 VignetteBuilder: knitr
 Remotes:
