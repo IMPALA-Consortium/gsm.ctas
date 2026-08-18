@@ -15,13 +15,11 @@ change: the thresholds, and the set of metrics.
 ``` r
 
 install.packages("pak")
-pak::pak("IMPALA-Consortium/ctas")
-pak::pak("Gilead-BioStats/gsm.core")
-pak::pak("Gilead-BioStats/gsm.mapping")
-pak::pak("Gilead-BioStats/gsm.kri")
-pak::pak("Gilead-BioStats/gsm.reporting")
 pak::pak("IMPALA-Consortium/gsm.ctas")
 ```
+
+The `ctas` engine and the gsm framework packages are declared in
+`Remotes` and are installed along with it.
 
 ``` r
 
@@ -96,7 +94,7 @@ lIngest <- gsm.mapping::Ingest(
 #> ℹ Ingesting data for DM.
 #> [INFO] Creating a new temporary DuckDB connection.
 #> duckdb keeps downloaded extensions and secrets in a temporary directory:
-#> ℹ /tmp/RtmpMsDGhr/duckdb
+#> ℹ /tmp/RtmpZMq2ek/duckdb
 #> This is removed when the R session ends.
 #> • Extensions are re-downloaded each session.
 #> • Secrets are lost.
@@ -112,7 +110,7 @@ lIngest <- gsm.mapping::Ingest(
 #> [INFO] Creating a new temporary DuckDB connection.
 #> 
 #> duckdb keeps downloaded extensions and secrets in a temporary directory:
-#> ℹ /tmp/RtmpMsDGhr/duckdb
+#> ℹ /tmp/RtmpZMq2ek/duckdb
 #> This is removed when the R session ends.
 #> • Extensions are re-downloaded each session.
 #> • Secrets are lost.
@@ -128,7 +126,7 @@ lIngest <- gsm.mapping::Ingest(
 #> [INFO] Creating a new temporary DuckDB connection.
 #> 
 #> duckdb keeps downloaded extensions and secrets in a temporary directory:
-#> ℹ /tmp/RtmpMsDGhr/duckdb
+#> ℹ /tmp/RtmpZMq2ek/duckdb
 #> This is removed when the R session ends.
 #> • Extensions are re-downloaded each session.
 #> • Secrets are lost.
@@ -144,7 +142,7 @@ lIngest <- gsm.mapping::Ingest(
 #> [INFO] Creating a new temporary DuckDB connection.
 #> 
 #> duckdb keeps downloaded extensions and secrets in a temporary directory:
-#> ℹ /tmp/RtmpMsDGhr/duckdb
+#> ℹ /tmp/RtmpZMq2ek/duckdb
 #> This is removed when the R session ends.
 #> • Extensions are re-downloaded each session.
 #> • Secrets are lost.
@@ -160,7 +158,7 @@ lIngest <- gsm.mapping::Ingest(
 #> [INFO] Creating a new temporary DuckDB connection.
 #> 
 #> duckdb keeps downloaded extensions and secrets in a temporary directory:
-#> ℹ /tmp/RtmpMsDGhr/duckdb
+#> ℹ /tmp/RtmpZMq2ek/duckdb
 #> This is removed when the R session ends.
 #> • Extensions are re-downloaded each session.
 #> • Secrets are lost.
@@ -176,7 +174,7 @@ lIngest <- gsm.mapping::Ingest(
 #> [INFO] Creating a new temporary DuckDB connection.
 #> 
 #> duckdb keeps downloaded extensions and secrets in a temporary directory:
-#> ℹ /tmp/RtmpMsDGhr/duckdb
+#> ℹ /tmp/RtmpZMq2ek/duckdb
 #> This is removed when the R session ends.
 #> • Extensions are re-downloaded each session.
 #> • Secrets are lost.
@@ -203,7 +201,7 @@ lMapped <- suppressWarnings(
 #> [INFO] Calling `workr::RunQuery`
 #> [INFO] Creating a new temporary DuckDB connection.
 #> duckdb keeps downloaded extensions and secrets in a temporary directory:
-#> ℹ /tmp/RtmpMsDGhr/duckdb
+#> ℹ /tmp/RtmpZMq2ek/duckdb
 #> This is removed when the R session ends.
 #> • Extensions are re-downloaded each session.
 #> • Secrets are lost.
@@ -223,7 +221,7 @@ lMapped <- suppressWarnings(
 #> [INFO] Calling `workr::RunQuery`
 #> [INFO] Creating a new temporary DuckDB connection.
 #> duckdb keeps downloaded extensions and secrets in a temporary directory:
-#> ℹ /tmp/RtmpMsDGhr/duckdb
+#> ℹ /tmp/RtmpZMq2ek/duckdb
 #> This is removed when the R session ends.
 #> • Extensions are re-downloaded each session.
 #> • Secrets are lost.
@@ -243,7 +241,7 @@ lMapped <- suppressWarnings(
 #> [INFO] Calling `workr::RunQuery`
 #> [INFO] Creating a new temporary DuckDB connection.
 #> duckdb keeps downloaded extensions and secrets in a temporary directory:
-#> ℹ /tmp/RtmpMsDGhr/duckdb
+#> ℹ /tmp/RtmpZMq2ek/duckdb
 #> This is removed when the R session ends.
 #> • Extensions are re-downloaded each session.
 #> • Secrets are lost.
@@ -279,7 +277,7 @@ lMapped <- suppressWarnings(
 #> [INFO] Calling `workr::RunQuery`
 #> [INFO] Creating a new temporary DuckDB connection.
 #> duckdb keeps downloaded extensions and secrets in a temporary directory:
-#> ℹ /tmp/RtmpMsDGhr/duckdb
+#> ℹ /tmp/RtmpZMq2ek/duckdb
 #> This is removed when the R session ends.
 #> • Extensions are re-downloaded each session.
 #> • Secrets are lost.
@@ -317,7 +315,7 @@ lMapped <- suppressWarnings(
 #> [INFO] Calling `workr::RunQuery`
 #> [INFO] Creating a new temporary DuckDB connection.
 #> duckdb keeps downloaded extensions and secrets in a temporary directory:
-#> ℹ /tmp/RtmpMsDGhr/duckdb
+#> ℹ /tmp/RtmpZMq2ek/duckdb
 #> This is removed when the R session ends.
 #> • Extensions are re-downloaded each session.
 #> • Secrets are lost.
@@ -533,7 +531,7 @@ lAnalysis <- gsm.core::RunWorkflows(
 #> [INFO] Calling `workr::RunQuery`
 #> [INFO] Creating a new temporary DuckDB connection.
 #> duckdb keeps downloaded extensions and secrets in a temporary directory:
-#> ℹ /tmp/RtmpMsDGhr/duckdb
+#> ℹ /tmp/RtmpZMq2ek/duckdb
 #> This is removed when the R session ends.
 #> • Extensions are re-downloaded each session.
 #> • Secrets are lost.
@@ -654,7 +652,7 @@ lAnalysis <- gsm.core::RunWorkflows(
 #> [INFO] Creating a new temporary DuckDB connection.
 #> 
 #> duckdb keeps downloaded extensions and secrets in a temporary directory:
-#> ℹ /tmp/RtmpMsDGhr/duckdb
+#> ℹ /tmp/RtmpZMq2ek/duckdb
 #> This is removed when the R session ends.
 #> • Extensions are re-downloaded each session.
 #> • Secrets are lost.
@@ -775,7 +773,7 @@ lAnalysis <- gsm.core::RunWorkflows(
 #> [INFO] Creating a new temporary DuckDB connection.
 #> 
 #> duckdb keeps downloaded extensions and secrets in a temporary directory:
-#> ℹ /tmp/RtmpMsDGhr/duckdb
+#> ℹ /tmp/RtmpZMq2ek/duckdb
 #> This is removed when the R session ends.
 #> • Extensions are re-downloaded each session.
 #> • Secrets are lost.
@@ -896,7 +894,7 @@ lAnalysis <- gsm.core::RunWorkflows(
 #> [INFO] Creating a new temporary DuckDB connection.
 #> 
 #> duckdb keeps downloaded extensions and secrets in a temporary directory:
-#> ℹ /tmp/RtmpMsDGhr/duckdb
+#> ℹ /tmp/RtmpZMq2ek/duckdb
 #> This is removed when the R session ends.
 #> • Extensions are re-downloaded each session.
 #> • Secrets are lost.
@@ -1017,7 +1015,7 @@ lAnalysis <- gsm.core::RunWorkflows(
 #> [INFO] Creating a new temporary DuckDB connection.
 #> 
 #> duckdb keeps downloaded extensions and secrets in a temporary directory:
-#> ℹ /tmp/RtmpMsDGhr/duckdb
+#> ℹ /tmp/RtmpZMq2ek/duckdb
 #> This is removed when the R session ends.
 #> • Extensions are re-downloaded each session.
 #> • Secrets are lost.
@@ -1138,7 +1136,7 @@ lAnalysis <- gsm.core::RunWorkflows(
 #> [INFO] Creating a new temporary DuckDB connection.
 #> 
 #> duckdb keeps downloaded extensions and secrets in a temporary directory:
-#> ℹ /tmp/RtmpMsDGhr/duckdb
+#> ℹ /tmp/RtmpZMq2ek/duckdb
 #> This is removed when the R session ends.
 #> • Extensions are re-downloaded each session.
 #> • Secrets are lost.
@@ -1259,7 +1257,7 @@ lAnalysis <- gsm.core::RunWorkflows(
 #> [INFO] Creating a new temporary DuckDB connection.
 #> 
 #> duckdb keeps downloaded extensions and secrets in a temporary directory:
-#> ℹ /tmp/RtmpMsDGhr/duckdb
+#> ℹ /tmp/RtmpZMq2ek/duckdb
 #> This is removed when the R session ends.
 #> • Extensions are re-downloaded each session.
 #> • Secrets are lost.
@@ -1380,7 +1378,7 @@ lAnalysis <- gsm.core::RunWorkflows(
 #> [INFO] Creating a new temporary DuckDB connection.
 #> 
 #> duckdb keeps downloaded extensions and secrets in a temporary directory:
-#> ℹ /tmp/RtmpMsDGhr/duckdb
+#> ℹ /tmp/RtmpZMq2ek/duckdb
 #> This is removed when the R session ends.
 #> • Extensions are re-downloaded each session.
 #> • Secrets are lost.
@@ -1501,7 +1499,7 @@ lAnalysis <- gsm.core::RunWorkflows(
 #> [INFO] Creating a new temporary DuckDB connection.
 #> 
 #> duckdb keeps downloaded extensions and secrets in a temporary directory:
-#> ℹ /tmp/RtmpMsDGhr/duckdb
+#> ℹ /tmp/RtmpZMq2ek/duckdb
 #> This is removed when the R session ends.
 #> • Extensions are re-downloaded each session.
 #> • Secrets are lost.
@@ -1622,7 +1620,7 @@ lAnalysis <- gsm.core::RunWorkflows(
 #> [INFO] Creating a new temporary DuckDB connection.
 #> 
 #> duckdb keeps downloaded extensions and secrets in a temporary directory:
-#> ℹ /tmp/RtmpMsDGhr/duckdb
+#> ℹ /tmp/RtmpZMq2ek/duckdb
 #> This is removed when the R session ends.
 #> • Extensions are re-downloaded each session.
 #> • Secrets are lost.
@@ -1743,7 +1741,7 @@ lAnalysis <- gsm.core::RunWorkflows(
 #> [INFO] Creating a new temporary DuckDB connection.
 #> 
 #> duckdb keeps downloaded extensions and secrets in a temporary directory:
-#> ℹ /tmp/RtmpMsDGhr/duckdb
+#> ℹ /tmp/RtmpZMq2ek/duckdb
 #> This is removed when the R session ends.
 #> • Extensions are re-downloaded each session.
 #> • Secrets are lost.
