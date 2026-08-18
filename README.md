@@ -99,7 +99,7 @@ Both common customisations are config-only and are documented in the vignette:
 | [`ctas`](https://github.com/IMPALA-Consortium/ctas) | The statistics engine |
 | [`gsm.core`](https://github.com/Gilead-Public/gsm.core) | Workflow execution |
 | [`gsm.kri`](https://github.com/Gilead-Public/gsm.kri) | Report rendering |
-| `ctasapp` | Dashboard for drilling into a flagged site |
+| [`ctasapp`](https://github.com/IMPALA-Consortium/ctasapp) | Dashboard for drilling into a flagged site |
 
 The division of labour between the last two is deliberate: the gsm report
 detects signals, `ctasapp` investigates them. `Combine_CTAS_Detail()` and

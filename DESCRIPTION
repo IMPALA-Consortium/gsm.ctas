@@ -22,7 +22,6 @@ Imports:
     dplyr,
     purrr,
     rlang,
-    tidyr,
     utils
 Suggests:
     arrow,
@@ -36,6 +35,7 @@ Suggests:
     rmarkdown,
     testthat (>= 3.0.0),
     withr,
+    workr,
     yaml
 Config/testthat/edition: 3
 VignetteBuilder: knitr
@@ -44,4 +44,5 @@ Remotes:
     gsm.core=Gilead-Public/gsm.core@main,
     gsm.mapping=Gilead-Public/gsm.mapping@main,
     gsm.kri=Gilead-Public/gsm.kri@main,
-    gsm.reporting=Gilead-Public/gsm.reporting@main
+    gsm.reporting=Gilead-Public/gsm.reporting@main,
+    workr=Gilead-Public/workr@main

@@ -41,13 +41,11 @@ thresholds, and the set of metrics.
 
 ```{r install, eval = FALSE}
 install.packages("pak")
-pak::pak("IMPALA-Consortium/ctas")
-pak::pak("Gilead-BioStats/gsm.core")
-pak::pak("Gilead-BioStats/gsm.mapping")
-pak::pak("Gilead-BioStats/gsm.kri")
-pak::pak("Gilead-BioStats/gsm.reporting")
 pak::pak("IMPALA-Consortium/gsm.ctas")
 ```
+
+The `ctas` engine and the gsm framework packages are declared in `Remotes` and
+are installed along with it.
 
 ```{r load, message = FALSE}
 library(gsm.ctas)

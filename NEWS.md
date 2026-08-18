@@ -1,4 +1,4 @@
-# gsm.ctas (development version)
+# gsm.ctas 0.0.0.9000
 
 First development release. `gsm.ctas` integrates the `ctas` anomaly detection
 engine into the gsm framework, from SDTM input through to a rendered site-level
