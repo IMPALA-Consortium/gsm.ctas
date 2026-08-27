@@ -1,5 +1,7 @@
-MakeInput <- function(nSites = 3, nSubjectsPerSite = 4, nVisits = 5) {
+MakeInput <- function(nSites = 3, nSubjectsPerSite = 4, nVisits = 5,
+                      strStudy = "STUDY_A") {
   dfSubjects <- data.frame(
+    studyid = character(0),
     subject_id = character(0), site = character(0),
     country = character(0), region = character(0)
   )
@@ -7,10 +9,11 @@ MakeInput <- function(nSites = 3, nSubjectsPerSite = 4, nVisits = 5) {
 
   for (iSite in seq_len(nSites)) {
     for (iSubject in seq_len(nSubjectsPerSite)) {
-      strSubject <- paste0("S", iSite, "_", iSubject)
+      strSubject <- paste0(strStudy, "_S", iSite, "_", iSubject)
       dfSubjects <- rbind(dfSubjects, data.frame(
+        studyid = strStudy,
         subject_id = strSubject,
-        site = paste0("SITE", iSite),
+        site = paste0(strStudy, "_SITE", iSite),
         country = "USA",
         region = NA_character_
       ))
@@ -143,6 +146,48 @@ test_that("Analyze_CTAS restricts scoring to the requested features", {
   lCTAS <- suppressWarnings(Analyze_CTAS(lInput, strFeatures = "average;sd", nSeed = 1))
 
   expect_setequal(unique(lCTAS$timeseries_features$feature), c("average", "sd"))
+})
+
+# --- multi-study --------------------------------------------------------------
+
+test_that("Analyze_CTAS tags every result frame with studyid on a single-study run", {
+  lInput <- MakeInput(strStudy = "STUDY_A")
+
+  lCTAS <- suppressWarnings(Analyze_CTAS(lInput, nSeed = 1))
+
+  expect_true("studyid" %in% names(lCTAS$site_scores))
+  expect_setequal(unique(lCTAS$site_scores$studyid), "STUDY_A")
+})
+
+test_that("Analyze_CTAS splits by studyid and stacks the four frames", {
+  lInputA <- MakeInput(strStudy = "STUDY_A")
+  lInputB <- MakeInput(strStudy = "STUDY_B")
+
+  lInput <- list(
+    data = dplyr::bind_rows(lInputA$data, lInputB$data),
+    subjects = dplyr::bind_rows(lInputA$subjects, lInputB$subjects),
+    parameters = lInputA$parameters,
+    custom_timeseries = lInputA$custom_timeseries,
+    custom_reference_groups = lInputA$custom_reference_groups
+  )
+
+  lCTAS <- suppressWarnings(Analyze_CTAS(lInput, nSeed = 1))
+
+  expect_setequal(unique(lCTAS$site_scores$studyid), c("STUDY_A", "STUDY_B"))
+  # Studies are scored independently, so each study contributes its own sites.
+  expect_setequal(
+    unique(lCTAS$site_scores$site[lCTAS$site_scores$studyid == "STUDY_A"]),
+    unique(lInputA$subjects$site)
+  )
+})
+
+test_that("Analyze_CTAS setting strStudyCol NULL runs one call without splitting", {
+  lInput <- MakeInput()
+  lInput$subjects$studyid <- NULL
+
+  lCTAS <- suppressWarnings(Analyze_CTAS(lInput, nSeed = 1, strStudyCol = NULL))
+
+  expect_false("studyid" %in% names(lCTAS$site_scores))
 })
 
 # --- cached fixture -----------------------------------------------------------

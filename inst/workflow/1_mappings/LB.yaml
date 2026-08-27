@@ -5,6 +5,8 @@ meta:
   Priority: 1
 spec:
   Raw_LB:
+    STUDYID:
+      type: character
     USUBJID:
       type: character
     LBTESTCD:
@@ -22,8 +24,14 @@ spec:
     VISITNUM:
       type: numeric
 steps:
-  - output: Mapped_LB
+  - output: Temp_LB_Raw
     name: workr::RunQuery
     params:
       df: Raw_LB
       strQuery: "SELECT * FROM df"
+  - output: Mapped_LB
+    name: gsm.ctas::FilterVisits
+    params:
+      dfInput: Temp_LB_Raw
+      strVisitCol: VISIT
+      strExcludePattern: unsch

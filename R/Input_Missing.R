@@ -1,4 +1,4 @@
-#' Map a findings domain to a missingness-ratio CTAS input
+#' Map a findings frame to a missingness-ratio CTAS input
 #'
 #' Turns data *completeness* into a timeseries: for each subject and test, the
 #' running proportion of missing results over visits ([Prepare_MissingRatio()]).
@@ -14,26 +14,30 @@
 #'
 #' @examples
 #' Input_Missing(data.frame(
-#'   USUBJID = c("S1", "S1"),
-#'   LBTESTCD = c("ALT", "ALT"),
-#'   LBTEST = c("Alanine Aminotransferase", "Alanine Aminotransferase"),
-#'   VISIT = c("WEEK 2", "WEEK 4"),
-#'   VISITNUM = c(3, 4),
-#'   LBSTRESN = c(20, NA)
+#'   studyid = "A",
+#'   subject_id = c("S1", "S1"),
+#'   parameter_id = c("ALT", "ALT"),
+#'   parameter_name = c("Alanine Aminotransferase", "Alanine Aminotransferase"),
+#'   parameter_category_1 = "Labs",
+#'   visit = c("WEEK 2", "WEEK 4"),
+#'   visitnum = c(3, 4),
+#'   value = c(20, NA)
 #' ))
 #'
 #' @export
 Input_Missing <- function(dfDomain,
-                          strSubjectCol = "USUBJID",
-                          strTestCDCol = "LBTESTCD",
-                          strTestCol = "LBTEST",
-                          strValueCol = "LBSTRESN",
-                          strVisitCol = "VISIT",
-                          strVisitNumCol = "VISITNUM",
+                          strSubjectCol = "subject_id",
+                          strTestCDCol = "parameter_id",
+                          strTestCol = "parameter_name",
+                          strValueCol = "value",
+                          strVisitCol = "visit",
+                          strVisitNumCol = "visitnum",
+                          strStudyCol = "studyid",
+                          strCategoryCol = "parameter_category_1",
                           strVisitPattern = NULL,
-                          strExcludePattern = "unsch",
-                          strCategory = "Labs",
-                          strPrefix = "LB_MISS") {
+                          strExcludePattern = NULL,
+                          strCategory = NA_character_,
+                          strPrefix = "MISS") {
   dfWork <- StandardizeDomain(
     dfDomain,
     strSubjectCol = strSubjectCol,
@@ -42,6 +46,8 @@ Input_Missing <- function(dfDomain,
     strValueCol = strValueCol,
     strVisitCol = strVisitCol,
     strVisitNumCol = strVisitNumCol,
+    strStudyCol = strStudyCol,
+    strCategoryCol = strCategoryCol,
     strVisitPattern = strVisitPattern,
     strExcludePattern = strExcludePattern
   ) |>
@@ -65,12 +71,22 @@ Input_Missing <- function(dfDomain,
     vParameterID = dfWork$parameter_id
   )
 
+  vCategoryCols <- if ("Category" %in% names(dfWork)) "Category" else character(0)
   dfParameters <- dfWork |>
-    dplyr::distinct(.data$parameter_id, .data$TestCD, .data$TestName) |>
+    dplyr::distinct(dplyr::across(dplyr::all_of(c(
+      "parameter_id", "TestCD", "TestName", vCategoryCols
+    )))) |>
+    dplyr::mutate(
+      parameter_category_1 = if ("Category" %in% names(dfWork)) {
+        dplyr::coalesce(.data$Category, .env$strCategory)
+      } else {
+        .env$strCategory
+      }
+    ) |>
     dplyr::transmute(
       parameter_id = .data$parameter_id,
       parameter_name = paste0("Ratio Missing: ", .data$TestName),
-      parameter_category_1 = .env$strCategory,
+      parameter_category_1 = .data$parameter_category_1,
       parameter_category_2 = .data$parameter_id,
       parameter_category_3 = "ratio_missing"
     ) |>

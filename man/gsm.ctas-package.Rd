@@ -13,6 +13,7 @@ Integrates the 'ctas' clinical trial anomaly detection statistics engine into th
 
 Authors:
 \itemize{
+  \item Allan Hummer \email{allan.hummer.ext@boehringer-ingelheim.com}
   \item Björn Koneswarakantha \email{bjoern.koneswarakantha@roche.com}
 }
 

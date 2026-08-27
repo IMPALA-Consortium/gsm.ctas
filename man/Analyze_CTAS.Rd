@@ -15,6 +15,7 @@ Analyze_CTAS(
   strScoringMethod = "ks",
   strPadjustMethod = "fdr",
   nSeed = NULL,
+  strStudyCol = "studyid",
   ...
 )
 }
@@ -40,11 +41,16 @@ Analyze_CTAS(
 
 \item{nSeed}{\code{numeric} Optional seed for reproducibility.}
 
+\item{strStudyCol}{\code{character} Column on \code{lInput$subjects} identifying the
+study. \code{NULL} disables the split and runs \code{process_a_study()} once on the
+whole input.}
+
 \item{...}{Further arguments passed to \code{\link[ctas:process_a_study]{ctas::process_a_study()}}.}
 }
 \value{
 \code{list} with \code{timeseries}, \code{timeseries_features}, \code{PCA_coordinates}
-and \code{site_scores}.
+and \code{site_scores}. Each frame carries the \code{strStudyCol} column when the
+split was active.
 }
 \description{
 A gsm-friendly wrapper around \code{\link[ctas:process_a_study]{ctas::process_a_study()}}. It validates the
@@ -53,10 +59,16 @@ and converts the degenerate cases CTAS signals by returning \code{NULL} elements
 into an informative error.
 }
 \details{
+\code{process_a_study()} is single-study by construction. When \code{lInput$subjects}
+contains more than one value in \code{strStudyCol}, the input is split by study,
+scored per study, and the four result frames are stacked with \code{studyid}
+tagged onto every row so the downstream contract is study-aware without
+calling code learning a second function.
+
 \code{process_a_study()} is an all-metrics-at-once engine: a single call scores
 every (timeseries x feature x site) combination. It is therefore intended to
-run once per study, in a high-\code{Priority} mapping workflow, with each metric
-workflow filtering the shared result to one feature.
+run once per study, with each metric workflow filtering the shared result to
+one feature family.
 }
 \examples{
 \donttest{

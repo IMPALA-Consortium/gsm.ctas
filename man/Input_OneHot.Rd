@@ -2,24 +2,26 @@
 % Please edit documentation in R/Input_OneHot.R
 \name{Input_OneHot}
 \alias{Input_OneHot}
-\title{Map a categorical findings domain to CTAS input via one-hot encoding}
+\title{Map a categorical findings frame to CTAS input via one-hot encoding}
 \usage{
 Input_OneHot(
   dfDomain,
-  strSubjectCol = "USUBJID",
-  strTestCDCol = "RSTESTCD",
-  strTestCol = "RSTEST",
-  strValueCol = "RSORRES",
-  strVisitCol = "VISIT",
-  strVisitNumCol = "VISITNUM",
+  strSubjectCol = "subject_id",
+  strTestCDCol = "parameter_id",
+  strTestCol = "parameter_name",
+  strValueCol = "value",
+  strVisitCol = "visit",
+  strVisitNumCol = "visitnum",
+  strStudyCol = "studyid",
+  strCategoryCol = "parameter_category_1",
   strVisitPattern = NULL,
-  strExcludePattern = "unsch",
-  strCategory = "Response",
-  strPrefix = "RS"
+  strExcludePattern = NULL,
+  strCategory = NA_character_,
+  strPrefix = "CAT"
 )
 }
 \arguments{
-\item{dfDomain}{\code{data.frame} An SDTM domain.}
+\item{dfDomain}{\code{data.frame} A findings-shaped domain, standardised or SDTM.}
 
 \item{strSubjectCol}{\code{character} Subject identifier column.}
 
@@ -34,6 +36,12 @@ Input_OneHot(
 
 \item{strVisitNumCol}{\code{character} Numeric visit-order column.}
 
+\item{strStudyCol}{\code{character} Study identifier column. \code{NULL} disables the
+check and drops \code{studyid} from the output.}
+
+\item{strCategoryCol}{\code{character} Column carrying \code{parameter_category_1}, if
+available. \code{NULL} leaves the column off the output.}
+
 \item{strVisitPattern}{\code{character} Regular expression that a visit must match
 to be retained. \code{NULL} (default) keeps all visits.}
 
@@ -41,28 +49,33 @@ to be retained. \code{NULL} (default) keeps all visits.}
 dropped. Matched case-insensitively. Default \code{"unsch"} removes unscheduled
 visits. \code{NULL} disables the exclusion.}
 
-\item{strCategory}{\code{character} Value written to \code{parameter_category_1},
-used as the display grouping in downstream tools.}
+\item{strCategory}{\code{character} Fallback value written to
+\code{parameter_category_1} when \code{strCategoryCol} is \code{NULL} or absent from
+\code{dfDomain}. Reads the category from the input column when it is present.}
 
-\item{strPrefix}{\code{character} Prefix for the generated \code{parameter_id}.}
+\item{strPrefix}{\code{character} Prefix for the generated \code{parameter_id}, kept
+distinct per transformation so \code{range_normalized} and \code{ratio_missing}
+never collide on the same lab test.}
 }
 \value{
 \code{list} with elements \code{data}, \code{parameters} and \code{untransformed}.
 }
 \description{
-CTAS operates on numeric timeseries, so a categorical result such as
-\code{RSORRES} is expanded by \code{\link[=Prepare_Categorical]{Prepare_Categorical()}} into one binary timeseries
-per observed level. Each level becomes its own \code{parameter_id}, while all
-levels share a \code{parameter_category_2} so they stay grouped for review.
+CTAS operates on numeric timeseries, so a categorical result is expanded by
+\code{\link[=Prepare_Categorical]{Prepare_Categorical()}} into one binary timeseries per observed level. Each
+level becomes its own \code{parameter_id}, while all levels share a
+\code{parameter_category_2} so they stay grouped for review.
 }
 \examples{
 Input_OneHot(data.frame(
-  USUBJID = c("S1", "S1"),
-  RSTESTCD = c("OVRLRESP", "OVRLRESP"),
-  RSTEST = c("Overall Response", "Overall Response"),
-  VISIT = c("WEEK 2", "WEEK 4"),
-  VISITNUM = c(3, 4),
-  RSORRES = c("CR", "PR")
+  studyid = "A",
+  subject_id = c("S1", "S1"),
+  parameter_id = c("OVRLRESP", "OVRLRESP"),
+  parameter_name = c("Overall Response", "Overall Response"),
+  parameter_category_1 = "Response",
+  visit = c("WEEK 2", "WEEK 4"),
+  visitnum = c(3, 4),
+  value = c("CR", "PR")
 ))
 
 }

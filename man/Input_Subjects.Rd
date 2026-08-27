@@ -6,15 +6,16 @@
 \usage{
 Input_Subjects(
   dfDM,
-  strSubjectCol = "USUBJID",
-  strSiteCol = "SITEID",
-  strCountryCol = "COUNTRY",
+  strSubjectCol = "subject_id",
+  strSiteCol = "site",
+  strCountryCol = "country",
+  strStudyCol = "studyid",
   strRegionCol = NULL,
   fnCountry = NULL
 )
 }
 \arguments{
-\item{dfDM}{\code{data.frame} SDTM DM (or any subject-level domain).}
+\item{dfDM}{\code{data.frame} A subject-level domain.}
 
 \item{strSubjectCol}{\code{character} Subject identifier column.}
 
@@ -23,6 +24,9 @@ Input_Subjects(
 \item{strCountryCol}{\code{character} Country column. \code{NULL} if unavailable, in
 which case \code{country} is derived by \code{fnCountry}.}
 
+\item{strStudyCol}{\code{character} Study identifier column. \code{NULL} disables the
+check and drops \code{studyid} from the output.}
+
 \item{strRegionCol}{\code{character} Region column. \code{NULL} (default) yields \code{NA}.}
 
 \item{fnCountry}{\code{function} Optional. Takes the site vector and returns a
@@ -30,23 +34,25 @@ country vector. Overrides \code{strCountryCol} when supplied.}
 }
 \value{
 \code{data.frame} with one distinct row per subject and columns
-\code{subject_id}, \code{site}, \code{country}, \code{region}.
+\code{studyid} (when \code{strStudyCol} is set), \code{subject_id}, \code{site}, \code{country},
+\code{region}.
 }
 \description{
 CTAS requires one row per subject carrying the grouping variables it uses as
-reference groups: \code{site}, \code{country} and \code{region}.
+reference groups: \code{site}, \code{country} and \code{region}. \code{studyid} is added on top
+so \code{\link[=Analyze_CTAS]{Analyze_CTAS()}} can split a multi-study input by study before scoring.
 }
 \details{
-The country derivation is parameterised rather than hard-coded. Deriving
-country from a substring of the site identifier is a sponsor convention, not
-a property of SDTM, so it must be supplied by the caller via \code{fnCountry}
-instead of being assumed.
+Defaults expect the standardised long-format columns published by the
+mapping layer (\code{subject_id}, \code{site}, \code{country}, \code{studyid}); pass explicit
+SDTM column names to consume raw DM directly.
 }
 \examples{
 Input_Subjects(data.frame(
-  USUBJID = c("S1", "S2"),
-  SITEID = c("701", "702"),
-  COUNTRY = c("USA", "USA")
+  studyid = c("A", "A"),
+  subject_id = c("S1", "S2"),
+  site = c("701", "702"),
+  country = c("USA", "USA")
 ))
 
 }

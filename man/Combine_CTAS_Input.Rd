@@ -4,13 +4,16 @@
 \alias{Combine_CTAS_Input}
 \title{Combine domain inputs into the five CTAS input frames}
 \usage{
-Combine_CTAS_Input(..., dfSubjects)
+Combine_CTAS_Input(..., dfSubjects, strStudyCol = "studyid")
 }
 \arguments{
 \item{...}{\code{list} One or more \verb{Input_*()} results, each with \code{data},
 \code{parameters} and optionally \code{untransformed}.}
 
 \item{dfSubjects}{\code{data.frame} Result of \code{\link[=Input_Subjects]{Input_Subjects()}}.}
+
+\item{strStudyCol}{\code{character} Study identifier column expected on
+\code{dfSubjects}. \code{NULL} disables the check.}
 }
 \value{
 \code{list} with elements \code{data}, \code{subjects}, \code{parameters},
@@ -28,17 +31,23 @@ back on the study-level defaults passed to \code{process_a_study()}. Setting the
 per parameter is a deliberate later decision, not something the mapping layer
 should guess.
 
+\code{subjects} carries \code{studyid} when \code{strStudyCol} is set (the default), which
+\code{\link[=Analyze_CTAS]{Analyze_CTAS()}} uses to split a multi-study input by study before scoring.
+Set \code{strStudyCol = NULL} to opt out of the multi-study contract.
+
 The combined \code{untransformed} frame is retained but is \emph{not} CTAS input; it is
 the detail object used for drill-down.
 }
 \examples{
 Combine_CTAS_Input(
   Input_Numeric(data.frame(
-    USUBJID = "S1", VSTESTCD = "SYSBP", VSTEST = "Systolic Blood Pressure",
-    VISIT = "WEEK 2", VISITNUM = 3, VSSTRESN = 120
+    studyid = "A", subject_id = "S1", parameter_id = "SYSBP",
+    parameter_name = "Systolic Blood Pressure",
+    parameter_category_1 = "Vital Signs",
+    visit = "WEEK 2", visitnum = 3, value = 120
   )),
   dfSubjects = Input_Subjects(data.frame(
-    USUBJID = "S1", SITEID = "701", COUNTRY = "USA"
+    studyid = "A", subject_id = "S1", site = "701", country = "USA"
   ))
 )
 

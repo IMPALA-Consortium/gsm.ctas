@@ -16,6 +16,7 @@ reference:
 - title: Mapping
   desc: Map SDTM domains into CTAS input frames.
   contents:
+  - FilterVisits
   - starts_with("Input_")
   - Combine_CTAS_Input
 - title: Preparation

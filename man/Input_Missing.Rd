@@ -2,24 +2,26 @@
 % Please edit documentation in R/Input_Missing.R
 \name{Input_Missing}
 \alias{Input_Missing}
-\title{Map a findings domain to a missingness-ratio CTAS input}
+\title{Map a findings frame to a missingness-ratio CTAS input}
 \usage{
 Input_Missing(
   dfDomain,
-  strSubjectCol = "USUBJID",
-  strTestCDCol = "LBTESTCD",
-  strTestCol = "LBTEST",
-  strValueCol = "LBSTRESN",
-  strVisitCol = "VISIT",
-  strVisitNumCol = "VISITNUM",
+  strSubjectCol = "subject_id",
+  strTestCDCol = "parameter_id",
+  strTestCol = "parameter_name",
+  strValueCol = "value",
+  strVisitCol = "visit",
+  strVisitNumCol = "visitnum",
+  strStudyCol = "studyid",
+  strCategoryCol = "parameter_category_1",
   strVisitPattern = NULL,
-  strExcludePattern = "unsch",
-  strCategory = "Labs",
-  strPrefix = "LB_MISS"
+  strExcludePattern = NULL,
+  strCategory = NA_character_,
+  strPrefix = "MISS"
 )
 }
 \arguments{
-\item{dfDomain}{\code{data.frame} An SDTM domain.}
+\item{dfDomain}{\code{data.frame} A findings-shaped domain, standardised or SDTM.}
 
 \item{strSubjectCol}{\code{character} Subject identifier column.}
 
@@ -34,6 +36,12 @@ Input_Missing(
 
 \item{strVisitNumCol}{\code{character} Numeric visit-order column.}
 
+\item{strStudyCol}{\code{character} Study identifier column. \code{NULL} disables the
+check and drops \code{studyid} from the output.}
+
+\item{strCategoryCol}{\code{character} Column carrying \code{parameter_category_1}, if
+available. \code{NULL} leaves the column off the output.}
+
 \item{strVisitPattern}{\code{character} Regular expression that a visit must match
 to be retained. \code{NULL} (default) keeps all visits.}
 
@@ -41,10 +49,13 @@ to be retained. \code{NULL} (default) keeps all visits.}
 dropped. Matched case-insensitively. Default \code{"unsch"} removes unscheduled
 visits. \code{NULL} disables the exclusion.}
 
-\item{strCategory}{\code{character} Value written to \code{parameter_category_1},
-used as the display grouping in downstream tools.}
+\item{strCategory}{\code{character} Fallback value written to
+\code{parameter_category_1} when \code{strCategoryCol} is \code{NULL} or absent from
+\code{dfDomain}. Reads the category from the input column when it is present.}
 
-\item{strPrefix}{\code{character} Prefix for the generated \code{parameter_id}.}
+\item{strPrefix}{\code{character} Prefix for the generated \code{parameter_id}, kept
+distinct per transformation so \code{range_normalized} and \code{ratio_missing}
+never collide on the same lab test.}
 }
 \value{
 \code{list} with elements \code{data}, \code{parameters} and \code{untransformed}.
@@ -61,12 +72,14 @@ retained - they are the signal.
 }
 \examples{
 Input_Missing(data.frame(
-  USUBJID = c("S1", "S1"),
-  LBTESTCD = c("ALT", "ALT"),
-  LBTEST = c("Alanine Aminotransferase", "Alanine Aminotransferase"),
-  VISIT = c("WEEK 2", "WEEK 4"),
-  VISITNUM = c(3, 4),
-  LBSTRESN = c(20, NA)
+  studyid = "A",
+  subject_id = c("S1", "S1"),
+  parameter_id = c("ALT", "ALT"),
+  parameter_name = c("Alanine Aminotransferase", "Alanine Aminotransferase"),
+  parameter_category_1 = "Labs",
+  visit = c("WEEK 2", "WEEK 4"),
+  visitnum = c(3, 4),
+  value = c(20, NA)
 ))
 
 }

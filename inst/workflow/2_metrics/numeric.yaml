@@ -1,0 +1,119 @@
+meta:
+  Type: Analysis
+  ID: numeric
+  GroupLevel: Site
+  Abbreviation: CTASNUM
+  Metric: CTAS Numeric Findings
+  Numerator: Triggered Timeseries
+  Denominator: Evaluated Timeseries
+  Model: CTAS Anomaly Detection
+  Score: FDR-Corrected -log10(p)
+  AnalysisType: identity
+  Threshold: 0.842, 2.326
+  Features: autocorr;average;sd;unique_value_count_relative
+  TriggerHigh: 2.326
+  TriggerLow: 0.842
+  MinTimepoints: 3
+  MinSubjects: 3
+  MaxShareMissing: 0.5
+  ScoringMethod: ks
+  PadjustMethod: fdr
+  Seed: 20260813
+spec:
+  Mapped_SITE:
+    GroupID:
+      type: character
+  Mapped_Subjects:
+    studyid:
+      type: character
+    subject_id:
+      type: character
+    site:
+      type: character
+    country:
+      type: character
+  Mapped_Numeric:
+    studyid:
+      type: character
+    subject_id:
+      type: character
+    parameter_id:
+      type: character
+    parameter_name:
+      type: character
+    parameter_category_1:
+      type: character
+    visit:
+      type: character
+    visitnum:
+      type: numeric
+    value:
+      type: numeric
+steps:
+  - output: Temp_GroupIDs
+    name: workr::RunQuery
+    params:
+      df: Mapped_SITE
+      strQuery: "SELECT DISTINCT GroupID FROM df"
+  - output: vGroupIDs
+    name: dplyr::pull
+    params:
+      .data: Temp_GroupIDs
+      var: GroupID
+  - output: vThreshold
+    name: gsm.core::ParseThreshold
+    params:
+      strThreshold: Threshold
+  - output: Temp_CTAS_Subjects
+    name: gsm.ctas::Input_Subjects
+    params:
+      dfDM: Mapped_Subjects
+  - output: Temp_CTAS_Values
+    name: gsm.ctas::Input_Numeric
+    params:
+      dfDomain: Mapped_Numeric
+  - output: Temp_CTAS_Input
+    name: gsm.ctas::Combine_CTAS_Input
+    params:
+      lNumeric: Temp_CTAS_Values
+      dfSubjects: Temp_CTAS_Subjects
+  - output: Temp_CTAS_Result
+    name: gsm.ctas::Analyze_CTAS
+    params:
+      lInput: Temp_CTAS_Input
+      strFeatures: Features
+      nMinTimepoints: MinTimepoints
+      nMinSubjects: MinSubjects
+      dMaxShareMissing: MaxShareMissing
+      strScoringMethod: ScoringMethod
+      strPadjustMethod: PadjustMethod
+      nSeed: Seed
+  - output: Temp_CTAS_Scores
+    name: gsm.ctas::Combine_CTAS_Scores
+    params:
+      lResult: Temp_CTAS_Result
+      lInput: Temp_CTAS_Input
+  - output: Analysis_Analyzed
+    name: gsm.ctas::Summarize_CTAS
+    params:
+      dfSiteScores: Temp_CTAS_Scores
+      strGroupLevel: GroupLevel
+      vGroupIDs: vGroupIDs
+      dHigh: TriggerHigh
+      dLow: TriggerLow
+  - output: Analysis_Flagged
+    name: gsm.ctas::Flag_CTAS
+    params:
+      dfAnalyzed: Analysis_Analyzed
+      vThreshold: vThreshold
+  - output: Analysis_Summary
+    name: gsm.core::Summarize
+    params:
+      dfFlagged: Analysis_Flagged
+  - output: lAnalysis
+    name: list
+    params:
+      ID: ID
+      Analysis_Analyzed: Analysis_Analyzed
+      Analysis_Flagged: Analysis_Flagged
+      Analysis_Summary: Analysis_Summary

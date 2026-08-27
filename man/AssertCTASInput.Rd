@@ -4,10 +4,13 @@
 \alias{AssertCTASInput}
 \title{Validate a combined CTAS input list}
 \usage{
-AssertCTASInput(lInput)
+AssertCTASInput(lInput, strStudyCol = "studyid")
 }
 \arguments{
 \item{lInput}{\code{list} Result of \code{\link[=Combine_CTAS_Input]{Combine_CTAS_Input()}}.}
+
+\item{strStudyCol}{\code{character} Optional study column expected on
+\code{lInput$subjects}.}
 }
 \value{
 \code{NULL}, invisibly. Aborts when the input is unusable.

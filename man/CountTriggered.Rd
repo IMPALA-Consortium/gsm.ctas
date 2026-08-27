@@ -22,9 +22,6 @@ as returned by \code{\link[=AddCTASTrigger]{AddCTASTrigger()}}.}
 \code{data.frame} with the grouping column and \code{N}.
 }
 \description{
-Note that a naive \code{filter(trigger == trigger)} would compare the column to
-itself, the argument being shadowed by the column of the same name, and so
-always evaluate to \code{TRUE}, counting every timeseries rather than the
-triggered ones. Here the argument is disambiguated with \code{.env}.
+Count timeseries per group for a given trigger category
 }
 \keyword{internal}

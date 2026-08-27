@@ -21,12 +21,12 @@ steps:
       strQuery: |
         SELECT
           SITEID as GroupID,
-          MAX(STUDYID) as StudyID,
+          STUDYID as StudyID,
           MAX(COUNTRY) as Country,
           SITEID as InvestigatorLastName,
           COUNT(DISTINCT USUBJID) as ParticipantCount
         FROM df
-        GROUP BY SITEID
+        GROUP BY STUDYID, SITEID
   - output: Mapped_SITE
     name: gsm.mapping::MakeLongMeta
     params:

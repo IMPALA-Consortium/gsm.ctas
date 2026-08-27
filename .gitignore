@@ -6,3 +6,4 @@
 .quarto
 .Renviron
 docs
+.github/copilot-instructions.md

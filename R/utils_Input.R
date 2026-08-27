@@ -15,7 +15,7 @@
 #'
 #' @return `data.frame` A filtered copy of `dfInput`.
 #'
-#' @keywords internal
+#' @export
 FilterVisits <- function(dfInput,
                          strVisitCol = "VISIT",
                          strVisitPattern = NULL,
@@ -112,57 +112,88 @@ EmptyCTASUntransformed <- function() {
 
 #' Standardise a domain into the shared CTAS working frame
 #'
-#' Renames the sponsor's SDTM columns into the CTAS vocabulary and filters
-#' visits. Shared by all `Input_*()` functions so that column-name
-#' parameterisation is implemented once.
+#' Renames the caller's columns into the CTAS vocabulary and filters visits.
+#' Shared by all `Input_*()` functions so that column-name parameterisation is
+#' implemented once. Studyid and per-parameter category (when the input carries
+#' them) are passed through unchanged so downstream frames can be split by
+#' study and labelled by category without re-deriving them.
 #'
 #' @inheritParams FilterVisits
-#' @param dfDomain `data.frame` An SDTM domain.
+#' @param dfDomain `data.frame` A findings-shaped domain, standardised or SDTM.
 #' @param strSubjectCol `character` Subject identifier column.
 #' @param strTestCDCol `character` Short test-code column.
 #' @param strTestCol `character` Long test-name column. Falls back to
 #'   `strTestCDCol` when `NULL`.
 #' @param strValueCol `character` Result column.
 #' @param strVisitNumCol `character` Numeric visit-order column.
+#' @param strStudyCol `character` Study identifier column. `NULL` disables the
+#'   check and drops `studyid` from the output.
+#' @param strCategoryCol `character` Column carrying `parameter_category_1`, if
+#'   available. `NULL` leaves the column off the output.
 #'
 #' @return `data.frame` with columns `subject_id`, `TestCD`, `TestName`,
-#'   `timepoint_1_name`, `timepoint_rank` and `Value`.
+#'   `timepoint_1_name`, `timepoint_rank` and `Value`, plus `studyid` and
+#'   `Category` when the corresponding source columns were supplied.
 #'
 #' @keywords internal
 StandardizeDomain <- function(dfDomain,
-                              strSubjectCol = "USUBJID",
-                              strTestCDCol = "VSTESTCD",
-                              strTestCol = "VSTEST",
-                              strValueCol = "VSSTRESN",
-                              strVisitCol = "VISIT",
-                              strVisitNumCol = "VISITNUM",
+                              strSubjectCol = "subject_id",
+                              strTestCDCol = "parameter_id",
+                              strTestCol = "parameter_name",
+                              strValueCol = "value",
+                              strVisitCol = "visit",
+                              strVisitNumCol = "visitnum",
+                              strStudyCol = "studyid",
+                              strCategoryCol = "parameter_category_1",
                               strVisitPattern = NULL,
-                              strExcludePattern = "unsch") {
+                              strExcludePattern = NULL) {
   AssertColumns(
     dfDomain,
     c(strSubjectCol, strTestCDCol, strTestCol, strValueCol, strVisitCol, strVisitNumCol),
     "dfDomain"
   )
 
+  if (!is.null(strStudyCol) && !strStudyCol %in% names(dfDomain)) {
+    cli::cli_abort(c(
+      "{.arg dfDomain} is missing study column {.val {strStudyCol}}.",
+      "i" = "Set {.arg strStudyCol} to {.code NULL} to opt out of the multi-study contract."
+    ))
+  }
+
   strNameCol <- if (is.null(strTestCol)) strTestCDCol else strTestCol
 
-  dfDomain |>
-    FilterVisits(
-      strVisitCol = strVisitCol,
-      strVisitPattern = strVisitPattern,
-      strExcludePattern = strExcludePattern
-    ) |>
-    dplyr::transmute(
-      subject_id = as.character(.data[[strSubjectCol]]),
-      TestCD = as.character(.data[[strTestCDCol]]),
-      TestName = as.character(.data[[strNameCol]]),
-      timepoint_1_name = as.character(.data[[strVisitCol]]),
-      timepoint_rank = as.numeric(.data[[strVisitNumCol]]),
-      Value = .data[[strValueCol]]
-    )
+  dfFiltered <- FilterVisits(
+    dfDomain,
+    strVisitCol = strVisitCol,
+    strVisitPattern = strVisitPattern,
+    strExcludePattern = strExcludePattern
+  )
+
+  dfWork <- dplyr::tibble(
+    subject_id = as.character(dfFiltered[[strSubjectCol]]),
+    TestCD = as.character(dfFiltered[[strTestCDCol]]),
+    TestName = as.character(dfFiltered[[strNameCol]]),
+    timepoint_1_name = as.character(dfFiltered[[strVisitCol]]),
+    timepoint_rank = as.numeric(dfFiltered[[strVisitNumCol]]),
+    Value = dfFiltered[[strValueCol]]
+  )
+
+  if (!is.null(strStudyCol)) {
+    dfWork$studyid <- as.character(dfFiltered[[strStudyCol]])
+  }
+
+  if (!is.null(strCategoryCol) && strCategoryCol %in% names(dfFiltered)) {
+    dfWork$Category <- as.character(dfFiltered[[strCategoryCol]])
+  }
+
+  dfWork
 }
 
 #' Assemble the CTAS `data` frame from a standardised working frame
+#'
+#' The CTAS `data` schema is subject-scoped, not study-scoped: CTAS keys off
+#' `subject_id` and joins studyid back via the `subjects` frame. `studyid` is
+#' therefore not carried on `data`.
 #'
 #' @param dfWork `data.frame` With `subject_id`, `parameter_id`,
 #'   `timepoint_1_name`, `timepoint_rank` and `result`.

@@ -71,7 +71,12 @@ test_that("Summarize_CTAS reproduces the reference group scores", {
   dfRef <- ReadReference()
 
   for (strFeature in unique(dfRef$feature)) {
-    dfActual <- Summarize_CTAS(dfRef, strFeature = strFeature)
+    dfActual <- Summarize_CTAS(
+      dfRef,
+      vFeatures = strFeature,
+      strStudyCol = NULL
+    )
+    dfActual <- dfActual[order(dfActual$GroupID), ]
     dfExpected <- SummarizeReference(dfRef, strFeature)
 
     expect_identical(dfActual$GroupID, dfExpected$GroupID, info = strFeature)

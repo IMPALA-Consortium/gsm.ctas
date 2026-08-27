@@ -6,18 +6,20 @@
 \usage{
 StandardizeDomain(
   dfDomain,
-  strSubjectCol = "USUBJID",
-  strTestCDCol = "VSTESTCD",
-  strTestCol = "VSTEST",
-  strValueCol = "VSSTRESN",
-  strVisitCol = "VISIT",
-  strVisitNumCol = "VISITNUM",
+  strSubjectCol = "subject_id",
+  strTestCDCol = "parameter_id",
+  strTestCol = "parameter_name",
+  strValueCol = "value",
+  strVisitCol = "visit",
+  strVisitNumCol = "visitnum",
+  strStudyCol = "studyid",
+  strCategoryCol = "parameter_category_1",
   strVisitPattern = NULL,
-  strExcludePattern = "unsch"
+  strExcludePattern = NULL
 )
 }
 \arguments{
-\item{dfDomain}{\code{data.frame} An SDTM domain.}
+\item{dfDomain}{\code{data.frame} A findings-shaped domain, standardised or SDTM.}
 
 \item{strSubjectCol}{\code{character} Subject identifier column.}
 
@@ -32,6 +34,12 @@ StandardizeDomain(
 
 \item{strVisitNumCol}{\code{character} Numeric visit-order column.}
 
+\item{strStudyCol}{\code{character} Study identifier column. \code{NULL} disables the
+check and drops \code{studyid} from the output.}
+
+\item{strCategoryCol}{\code{character} Column carrying \code{parameter_category_1}, if
+available. \code{NULL} leaves the column off the output.}
+
 \item{strVisitPattern}{\code{character} Regular expression that a visit must match
 to be retained. \code{NULL} (default) keeps all visits.}
 
@@ -41,11 +49,14 @@ visits. \code{NULL} disables the exclusion.}
 }
 \value{
 \code{data.frame} with columns \code{subject_id}, \code{TestCD}, \code{TestName},
-\code{timepoint_1_name}, \code{timepoint_rank} and \code{Value}.
+\code{timepoint_1_name}, \code{timepoint_rank} and \code{Value}, plus \code{studyid} and
+\code{Category} when the corresponding source columns were supplied.
 }
 \description{
-Renames the sponsor's SDTM columns into the CTAS vocabulary and filters
-visits. Shared by all \verb{Input_*()} functions so that column-name
-parameterisation is implemented once.
+Renames the caller's columns into the CTAS vocabulary and filters visits.
+Shared by all \verb{Input_*()} functions so that column-name parameterisation is
+implemented once. Studyid and per-parameter category (when the input carries
+them) are passed through unchanged so downstream frames can be split by
+study and labelled by category without re-deriving them.
 }
 \keyword{internal}

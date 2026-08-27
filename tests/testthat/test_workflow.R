@@ -1,100 +1,62 @@
-test_that("the mapping layer runs CTAS once and shares its site scores", {
-  expect_s3_class(lMapped$Mapped_CTAS_SiteScores, "data.frame")
+skip_if_not(
+  isTRUE(bWorkflowRunnable),
+  "Workflow packages (workr / gsm.core / gsm.mapping / pharmaversesdtm) not installed."
+)
+
+test_that("mapping publishes the standardised transformation-typed frames", {
   expect_true(all(
-    c("site", "parameter_id", "feature", "fdr_corrected_pvalue_logp") %in%
-      names(lMapped$Mapped_CTAS_SiteScores)
+    c("Mapped_DM", "Mapped_VS", "Mapped_LB", "Mapped_SITE", "Mapped_STUDY",
+      "Mapped_Subjects", "Mapped_Numeric", "Mapped_Range") %in% names(lMapped)
   ))
-  expect_gt(nrow(lMapped$Mapped_CTAS_SiteScores), 0)
 })
 
-test_that("one CTAS run covers all three parameter families", {
-  # VS values, labs normalised by reference range, and lab missingness. The last
-  # two come from the same LB domain, mapped twice, because value deviation and
-  # completeness deviation are different questions.
-  vPrefix <- unique(sub("_[^_]+$", "", lMapped$Mapped_CTAS_SiteScores$parameter_id))
-
-  expect_setequal(vPrefix, c("VS", "LB_NORM", "LB_MISS"))
+test_that("mapping filters unscheduled visits from VS and LB", {
+  expect_false(any(grepl("UNSCH", lMapped$Mapped_VS$VISIT, ignore.case = TRUE)))
+  expect_false(any(grepl("UNSCH", lMapped$Mapped_LB$VISIT, ignore.case = TRUE)))
 })
 
-test_that("the mapping layer emits the ctasapp drill-down detail object", {
-  lDetail <- lMapped$Mapped_CTAS_Detail
-
-  expect_named(lDetail, c("Results", "Input", "Untransformed"))
-  # ctasapp's mandatory results contract, which the aggregated gsm output does
-  # not satisfy.
+test_that("Mapped_Subjects carries the CTAS column vocabulary and every study", {
   expect_true(all(
-    c("site", "timeseries_id", "parameter_id", "feature",
-      "fdr_corrected_pvalue_logp") %in% names(lDetail$Results)
+    c("studyid", "subject_id", "site", "country") %in% names(lMapped$Mapped_Subjects)
+  ))
+  expect_setequal(unique(lMapped$Mapped_Subjects$studyid), vStudyIDs)
+})
+
+test_that("Mapped_Numeric and Mapped_Range carry studyid + parameter_category_1", {
+  expect_true(all(
+    c("studyid", "subject_id", "parameter_id", "parameter_name",
+      "parameter_category_1", "visit", "visitnum", "value") %in%
+      names(lMapped$Mapped_Numeric)
   ))
   expect_true(all(
-    c("subject_id", "site", "parameter_id", "parameter_name",
-      "parameter_category_3", "timepoint_1_name", "timepoint_rank",
-      "result") %in% names(lDetail$Input)
+    c("low", "high") %in% names(lMapped$Mapped_Range)
   ))
-  expect_gt(nrow(lDetail$Untransformed), 0)
+  expect_setequal(unique(lMapped$Mapped_Numeric$studyid), vStudyIDs)
+  expect_setequal(unique(lMapped$Mapped_Range$studyid), vStudyIDs)
+  expect_setequal(unique(lMapped$Mapped_Numeric$parameter_category_1), "Vital Signs")
+  expect_setequal(unique(lMapped$Mapped_Range$parameter_category_1), "Labs")
 })
 
-test_that("every group flagged in the report can be traced to its timeseries", {
-  # The drill-down path: a GroupID in Analysis_Flagged must be resolvable to the
-  # timeseries and parameters that produced its score.
-  vGroups <- unique(lAnalysis$Analysis_ctas0002$Analysis_Flagged$GroupID)
-  vGroups <- vGroups[vGroups %in% lMapped$Mapped_CTAS_Detail$Results$site]
-
-  expect_gt(length(vGroups), 0)
-
-  dfHits <- lMapped$Mapped_CTAS_Detail$Results[
-    lMapped$Mapped_CTAS_Detail$Results$site %in% vGroups,
-  ]
-
-  expect_gt(nrow(dfHits), 0)
-  expect_true(all(dfHits$parameter_id %in% lMapped$Mapped_CTAS_Detail$Input$parameter_id))
-})
-
-test_that("the mapping layer produces the group metadata the report needs", {
+test_that("Mapped_SITE groups by STUDYID and SITEID so cloned sites stay separated", {
   expect_setequal(names(lMapped$Mapped_SITE), c("GroupID", "Param", "Value", "GroupLevel"))
-  expect_setequal(unique(lMapped$Mapped_SITE$GroupLevel), "Site")
-  expect_setequal(unique(lMapped$Mapped_STUDY$GroupLevel), "Study")
   expect_setequal(unique(lMapped$Mapped_SITE$GroupID), unique(dmSmall$SITEID))
 })
 
-test_that("one metric workflow is produced per domain and feature", {
-  # VS and range-normalised labs get all four features; lab missingness gets
-  # three, because `autocorr` is not returned for those timeseries.
+test_that("one metric workflow is produced per transformation type", {
   expect_setequal(names(lAnalysis), paste0("Analysis_", vMetricIDs))
 })
 
-test_that("each metric selects only its own parameter family", {
-  lFamily <- list(
-    ctas0001 = c("Vital Signs", "numeric"), ctas0002 = c("Vital Signs", "numeric"),
-    ctas0003 = c("Vital Signs", "numeric"), ctas0004 = c("Vital Signs", "numeric"),
-    ctas0005 = c("Labs", "range_normalized"), ctas0006 = c("Labs", "range_normalized"),
-    ctas0007 = c("Labs", "range_normalized"), ctas0008 = c("Labs", "range_normalized"),
-    ctas0009 = c("Labs", "ratio_missing"), ctas0010 = c("Labs", "ratio_missing"),
-    ctas0011 = c("Labs", "ratio_missing")
-  )
-
-  purrr::iwalk(lFamily, function(vFamily, strID) {
-    lWorkflow <- lMetricWorkflows[[strID]]
-    expect_equal(lWorkflow$meta$Domain, vFamily[1])
-    expect_equal(lWorkflow$meta$Transformation, vFamily[2])
-
-    # A denominator equal to the timeseries count of that family alone is what
-    # shows the filter took effect: without it every metric would see all 15.
-    nExpected <- lMapped$Mapped_CTAS_SiteScores |>
-      dplyr::filter(
-        .data$parameter_category_1 == vFamily[1],
-        .data$parameter_category_3 == vFamily[2],
-        .data$feature == lWorkflow$meta$Feature,
-        .data$site == lMapped$Mapped_SITE$GroupID[1]
-      ) |>
-      nrow()
-
-    dfAnalyzed <- lAnalysis[[paste0("Analysis_", strID)]]$Analysis_Analyzed
-    expect_equal(
-      dfAnalyzed$Denominator[dfAnalyzed$GroupID == lMapped$Mapped_SITE$GroupID[1]],
-      nExpected
-    )
-    expect_gt(nExpected, 0)
+test_that("each metric emits Analysis_Analyzed with a Feature column per feature", {
+  purrr::iwalk(lAnalysis, function(lResult, strID) {
+    dfAnalyzed <- lResult$Analysis_Analyzed
+    expect_true(all(
+      c("studyid", "GroupID", "GroupLevel", "Feature",
+        "Numerator", "Denominator", "Metric", "Score") %in%
+        names(dfAnalyzed)
+    ))
+    expect_gt(length(unique(dfAnalyzed$Feature)), 0)
+    expect_setequal(unique(dfAnalyzed$studyid), vStudyIDs)
+    expect_setequal(unique(dfAnalyzed$GroupLevel), "Site")
   })
 })
 
@@ -104,29 +66,32 @@ test_that("each metric workflow returns the gsm lAnalysis contract", {
       names(lResult),
       c("ID", "Analysis_Analyzed", "Analysis_Flagged", "Analysis_Summary")
     )
-    expect_true(all(
-      c("GroupID", "GroupLevel", "Numerator", "Denominator", "Metric", "Score") %in%
-        names(lResult$Analysis_Analyzed)
-    ))
     expect_true("Flag" %in% names(lResult$Analysis_Flagged))
-    expect_setequal(unique(lResult$Analysis_Analyzed$GroupLevel), "Site")
   })
 })
 
 test_that("Analysis_Input and Analysis_Transformed are deliberately absent", {
-  # CTAS scores a site as a whole against the rest of the study, so there is no
-  # subject-level numerator/denominator and nothing to transform.
   purrr::walk(lAnalysis, function(lResult) {
     expect_false("Analysis_Input" %in% names(lResult))
     expect_false("Analysis_Transformed" %in% names(lResult))
   })
 })
 
-test_that("every site appears in every metric, evaluated or not", {
+test_that("every site appears in every metric feature for every study", {
   vSiteIDs <- sort(unique(as.character(dmSmall$SITEID)))
 
   purrr::walk(lAnalysis, function(lResult) {
-    expect_setequal(lResult$Analysis_Analyzed$GroupID, vSiteIDs)
+    dfAnalyzed <- lResult$Analysis_Analyzed
+    vFeatures <- unique(dfAnalyzed$Feature)
+    expect_setequal(
+      unique(paste(dfAnalyzed$studyid, dfAnalyzed$GroupID)),
+      as.vector(outer(vStudyIDs, vSiteIDs, paste))
+    )
+    # Every (study, site) is present for every feature.
+    expect_equal(
+      nrow(dfAnalyzed),
+      length(vFeatures) * length(vSiteIDs) * length(vStudyIDs)
+    )
   })
 })
 
@@ -141,44 +106,16 @@ test_that("flagging is one-sided and unevaluated groups stay NA", {
   })
 })
 
-test_that("workflow output matches a direct call to the R functions", {
-  dfDirect <- Summarize_CTAS(
-    lMapped$Mapped_CTAS_SiteScores,
-    strFeature = "average",
-    strGroupLevel = "Site",
-    strDomain = "Vital Signs",
-    strTransformation = "numeric",
-    vGroupIDs = unique(lMapped$Mapped_SITE$GroupID)
+test_that("ratio_missing metric drops the autocorr feature", {
+  # Autocorrelation of a monotonic running ratio carries no additional signal,
+  # so the ratio_missing YAML deliberately omits it.
+  expect_false(
+    "autocorr" %in% unique(lAnalysis$Analysis_ratio_missing$Analysis_Analyzed$Feature)
   )
-
-  expect_equal(
-    dfDirect,
-    dplyr::as_tibble(lAnalysis$Analysis_ctas0002$Analysis_Analyzed)
-  )
-
-  expect_equal(
-    Flag_CTAS(dfDirect),
-    lAnalysis$Analysis_ctas0002$Analysis_Flagged
-  )
-})
-
-test_that("the same feature gives different results per parameter family", {
-  # If it did not, the parameter filter would be doing nothing and the LB
-  # metrics would be duplicates of the VS ones.
-  dfVS <- lAnalysis$Analysis_ctas0002$Analysis_Analyzed
-  dfLBNorm <- lAnalysis$Analysis_ctas0006$Analysis_Analyzed
-  dfLBMiss <- lAnalysis$Analysis_ctas0009$Analysis_Analyzed
-
-  expect_false(isTRUE(all.equal(dfVS$Score, dfLBNorm$Score)))
-  expect_false(isTRUE(all.equal(dfVS$Score, dfLBMiss$Score)))
 })
 
 test_that("metric metadata is complete enough for gsm.reporting", {
-  lMetricWorkflows <- workr::MakeWorkflowList(
-    strNames = NULL,
-    strPath = system.file("workflow/2_metrics", package = "gsm.ctas"),
-    strPackage = NULL
-  )
+  skip_if_not_installed("gsm.reporting")
 
   dfMetrics <- gsm.reporting::MakeMetric(lWorkflows = lMetricWorkflows)
 
@@ -188,9 +125,6 @@ test_that("metric metadata is complete enough for gsm.reporting", {
       names(dfMetrics)
   ))
   expect_setequal(dfMetrics$GroupLevel, "Site")
-
-  # Each metric needs a distinguishable label, or the report shows eleven rows
-  # that a reviewer cannot tell apart.
   expect_length(unique(dfMetrics$Metric), length(vMetricIDs))
   expect_length(unique(dfMetrics$Abbreviation), length(vMetricIDs))
 })

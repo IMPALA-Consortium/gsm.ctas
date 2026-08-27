@@ -14,6 +14,8 @@ BuildCTASData(dfWork)
 \code{data.frame} in the CTAS \code{data} schema, with contiguous ranks.
 }
 \description{
-Assemble the CTAS \code{data} frame from a standardised working frame
+The CTAS \code{data} schema is subject-scoped, not study-scoped: CTAS keys off
+\code{subject_id} and joins studyid back via the \code{subjects} frame. \code{studyid} is
+therefore not carried on \code{data}.
 }
 \keyword{internal}

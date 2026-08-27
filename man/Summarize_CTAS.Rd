@@ -6,11 +6,9 @@
 \usage{
 Summarize_CTAS(
   dfSiteScores,
-  strFeature,
+  vFeatures = NULL,
   strGroupLevel = "Site",
-  strDomain = NULL,
-  strTransformation = NULL,
-  strParameterPattern = NULL,
+  strStudyCol = "studyid",
   vGroupIDs = NULL,
   dHigh = 2.326,
   dLow = 0.842
@@ -20,20 +18,13 @@ Summarize_CTAS(
 \item{dfSiteScores}{\code{data.frame} The \code{site_scores} element of
 \code{\link[=Analyze_CTAS]{Analyze_CTAS()}}, normally via \code{\link[=Combine_CTAS_Scores]{Combine_CTAS_Scores()}}.}
 
-\item{strFeature}{\code{character} Single CTAS feature to summarise, e.g.
-\code{"average"}.}
+\item{vFeatures}{\code{character} CTAS features to summarise. \code{NULL} (default)
+summarises every feature present in \code{dfSiteScores}.}
 
 \item{strGroupLevel}{\code{character} gsm group level, \code{"Site"} or \code{"Country"}.}
 
-\item{strDomain}{\code{character} Optional \code{parameter_category_1} to keep, e.g.
-\code{"Labs"}. Must be given together with \code{strTransformation}.}
-
-\item{strTransformation}{\code{character} Optional \code{parameter_category_3} to keep,
-e.g. \code{"ratio_missing"}. Must be given together with \code{strDomain}.}
-
-\item{strParameterPattern}{\code{character} Optional regular expression matched
-against \code{parameter_id}, as an alternative to the category pair for inputs
-that lack the category columns.}
+\item{strStudyCol}{\code{character} Study identifier column expected on
+\code{dfSiteScores}. \code{NULL} disables the per-study grid.}
 
 \item{vGroupIDs}{\code{character} Optional complete vector of group IDs.}
 
@@ -44,70 +35,48 @@ that lack the category columns.}
 "Watch List".}
 }
 \value{
-\code{data.frame} with \code{GroupID}, \code{GroupLevel}, \code{Numerator},
-\code{Denominator}, \code{Metric} and \code{Score}.
+\code{data.frame} with \code{GroupID}, \code{GroupLevel}, \code{Feature}, \code{Numerator},
+\code{Denominator}, \code{Metric} and \code{Score}, plus the study column when
+\code{strStudyCol} is set.
 }
 \description{
-CTAS returns one score per (timeseries x feature x group), while gsm expects
-one row per group per metric. \code{Summarize_CTAS()} filters the shared
-\code{\link[=Analyze_CTAS]{Analyze_CTAS()}} output to a single feature and collapses it over
-timeseries.
+CTAS returns one score per (timeseries x feature x group). \code{Summarize_CTAS()}
+collapses that grid over timeseries, producing one row per group per feature
+(and per study, if \code{strStudyCol} is present). A single metric YAML therefore
+emits every CTAS feature at once, without needing to filter the shared
+\code{site_scores} frame by domain or by parameter pattern.
 }
 \details{
-A single CTAS run covers every domain in the study, so \code{feature} alone does
-not identify a metric once more than one domain is mapped: "average" spans
-vital signs, range-normalised labs and lab missingness at the same time.
-A metric must therefore also say which family of parameters it summarises.
+Domain selection is intentionally removed: the mapping layer already
+publishes standardised, transformation-specific input frames (\code{Mapped_Numeric},
+\code{Mapped_Range}), and each metric YAML runs its own CTAS pipeline on the
+input it names, so a metric's \code{dfSiteScores} already contains only the
+parameters that metric owns.
 
-There are two ways to do so, and the category pair is preferred:
-\itemize{
-\item \code{strDomain} and \code{strTransformation} match \code{parameter_category_1} (e.g.
-\code{"Labs"}) and \code{parameter_category_3} (e.g. \code{"ratio_missing"}). These are
-the structured fields the \verb{Input_*()} functions set, recovered by
-\code{\link[=Combine_CTAS_Scores]{Combine_CTAS_Scores()}}. \strong{Both} are needed to identify a family:
-\code{parameter_category_3} is \code{"numeric"} for every plain numeric domain, so
-it would select vital signs and ECG together.
-\item \code{strParameterPattern} matches a regular expression against \code{parameter_id}.
-This works without the category columns, but re-derives from a string what
-the categories already state, and is easy to get subtly wrong - \code{"^LB_"}
-selects both lab families where \code{"^LB_MISS_"} selects one.
-}
-
-Groups with no evaluated timeseries for the feature are retained with
+Groups with no evaluated timeseries for a feature are retained with
 \code{Denominator = 0}, \code{Metric = NA} and \code{Score = NA}, so that the report does
 not silently drop them. Supply \code{vGroupIDs} to complete the grid against a
 known group list; otherwise only groups present in \code{dfSiteScores} appear.
+When \code{strStudyCol} is present, the grid is completed per study.
 
 \code{Denominator} counts the timeseries evaluated for the feature, not
-participants. Sites are normally assessed on the same timeseries, so the
-denominator is usually constant across sites within a metric, and varies only
-where a site contributes no data at all for a parameter. It differs \emph{between}
-metrics, because CTAS autogenerates one timeseries per timepoint combination
-and those differ by domain. It is a coverage denominator, not an exposure
-one, and should not be read as site size.
+participants. It is a coverage denominator, not an exposure one, and should
+not be read as site size.
 
-The default thresholds \code{2.326} / \code{0.842} are drawn from experience rather
-than derived. They are one-sided normal z-quantiles (99\% / 80\%) applied to a
--log10(p) scale, where they correspond to p = 0.0047 and p = 0.144. Override
-them from the workflow YAML \code{meta} block where a different convention is
-wanted.
+The default thresholds \code{2.326} / \code{0.842} are drawn from experience: one-sided
+normal z-quantiles (99\% / 80\%) applied to a -log10(p) scale, where they
+correspond to p = 0.0047 and p = 0.144. Override from the workflow YAML
+\code{meta} block where a different convention is wanted.
 }
 \examples{
 dfSiteScores <- data.frame(
   timeseries_id = c("ts1", "ts2", "ts1"),
   site = c("001", "001", "002"),
   country = "USA",
-  parameter_id = c("VS_SYSBP", "LB_NORM_ALB", "VS_SYSBP"),
-  parameter_category_1 = c("Vital Signs", "Labs", "Vital Signs"),
-  parameter_category_3 = c("numeric", "range_normalized", "numeric"),
-  feature = "average",
+  parameter_id = c("NUM_SYSBP", "NUM_DIABP", "NUM_SYSBP"),
+  feature = c("average", "sd", "average"),
   fdr_corrected_pvalue_logp = c(3.1, 0.5, 1.0)
 )
-Summarize_CTAS(
-  dfSiteScores,
-  strFeature = "average",
-  strDomain = "Vital Signs",
-  strTransformation = "numeric"
-)
+Summarize_CTAS(dfSiteScores, strStudyCol = NULL)
 
 }

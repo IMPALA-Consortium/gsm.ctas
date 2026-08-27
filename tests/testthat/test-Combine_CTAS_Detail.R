@@ -1,27 +1,32 @@
 MakeDetailInput <- function() {
   Combine_CTAS_Input(
     Input_Numeric(data.frame(
-      USUBJID = c("S1", "S1", "S2", "S2"),
-      VSTESTCD = "SYSBP",
-      VSTEST = "Systolic Blood Pressure",
-      VISIT = c("WEEK 2", "WEEK 4", "WEEK 2", "WEEK 4"),
-      VISITNUM = c(3, 4, 3, 4),
-      VSSTRESN = c(120, 122, 130, 128)
+      studyid = "STUDY_A",
+      subject_id = c("S1", "S1", "S2", "S2"),
+      parameter_id = "SYSBP",
+      parameter_name = "Systolic Blood Pressure",
+      parameter_category_1 = "Vital Signs",
+      visit = c("WEEK 2", "WEEK 4", "WEEK 2", "WEEK 4"),
+      visitnum = c(3, 4, 3, 4),
+      value = c(120, 122, 130, 128)
     )),
     Input_Range(data.frame(
-      USUBJID = c("S1", "S2"),
-      LBTESTCD = "ALT",
-      LBTEST = "Alanine Aminotransferase",
-      VISIT = "WEEK 2",
-      VISITNUM = 3,
-      LBSTRESN = c(20, 35),
-      LBSTNRLO = 10,
-      LBSTNRHI = 40
+      studyid = "STUDY_A",
+      subject_id = c("S1", "S2"),
+      parameter_id = "ALT",
+      parameter_name = "Alanine Aminotransferase",
+      parameter_category_1 = "Labs",
+      visit = "WEEK 2",
+      visitnum = 3,
+      value = c(20, 35),
+      low = 10,
+      high = 40
     )),
     dfSubjects = Input_Subjects(data.frame(
-      USUBJID = c("S1", "S2"),
-      SITEID = c("701", "702"),
-      COUNTRY = "USA"
+      studyid = "STUDY_A",
+      subject_id = c("S1", "S2"),
+      site = c("701", "702"),
+      country = "USA"
     ))
   )
 }
@@ -31,7 +36,7 @@ MakeDetailScores <- function() {
     timeseries_id = c("ts1", "ts2"),
     site = c("701", "702"),
     feature = "average",
-    parameter_id = c("VS_SYSBP", "LB_NORM_ALT"),
+    parameter_id = c("NUM_SYSBP", "RANGE_ALT"),
     fdr_corrected_pvalue_logp = c(3.0, 0.5),
     stringsAsFactors = FALSE
   )
@@ -161,13 +166,13 @@ test_that("a flagged group can be traced to its timeseries and parameters", {
 
   # This is the whole point of WP8: Summarize_CTAS() reports site 701 as
   # flagged, and the detail object must say which parameter caused it.
-  dfAnalyzed <- Summarize_CTAS(dfScores, strFeature = "average")
+  dfAnalyzed <- Summarize_CTAS(dfScores, vFeatures = "average", strStudyCol = NULL)
   strGroup <- dfAnalyzed$GroupID[which.max(dfAnalyzed$Score)]
 
   dfHits <- lDetail$Results[lDetail$Results$site == strGroup, ]
 
   expect_equal(strGroup, "701")
-  expect_equal(dfHits$parameter_id, "VS_SYSBP")
+  expect_equal(dfHits$parameter_id, "NUM_SYSBP")
   expect_true(all(dfHits$parameter_id %in% lDetail$Input$parameter_id))
 })
 

@@ -10,12 +10,18 @@
 #' per parameter is a deliberate later decision, not something the mapping layer
 #' should guess.
 #'
+#' `subjects` carries `studyid` when `strStudyCol` is set (the default), which
+#' [Analyze_CTAS()] uses to split a multi-study input by study before scoring.
+#' Set `strStudyCol = NULL` to opt out of the multi-study contract.
+#'
 #' The combined `untransformed` frame is retained but is *not* CTAS input; it is
 #' the detail object used for drill-down.
 #'
 #' @param ... `list` One or more `Input_*()` results, each with `data`,
 #'   `parameters` and optionally `untransformed`.
 #' @param dfSubjects `data.frame` Result of [Input_Subjects()].
+#' @param strStudyCol `character` Study identifier column expected on
+#'   `dfSubjects`. `NULL` disables the check.
 #'
 #' @return `list` with elements `data`, `subjects`, `parameters`,
 #'   `custom_timeseries`, `custom_reference_groups` and `untransformed`.
@@ -23,16 +29,18 @@
 #' @examples
 #' Combine_CTAS_Input(
 #'   Input_Numeric(data.frame(
-#'     USUBJID = "S1", VSTESTCD = "SYSBP", VSTEST = "Systolic Blood Pressure",
-#'     VISIT = "WEEK 2", VISITNUM = 3, VSSTRESN = 120
+#'     studyid = "A", subject_id = "S1", parameter_id = "SYSBP",
+#'     parameter_name = "Systolic Blood Pressure",
+#'     parameter_category_1 = "Vital Signs",
+#'     visit = "WEEK 2", visitnum = 3, value = 120
 #'   )),
 #'   dfSubjects = Input_Subjects(data.frame(
-#'     USUBJID = "S1", SITEID = "701", COUNTRY = "USA"
+#'     studyid = "A", subject_id = "S1", site = "701", country = "USA"
 #'   ))
 #' )
 #'
 #' @export
-Combine_CTAS_Input <- function(..., dfSubjects) {
+Combine_CTAS_Input <- function(..., dfSubjects, strStudyCol = "studyid") {
   lInputs <- list(...)
 
   if (length(lInputs) == 0) {
@@ -51,9 +59,11 @@ Combine_CTAS_Input <- function(..., dfSubjects) {
     )
   }
 
-  AssertColumns(
-    dfSubjects, c("subject_id", "site", "country", "region"), "dfSubjects"
-  )
+  vRequiredSubjects <- c("subject_id", "site", "country", "region")
+  if (!is.null(strStudyCol)) {
+    vRequiredSubjects <- c(strStudyCol, vRequiredSubjects)
+  }
+  AssertColumns(dfSubjects, vRequiredSubjects, "dfSubjects")
 
   dfData <- dplyr::bind_rows(lapply(lInputs, `[[`, "data")) |>
     as.data.frame()

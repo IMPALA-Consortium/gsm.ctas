@@ -5,10 +5,16 @@
 #' and converts the degenerate cases CTAS signals by returning `NULL` elements
 #' into an informative error.
 #'
+#' `process_a_study()` is single-study by construction. When `lInput$subjects`
+#' contains more than one value in `strStudyCol`, the input is split by study,
+#' scored per study, and the four result frames are stacked with `studyid`
+#' tagged onto every row so the downstream contract is study-aware without
+#' calling code learning a second function.
+#'
 #' `process_a_study()` is an all-metrics-at-once engine: a single call scores
 #' every (timeseries x feature x site) combination. It is therefore intended to
-#' run once per study, in a high-`Priority` mapping workflow, with each metric
-#' workflow filtering the shared result to one feature.
+#' run once per study, with each metric workflow filtering the shared result to
+#' one feature family.
 #'
 #' @param lInput `list` Result of [Combine_CTAS_Input()].
 #' @param strFeatures `character` Semicolon-delimited CTAS features.
@@ -21,10 +27,14 @@
 #'   "avg_feat_value".
 #' @param strPadjustMethod `character` Passed to [stats::p.adjust()].
 #' @param nSeed `numeric` Optional seed for reproducibility.
+#' @param strStudyCol `character` Column on `lInput$subjects` identifying the
+#'   study. `NULL` disables the split and runs `process_a_study()` once on the
+#'   whole input.
 #' @param ... Further arguments passed to [ctas::process_a_study()].
 #'
 #' @return `list` with `timeseries`, `timeseries_features`, `PCA_coordinates`
-#'   and `site_scores`.
+#'   and `site_scores`. Each frame carries the `strStudyCol` column when the
+#'   split was active.
 #'
 #' @examples
 #' \donttest{
@@ -46,20 +56,21 @@ Analyze_CTAS <- function(lInput,
                          strScoringMethod = "ks",
                          strPadjustMethod = "fdr",
                          nSeed = NULL,
+                         strStudyCol = "studyid",
                          ...) {
-  AssertCTASInput(lInput)
+  AssertCTASInput(lInput, strStudyCol = strStudyCol)
 
   strScoringMethod <- rlang::arg_match(
     strScoringMethod, c("ks", "mixedeffects", "avg_feat_value")
   )
 
-  fnRun <- function() {
+  fnRunOne <- function(lSub) {
     ctas::process_a_study(
-      subjects = lInput$subjects,
-      parameters = lInput$parameters,
-      data = lInput$data,
-      custom_timeseries = lInput$custom_timeseries,
-      custom_reference_groups = lInput$custom_reference_groups,
+      subjects = lSub$subjects,
+      parameters = lSub$parameters,
+      data = lSub$data,
+      custom_timeseries = lSub$custom_timeseries,
+      custom_reference_groups = lSub$custom_reference_groups,
       default_timeseries_features_to_calculate = strFeatures,
       default_minimum_timepoints_per_series = nMinTimepoints,
       default_minimum_subjects_per_series = nMinSubjects,
@@ -72,26 +83,107 @@ Analyze_CTAS <- function(lInput,
     )
   }
 
-  lCTAS <- if (is.null(nSeed)) {
-    fnRun()
+  vStudies <- if (!is.null(strStudyCol) && strStudyCol %in% names(lInput$subjects)) {
+    sort(unique(as.character(lInput$subjects[[strStudyCol]])))
   } else {
-    rlang::check_installed("withr", "to seed `Analyze_CTAS()`.")
-    withr::with_seed(nSeed, fnRun())
+    character(0)
   }
 
-  AssertCTASResult(lCTAS)
+  fnAll <- function() {
+    if (length(vStudies) <= 1) {
+      lCTAS <- fnRunOne(lInput)
+      AssertCTASResult(lCTAS)
+      if (length(vStudies) == 1) {
+        lCTAS <- TagStudyID(lCTAS, vStudies, strStudyCol)
+      }
+      return(lCTAS)
+    }
 
+    lPerStudy <- lapply(vStudies, function(strStudy) {
+      lSub <- SubsetCTASInput(lInput, strStudy, strStudyCol)
+      lRes <- fnRunOne(lSub)
+      AssertCTASResult(lRes)
+      TagStudyID(lRes, strStudy, strStudyCol)
+    })
+
+    list(
+      site_scores = dplyr::bind_rows(lapply(lPerStudy, `[[`, "site_scores")),
+      timeseries = dplyr::bind_rows(lapply(lPerStudy, `[[`, "timeseries")),
+      timeseries_features = dplyr::bind_rows(lapply(lPerStudy, `[[`, "timeseries_features")),
+      PCA_coordinates = dplyr::bind_rows(lapply(lPerStudy, `[[`, "PCA_coordinates"))
+    )
+  }
+
+  if (is.null(nSeed)) {
+    fnAll()
+  } else {
+    rlang::check_installed("withr", "to seed `Analyze_CTAS()`.")
+    withr::with_seed(nSeed, fnAll())
+  }
+}
+
+#' Subset a CTAS input list to a single study
+#'
+#' @param lInput `list` Result of [Combine_CTAS_Input()].
+#' @param strStudy `character` One study id.
+#' @param strStudyCol `character` Column on `lInput$subjects`.
+#'
+#' @return `list` A single-study copy of `lInput`.
+#'
+#' @keywords internal
+SubsetCTASInput <- function(lInput, strStudy, strStudyCol) {
+  vKeep <- lInput$subjects[[strStudyCol]] == strStudy
+  dfSubjectsSub <- lInput$subjects[vKeep, , drop = FALSE]
+  vSubjects <- dfSubjectsSub$subject_id
+
+  dfDataSub <- lInput$data[lInput$data$subject_id %in% vSubjects, , drop = FALSE]
+
+  # Trim `parameters` to what has data in this study so `process_a_study()`
+  # cannot try to score a parameter with no rows.
+  dfParametersSub <- lInput$parameters[
+    lInput$parameters$parameter_id %in% unique(dfDataSub$parameter_id), ,
+    drop = FALSE
+  ]
+
+  list(
+    data = dfDataSub,
+    subjects = dfSubjectsSub,
+    parameters = dfParametersSub,
+    custom_timeseries = lInput$custom_timeseries,
+    custom_reference_groups = lInput$custom_reference_groups,
+    untransformed = lInput$untransformed
+  )
+}
+
+#' Tag every result frame with a studyid column
+#'
+#' @param lCTAS `list` Result of [ctas::process_a_study()].
+#' @param strStudy `character` Study id to write.
+#' @param strStudyCol `character` Column name to use.
+#'
+#' @return `list` `lCTAS` with `strStudyCol` present on every non-null frame.
+#'
+#' @keywords internal
+TagStudyID <- function(lCTAS, strStudy, strStudyCol) {
+  vFrames <- c("site_scores", "timeseries", "timeseries_features", "PCA_coordinates")
+  for (strFrame in vFrames) {
+    if (!is.null(lCTAS[[strFrame]]) && nrow(lCTAS[[strFrame]]) > 0) {
+      lCTAS[[strFrame]][[strStudyCol]] <- strStudy
+    }
+  }
   lCTAS
 }
 
 #' Validate a combined CTAS input list
 #'
 #' @param lInput `list` Result of [Combine_CTAS_Input()].
+#' @param strStudyCol `character` Optional study column expected on
+#'   `lInput$subjects`.
 #'
 #' @return `NULL`, invisibly. Aborts when the input is unusable.
 #'
 #' @keywords internal
-AssertCTASInput <- function(lInput) {
+AssertCTASInput <- function(lInput, strStudyCol = "studyid") {
   vRequired <- c(
     "data", "subjects", "parameters", "custom_timeseries",
     "custom_reference_groups"
@@ -122,6 +214,13 @@ AssertCTASInput <- function(lInput) {
 
   if (nrow(lInput$parameters) == 0) {
     cli::cli_abort("{.arg lInput$parameters} has no rows; no parameter can be scored.")
+  }
+
+  if (!is.null(strStudyCol) && !strStudyCol %in% names(lInput$subjects)) {
+    cli::cli_abort(c(
+      "{.arg lInput$subjects} is missing study column {.val {strStudyCol}}.",
+      "i" = "Rebuild {.arg lInput} with {.fn Combine_CTAS_Input} or set {.arg strStudyCol} to {.code NULL}."
+    ))
   }
 
   nSites <- dplyr::n_distinct(lInput$subjects$site)

@@ -1,9 +1,9 @@
-#' Map a numeric findings domain with reference ranges to CTAS input
+#' Map a numeric findings frame with reference ranges to CTAS input
 #'
 #' Like [Input_Numeric()], but normalises each value by its own reference range
 #' via [Prepare_Normalize()], so that tests measured on different scales become
-#' directly comparable. Intended for LB, but applies to any domain carrying
-#' low/high bounds.
+#' directly comparable. Intended for lab-shaped data, but applies to any
+#' standardised frame carrying `low`/`high` bounds.
 #'
 #' Rows with an invalid range (missing bound or non-positive width) yield `NA`
 #' and are dropped, since CTAS cannot use them.
@@ -16,30 +16,34 @@
 #'
 #' @examples
 #' Input_Range(data.frame(
-#'   USUBJID = c("S1", "S1"),
-#'   LBTESTCD = c("ALT", "ALT"),
-#'   LBTEST = c("Alanine Aminotransferase", "Alanine Aminotransferase"),
-#'   VISIT = c("WEEK 2", "WEEK 4"),
-#'   VISITNUM = c(3, 4),
-#'   LBSTRESN = c(20, 30),
-#'   LBSTNRLO = c(10, 10),
-#'   LBSTNRHI = c(40, 40)
+#'   studyid = "A",
+#'   subject_id = c("S1", "S1"),
+#'   parameter_id = c("ALT", "ALT"),
+#'   parameter_name = c("Alanine Aminotransferase", "Alanine Aminotransferase"),
+#'   parameter_category_1 = "Labs",
+#'   visit = c("WEEK 2", "WEEK 4"),
+#'   visitnum = c(3, 4),
+#'   value = c(20, 30),
+#'   low = c(10, 10),
+#'   high = c(40, 40)
 #' ))
 #'
 #' @export
 Input_Range <- function(dfDomain,
-                        strSubjectCol = "USUBJID",
-                        strTestCDCol = "LBTESTCD",
-                        strTestCol = "LBTEST",
-                        strValueCol = "LBSTRESN",
-                        strLowCol = "LBSTNRLO",
-                        strHighCol = "LBSTNRHI",
-                        strVisitCol = "VISIT",
-                        strVisitNumCol = "VISITNUM",
+                        strSubjectCol = "subject_id",
+                        strTestCDCol = "parameter_id",
+                        strTestCol = "parameter_name",
+                        strValueCol = "value",
+                        strLowCol = "low",
+                        strHighCol = "high",
+                        strVisitCol = "visit",
+                        strVisitNumCol = "visitnum",
+                        strStudyCol = "studyid",
+                        strCategoryCol = "parameter_category_1",
                         strVisitPattern = NULL,
-                        strExcludePattern = "unsch",
-                        strCategory = "Labs",
-                        strPrefix = "LB_NORM") {
+                        strExcludePattern = NULL,
+                        strCategory = NA_character_,
+                        strPrefix = "RANGE") {
   AssertColumns(dfDomain, c(strLowCol, strHighCol), "dfDomain")
 
   dfBase <- StandardizeDomain(
@@ -50,6 +54,8 @@ Input_Range <- function(dfDomain,
     strValueCol = strValueCol,
     strVisitCol = strVisitCol,
     strVisitNumCol = strVisitNumCol,
+    strStudyCol = strStudyCol,
+    strCategoryCol = strCategoryCol,
     strVisitPattern = strVisitPattern,
     strExcludePattern = strExcludePattern
   )
@@ -81,12 +87,22 @@ Input_Range <- function(dfDomain,
     ))
   }
 
+  vCategoryCols <- if ("Category" %in% names(dfWork)) "Category" else character(0)
   dfParameters <- dfWork |>
-    dplyr::distinct(.data$parameter_id, .data$TestCD, .data$TestName) |>
+    dplyr::distinct(dplyr::across(dplyr::all_of(c(
+      "parameter_id", "TestCD", "TestName", vCategoryCols
+    )))) |>
+    dplyr::mutate(
+      parameter_category_1 = if ("Category" %in% names(dfWork)) {
+        dplyr::coalesce(.data$Category, .env$strCategory)
+      } else {
+        .env$strCategory
+      }
+    ) |>
     dplyr::transmute(
       parameter_id = .data$parameter_id,
-      parameter_name = paste0(.env$strCategory, " (norm): ", .data$TestName),
-      parameter_category_1 = .env$strCategory,
+      parameter_name = paste0(.data$parameter_category_1, " (norm): ", .data$TestName),
+      parameter_category_1 = .data$parameter_category_1,
       parameter_category_2 = .data$parameter_id,
       parameter_category_3 = "range_normalized"
     ) |>

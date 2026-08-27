@@ -1,93 +1,65 @@
 #' Aggregate CTAS site scores into the gsm `Analysis_Analyzed` contract
 #'
-#' CTAS returns one score per (timeseries x feature x group), while gsm expects
-#' one row per group per metric. `Summarize_CTAS()` filters the shared
-#' [Analyze_CTAS()] output to a single feature and collapses it over
-#' timeseries.
+#' CTAS returns one score per (timeseries x feature x group). `Summarize_CTAS()`
+#' collapses that grid over timeseries, producing one row per group per feature
+#' (and per study, if `strStudyCol` is present). A single metric YAML therefore
+#' emits every CTAS feature at once, without needing to filter the shared
+#' `site_scores` frame by domain or by parameter pattern.
 #'
-#' A single CTAS run covers every domain in the study, so `feature` alone does
-#' not identify a metric once more than one domain is mapped: "average" spans
-#' vital signs, range-normalised labs and lab missingness at the same time.
-#' A metric must therefore also say which family of parameters it summarises.
+#' Domain selection is intentionally removed: the mapping layer already
+#' publishes standardised, transformation-specific input frames (`Mapped_Numeric`,
+#' `Mapped_Range`), and each metric YAML runs its own CTAS pipeline on the
+#' input it names, so a metric's `dfSiteScores` already contains only the
+#' parameters that metric owns.
 #'
-#' There are two ways to do so, and the category pair is preferred:
-#'
-#' - `strDomain` and `strTransformation` match `parameter_category_1` (e.g.
-#'   `"Labs"`) and `parameter_category_3` (e.g. `"ratio_missing"`). These are
-#'   the structured fields the `Input_*()` functions set, recovered by
-#'   [Combine_CTAS_Scores()]. **Both** are needed to identify a family:
-#'   `parameter_category_3` is `"numeric"` for every plain numeric domain, so
-#'   it would select vital signs and ECG together.
-#' - `strParameterPattern` matches a regular expression against `parameter_id`.
-#'   This works without the category columns, but re-derives from a string what
-#'   the categories already state, and is easy to get subtly wrong - `"^LB_"`
-#'   selects both lab families where `"^LB_MISS_"` selects one.
-#'
-#' Groups with no evaluated timeseries for the feature are retained with
+#' Groups with no evaluated timeseries for a feature are retained with
 #' `Denominator = 0`, `Metric = NA` and `Score = NA`, so that the report does
 #' not silently drop them. Supply `vGroupIDs` to complete the grid against a
 #' known group list; otherwise only groups present in `dfSiteScores` appear.
+#' When `strStudyCol` is present, the grid is completed per study.
 #'
 #' `Denominator` counts the timeseries evaluated for the feature, not
-#' participants. Sites are normally assessed on the same timeseries, so the
-#' denominator is usually constant across sites within a metric, and varies only
-#' where a site contributes no data at all for a parameter. It differs *between*
-#' metrics, because CTAS autogenerates one timeseries per timepoint combination
-#' and those differ by domain. It is a coverage denominator, not an exposure
-#' one, and should not be read as site size.
+#' participants. It is a coverage denominator, not an exposure one, and should
+#' not be read as site size.
 #'
-#' The default thresholds `2.326` / `0.842` are drawn from experience rather
-#' than derived. They are one-sided normal z-quantiles (99% / 80%) applied to a
-#' -log10(p) scale, where they correspond to p = 0.0047 and p = 0.144. Override
-#' them from the workflow YAML `meta` block where a different convention is
-#' wanted.
+#' The default thresholds `2.326` / `0.842` are drawn from experience: one-sided
+#' normal z-quantiles (99% / 80%) applied to a -log10(p) scale, where they
+#' correspond to p = 0.0047 and p = 0.144. Override from the workflow YAML
+#' `meta` block where a different convention is wanted.
 #'
 #' @param dfSiteScores `data.frame` The `site_scores` element of
 #'   [Analyze_CTAS()], normally via [Combine_CTAS_Scores()].
-#' @param strFeature `character` Single CTAS feature to summarise, e.g.
-#'   `"average"`.
+#' @param vFeatures `character` CTAS features to summarise. `NULL` (default)
+#'   summarises every feature present in `dfSiteScores`.
 #' @param strGroupLevel `character` gsm group level, `"Site"` or `"Country"`.
-#' @param strDomain `character` Optional `parameter_category_1` to keep, e.g.
-#'   `"Labs"`. Must be given together with `strTransformation`.
-#' @param strTransformation `character` Optional `parameter_category_3` to keep,
-#'   e.g. `"ratio_missing"`. Must be given together with `strDomain`.
-#' @param strParameterPattern `character` Optional regular expression matched
-#'   against `parameter_id`, as an alternative to the category pair for inputs
-#'   that lack the category columns.
+#' @param strStudyCol `character` Study identifier column expected on
+#'   `dfSiteScores`. `NULL` disables the per-study grid.
 #' @param vGroupIDs `character` Optional complete vector of group IDs.
 #' @param dHigh `numeric` Score at or above which a timeseries triggers
 #'   "Further Evaluation".
 #' @param dLow `numeric` Score at or above which a timeseries is put on the
 #'   "Watch List".
 #'
-#' @return `data.frame` with `GroupID`, `GroupLevel`, `Numerator`,
-#'   `Denominator`, `Metric` and `Score`.
+#' @return `data.frame` with `GroupID`, `GroupLevel`, `Feature`, `Numerator`,
+#'   `Denominator`, `Metric` and `Score`, plus the study column when
+#'   `strStudyCol` is set.
 #'
 #' @examples
 #' dfSiteScores <- data.frame(
 #'   timeseries_id = c("ts1", "ts2", "ts1"),
 #'   site = c("001", "001", "002"),
 #'   country = "USA",
-#'   parameter_id = c("VS_SYSBP", "LB_NORM_ALB", "VS_SYSBP"),
-#'   parameter_category_1 = c("Vital Signs", "Labs", "Vital Signs"),
-#'   parameter_category_3 = c("numeric", "range_normalized", "numeric"),
-#'   feature = "average",
+#'   parameter_id = c("NUM_SYSBP", "NUM_DIABP", "NUM_SYSBP"),
+#'   feature = c("average", "sd", "average"),
 #'   fdr_corrected_pvalue_logp = c(3.1, 0.5, 1.0)
 #' )
-#' Summarize_CTAS(
-#'   dfSiteScores,
-#'   strFeature = "average",
-#'   strDomain = "Vital Signs",
-#'   strTransformation = "numeric"
-#' )
+#' Summarize_CTAS(dfSiteScores, strStudyCol = NULL)
 #'
 #' @export
 Summarize_CTAS <- function(dfSiteScores,
-                           strFeature,
+                           vFeatures = NULL,
                            strGroupLevel = "Site",
-                           strDomain = NULL,
-                           strTransformation = NULL,
-                           strParameterPattern = NULL,
+                           strStudyCol = "studyid",
                            vGroupIDs = NULL,
                            dHigh = 2.326,
                            dLow = 0.842) {
@@ -96,37 +68,99 @@ Summarize_CTAS <- function(dfSiteScores,
 
   AssertSiteScores(dfSiteScores, strGroupCol)
 
-  if (!rlang::is_character(strFeature) || length(strFeature) != 1) {
-    cli::cli_abort("{.arg strFeature} must be a single string.")
+  bHasStudy <- !is.null(strStudyCol) && strStudyCol %in% names(dfSiteScores)
+
+  # Retain a reference to the unfiltered scores so groups (and study-group
+  # pairs) that only carry other features still appear in the grid with
+  # Denominator = 0. Filtering by feature happens on the working copy.
+  dfAll <- dfSiteScores
+
+  if (!is.null(vFeatures)) {
+    if (!rlang::is_character(vFeatures) || length(vFeatures) == 0) {
+      cli::cli_abort("{.arg vFeatures} must be a non-empty character vector or {.code NULL}.")
+    }
+    dfSiteScores <- dfSiteScores[dfSiteScores$feature %in% vFeatures, , drop = FALSE]
   }
 
-  dfScores <- FilterParameters(
-    dfSiteScores,
-    strDomain = strDomain,
-    strTransformation = strTransformation,
-    strParameterPattern = strParameterPattern
-  )
+  dfTriggered <- AddCTASTrigger(dfSiteScores, dHigh = dHigh, dLow = dLow)
 
-  dfTriggered <- dfScores |>
-    dplyr::filter(.data$feature == .env$strFeature) |>
-    AddCTASTrigger(dHigh = dHigh, dLow = dLow)
-
-  if (is.null(vGroupIDs)) {
-    vGroupIDs <- unique(dfTriggered[[strGroupCol]])
+  vFeaturesOut <- if (is.null(vFeatures)) {
+    sort(unique(as.character(dfAll$feature)))
+  } else {
+    sort(intersect(as.character(vFeatures), unique(as.character(dfAll$feature))))
   }
-  vGroupIDs <- sort(unique(as.character(vGroupIDs)))
 
-  dfSummary <- dfTriggered |>
-    dplyr::mutate(GroupID = as.character(.data[[strGroupCol]])) |>
+  # An explicit selection that intersects nothing is a legitimate "no metric
+  # to publish" outcome (e.g. the ratio_missing YAML asking for `autocorr` on a
+  # ratio series). Return the same-shaped empty frame the join below would.
+  if (length(vFeaturesOut) == 0) {
+    vCols <- c(
+      if (bHasStudy) strStudyCol,
+      "GroupID", "GroupLevel", "Feature",
+      "Numerator", "Denominator", "Metric", "Score"
+    )
+    return(dplyr::as_tibble(stats::setNames(
+      lapply(vCols, function(x) character(0)), vCols
+    )))
+  }
+
+  bCustomGroups <- !is.null(vGroupIDs)
+  vGroupIDs <- if (bCustomGroups) {
+    sort(unique(as.character(vGroupIDs)))
+  } else {
+    sort(unique(as.character(dfAll[[strGroupCol]])))
+  }
+
+  dfGrid <- if (bHasStudy) {
+    # Per-study grid: pair each study with the sites that actually belong to
+    # it, then cross-join with features. This avoids inventing sites for
+    # studies that never ran them, which is exactly the point of splitting
+    # CTAS by studyid.
+    dfStudyGroups <- if (bCustomGroups) {
+      expand.grid(
+        studyid = sort(unique(as.character(dfAll[[strStudyCol]]))),
+        GroupID = vGroupIDs,
+        stringsAsFactors = FALSE,
+        KEEP.OUT.ATTRS = FALSE
+      )
+    } else {
+      dfPairs <- unique(dfAll[, c(strStudyCol, strGroupCol), drop = FALSE])
+      names(dfPairs) <- c("studyid", "GroupID")
+      dfPairs$studyid <- as.character(dfPairs$studyid)
+      dfPairs$GroupID <- as.character(dfPairs$GroupID)
+      dfPairs
+    }
+    merge(dfStudyGroups, data.frame(Feature = vFeaturesOut, stringsAsFactors = FALSE))
+  } else {
+    expand.grid(
+      GroupID = vGroupIDs,
+      Feature = vFeaturesOut,
+      stringsAsFactors = FALSE,
+      KEEP.OUT.ATTRS = FALSE
+    )
+  }
+
+  vGroupBy <- if (bHasStudy) c(strStudyCol, "GroupID", "Feature") else c("GroupID", "Feature")
+
+  dfSummary <- dfTriggered
+  dfSummary$GroupID <- as.character(dfSummary[[strGroupCol]])
+  dfSummary$Feature <- as.character(dfSummary$feature)
+  dfSummary <- dfSummary |>
     dplyr::summarise(
       Numerator = sum(.data$Trigger == "Further Evaluation", na.rm = TRUE),
       Denominator = dplyr::n(),
       Score = SafeMax(.data$fdr_corrected_pvalue_logp),
-      .by = "GroupID"
+      .by = dplyr::all_of(vGroupBy)
     )
 
-  dplyr::tibble(GroupID = vGroupIDs) |>
-    dplyr::left_join(dfSummary, by = "GroupID") |>
+  # `dfGrid` uses `studyid` as its own column name so the join below matches
+  # `strStudyCol` when it holds any other value.
+  if (bHasStudy && strStudyCol != "studyid") {
+    names(dfGrid)[names(dfGrid) == "studyid"] <- strStudyCol
+  }
+
+  dplyr::as_tibble(dfGrid) |>
+    dplyr::left_join(dfSummary, by = vGroupBy) |>
     dplyr::mutate(
       GroupLevel = .env$strGroupLevel,
       Numerator = dplyr::coalesce(as.numeric(.data$Numerator), 0),
@@ -138,149 +172,10 @@ Summarize_CTAS <- function(dfSiteScores,
       )
     ) |>
     dplyr::select(
-      "GroupID", "GroupLevel", "Numerator", "Denominator", "Metric", "Score"
+      dplyr::any_of(strStudyCol),
+      "GroupID", "GroupLevel", "Feature",
+      "Numerator", "Denominator", "Metric", "Score"
     )
-}
-
-#' Restrict CTAS site scores to one family of parameters
-#'
-#' Filtering is a no-op when no selector is given, so single-domain studies need
-#' neither the category columns nor `parameter_id`.
-#'
-#' The category pair is the intended selector. `strDomain` and
-#' `strTransformation` must be supplied together: `parameter_category_3` is
-#' `"numeric"` for every plain numeric domain, so on its own it cannot separate
-#' vital signs from ECG, and `parameter_category_1` is `"Labs"` for both lab
-#' views. Neither field identifies a family alone. `strParameterPattern` remains
-#' available for scores that lack the categories.
-#'
-#' A selector that matches nothing is an error rather than an empty result:
-#' silently summarising zero timeseries would present every site as unevaluated,
-#' which is indistinguishable from a genuinely empty domain.
-#'
-#' @param dfSiteScores `data.frame` CTAS site scores.
-#' @param strDomain `character` `parameter_category_1` to keep, or `NULL`.
-#' @param strTransformation `character` `parameter_category_3` to keep, or
-#'   `NULL`.
-#' @param strParameterPattern `character` Regular expression matched against
-#'   `parameter_id`, or `NULL`.
-#'
-#' @return `data.frame` A filtered copy of `dfSiteScores`.
-#'
-#' @keywords internal
-FilterParameters <- function(dfSiteScores,
-                             strDomain = NULL,
-                             strTransformation = NULL,
-                             strParameterPattern = NULL) {
-  bCategory <- !is.null(strDomain) || !is.null(strTransformation)
-
-  if (bCategory && !is.null(strParameterPattern)) {
-    cli::cli_abort(c(
-      "Give either the category pair or {.arg strParameterPattern}, not both.",
-      "i" = "They are alternative ways to select the same thing."
-    ))
-  }
-
-  if (bCategory) {
-    return(FilterByCategory(dfSiteScores, strDomain, strTransformation))
-  }
-
-  if (is.null(strParameterPattern)) {
-    return(dfSiteScores)
-  }
-
-  FilterByPattern(dfSiteScores, strParameterPattern)
-}
-
-#' Filter site scores on the CTAS parameter categories
-#'
-#' @inheritParams FilterParameters
-#'
-#' @return `data.frame` A filtered copy of `dfSiteScores`.
-#'
-#' @keywords internal
-FilterByCategory <- function(dfSiteScores, strDomain, strTransformation) {
-  # Requiring both is a guard, not pedantry: `parameter_category_3 =
-  # "ratio_missing"` alone would silently widen to every domain that ever gains
-  # a missingness view, and `"numeric"` alone to every numeric domain.
-  if (is.null(strDomain) || is.null(strTransformation)) {
-    cli::cli_abort(c(
-      "{.arg strDomain} and {.arg strTransformation} must be given together.",
-      "i" = "Neither identifies a parameter family on its own."
-    ))
-  }
-
-  AssertScalarString(strDomain, "strDomain")
-  AssertScalarString(strTransformation, "strTransformation")
-
-  vCategories <- c("parameter_category_1", "parameter_category_3")
-  vMissing <- setdiff(vCategories, names(dfSiteScores))
-  if (length(vMissing) > 0) {
-    cli::cli_abort(c(
-      "{.arg dfSiteScores} is missing {.field {vMissing}}.",
-      "i" = "CTAS drops the categories; pass {.arg lInput} to {.fn Combine_CTAS_Scores} to recover them."
-    ))
-  }
-
-  bKeep <- dfSiteScores$parameter_category_1 == strDomain &
-    dfSiteScores$parameter_category_3 == strTransformation
-
-  if (!any(bKeep)) {
-    vAvailable <- unique(paste(
-      dfSiteScores$parameter_category_1, dfSiteScores$parameter_category_3,
-      sep = " / "
-    ))
-    cli::cli_abort(c(
-      "No parameter matches {.val {strDomain}} / {.val {strTransformation}}.",
-      "i" = "Available: {.val {vAvailable}}."
-    ))
-  }
-
-  dfSiteScores[bKeep, , drop = FALSE]
-}
-
-#' Filter site scores by a `parameter_id` pattern
-#'
-#' @inheritParams FilterParameters
-#'
-#' @return `data.frame` A filtered copy of `dfSiteScores`.
-#'
-#' @keywords internal
-FilterByPattern <- function(dfSiteScores, strParameterPattern) {
-  AssertScalarString(strParameterPattern, "strParameterPattern")
-
-  if (!"parameter_id" %in% names(dfSiteScores)) {
-    cli::cli_abort(c(
-      "{.arg dfSiteScores} needs a {.field parameter_id} column to filter on {.arg strParameterPattern}.",
-      "i" = "It lives on the CTAS {.field timeseries} frame; {.fn Combine_CTAS_Scores} joins it on."
-    ))
-  }
-
-  bKeep <- grepl(strParameterPattern, as.character(dfSiteScores$parameter_id))
-
-  if (!any(bKeep)) {
-    cli::cli_abort(c(
-      "No parameter in {.arg dfSiteScores} matches {.val {strParameterPattern}}.",
-      "i" = "Available: {.val {unique(as.character(dfSiteScores$parameter_id))}}."
-    ))
-  }
-
-  dfSiteScores[bKeep, , drop = FALSE]
-}
-
-#' Assert that a value is a single string
-#'
-#' @param x Value to check.
-#' @param strName `character` Argument name for the message.
-#'
-#' @return `NULL`, invisibly. Aborts when `x` is not a scalar string.
-#'
-#' @keywords internal
-AssertScalarString <- function(x, strName) {
-  if (!rlang::is_character(x) || length(x) != 1) {
-    cli::cli_abort("{.arg {strName}} must be a single string or {.code NULL}.")
-  }
-  invisible(NULL)
 }
 
 #' Classify CTAS timeseries scores into trigger categories
@@ -315,11 +210,6 @@ AddCTASTrigger <- function(dfSiteScores, dHigh = 2.326, dLow = 0.842) {
 }
 
 #' Count timeseries per group for a given trigger category
-#'
-#' Note that a naive `filter(trigger == trigger)` would compare the column to
-#' itself, the argument being shadowed by the column of the same name, and so
-#' always evaluate to `TRUE`, counting every timeseries rather than the
-#' triggered ones. Here the argument is disambiguated with `.env`.
 #'
 #' @param dfSiteScores `data.frame` CTAS site scores with a `Trigger` column,
 #'   as returned by [AddCTASTrigger()].

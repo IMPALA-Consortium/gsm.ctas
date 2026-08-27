@@ -1,44 +1,51 @@
-#' Map a numeric findings domain to CTAS input
+#' Map a numeric findings frame to CTAS input
 #'
 #' Produces one CTAS timeseries per subject and test code from a plain numeric
-#' findings domain such as VS. Values are used as-is; use [Input_Range()] when
-#' reference ranges are available and values must be made comparable across
-#' tests.
+#' findings frame such as a standardised `Mapped_Numeric`. Values are used
+#' as-is; use [Input_Range()] when reference ranges are available and values
+#' must be made comparable across tests.
 #'
 #' The function is named for the *data type*, not the SDTM domain, so the same
-#' code serves VS, EG or any other numeric findings domain. Domain-specific
-#' knowledge lives in the column arguments, supplied from the workflow YAML.
+#' code serves VS, EG or any other numeric findings source. Domain-specific
+#' knowledge lives in the mapping layer that produces the standardised input.
 #'
 #' @inheritParams StandardizeDomain
-#' @param strCategory `character` Value written to `parameter_category_1`,
-#'   used as the display grouping in downstream tools.
-#' @param strPrefix `character` Prefix for the generated `parameter_id`.
+#' @param strCategory `character` Fallback value written to
+#'   `parameter_category_1` when `strCategoryCol` is `NULL` or absent from
+#'   `dfDomain`. Reads the category from the input column when it is present.
+#' @param strPrefix `character` Prefix for the generated `parameter_id`, kept
+#'   distinct per transformation so `range_normalized` and `ratio_missing`
+#'   never collide on the same lab test.
 #'
 #' @return `list` with elements `data`, `parameters` and `untransformed`,
 #'   ready to be passed to [Combine_CTAS_Input()].
 #'
 #' @examples
 #' Input_Numeric(data.frame(
-#'   USUBJID = c("S1", "S1"),
-#'   VSTESTCD = c("SYSBP", "SYSBP"),
-#'   VSTEST = c("Systolic Blood Pressure", "Systolic Blood Pressure"),
-#'   VISIT = c("WEEK 2", "WEEK 4"),
-#'   VISITNUM = c(3, 4),
-#'   VSSTRESN = c(120, 124)
+#'   studyid = "A",
+#'   subject_id = c("S1", "S1"),
+#'   parameter_id = c("SYSBP", "SYSBP"),
+#'   parameter_name = c("Systolic Blood Pressure", "Systolic Blood Pressure"),
+#'   parameter_category_1 = "Vital Signs",
+#'   visit = c("WEEK 2", "WEEK 4"),
+#'   visitnum = c(3, 4),
+#'   value = c(120, 124)
 #' ))
 #'
 #' @export
 Input_Numeric <- function(dfDomain,
-                          strSubjectCol = "USUBJID",
-                          strTestCDCol = "VSTESTCD",
-                          strTestCol = "VSTEST",
-                          strValueCol = "VSSTRESN",
-                          strVisitCol = "VISIT",
-                          strVisitNumCol = "VISITNUM",
+                          strSubjectCol = "subject_id",
+                          strTestCDCol = "parameter_id",
+                          strTestCol = "parameter_name",
+                          strValueCol = "value",
+                          strVisitCol = "visit",
+                          strVisitNumCol = "visitnum",
+                          strStudyCol = "studyid",
+                          strCategoryCol = "parameter_category_1",
                           strVisitPattern = NULL,
-                          strExcludePattern = "unsch",
-                          strCategory = "Vital Signs",
-                          strPrefix = "VS") {
+                          strExcludePattern = NULL,
+                          strCategory = NA_character_,
+                          strPrefix = "NUM") {
   dfWork <- StandardizeDomain(
     dfDomain,
     strSubjectCol = strSubjectCol,
@@ -47,6 +54,8 @@ Input_Numeric <- function(dfDomain,
     strValueCol = strValueCol,
     strVisitCol = strVisitCol,
     strVisitNumCol = strVisitNumCol,
+    strStudyCol = strStudyCol,
+    strCategoryCol = strCategoryCol,
     strVisitPattern = strVisitPattern,
     strExcludePattern = strExcludePattern
   ) |>
@@ -64,12 +73,22 @@ Input_Numeric <- function(dfDomain,
     ))
   }
 
+  vCategoryCols <- if ("Category" %in% names(dfWork)) "Category" else character(0)
   dfParameters <- dfWork |>
-    dplyr::distinct(.data$parameter_id, .data$TestCD, .data$TestName) |>
+    dplyr::distinct(dplyr::across(dplyr::all_of(c(
+      "parameter_id", "TestCD", "TestName", vCategoryCols
+    )))) |>
+    dplyr::mutate(
+      parameter_category_1 = if ("Category" %in% names(dfWork)) {
+        dplyr::coalesce(.data$Category, .env$strCategory)
+      } else {
+        .env$strCategory
+      }
+    ) |>
     dplyr::transmute(
       parameter_id = .data$parameter_id,
-      parameter_name = paste0(.env$strCategory, ": ", .data$TestName),
-      parameter_category_1 = .env$strCategory,
+      parameter_name = paste0(.data$parameter_category_1, ": ", .data$TestName),
+      parameter_category_1 = .data$parameter_category_1,
       parameter_category_2 = .data$parameter_id,
       parameter_category_3 = "numeric"
     ) |>

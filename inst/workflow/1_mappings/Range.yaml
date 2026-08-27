@@ -1,0 +1,46 @@
+meta:
+  Type: Mapped
+  ID: Range
+  Description: Standardised range-carrying findings frame for CTAS input, derived from Mapped_LB
+  Priority: 2
+spec:
+  Mapped_LB:
+    STUDYID:
+      type: character
+    USUBJID:
+      type: character
+    LBTESTCD:
+      type: character
+    LBTEST:
+      type: character
+    LBSTRESN:
+      type: numeric
+    LBSTNRLO:
+      type: numeric
+    LBSTNRHI:
+      type: numeric
+    VISIT:
+      type: character
+    VISITNUM:
+      type: numeric
+steps:
+  # `Mapped_Range` carries `low`/`high` for range normalisation. The
+  # `ratio_missing` metric reads the same frame - `Input_Missing()` ignores the
+  # range columns and keeps NA-valued rows as the missingness signal.
+  - output: Mapped_Range
+    name: workr::RunQuery
+    params:
+      df: Mapped_LB
+      strQuery: |
+        SELECT
+          STUDYID as studyid,
+          USUBJID as subject_id,
+          LBTESTCD as parameter_id,
+          LBTEST as parameter_name,
+          'Labs' as parameter_category_1,
+          VISIT as visit,
+          VISITNUM as visitnum,
+          LBSTRESN as value,
+          LBSTNRLO as low,
+          LBSTNRHI as high
+        FROM df

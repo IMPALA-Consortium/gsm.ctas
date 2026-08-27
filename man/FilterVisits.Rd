@@ -32,4 +32,3 @@ deliberately parameterised: sponsors encode scheduled visits differently, so
 the defaults must stay permissive and any sponsor-specific convention must be
 supplied through the workflow YAML rather than baked into the mapping layer.
 }
-\keyword{internal}

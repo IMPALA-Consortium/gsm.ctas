@@ -13,7 +13,6 @@ Description: Integrates the 'ctas' clinical trial anomaly detection statistics
 License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 7.3.3
 Depends:
     R (>= 4.1.0)
 Imports:
@@ -46,3 +45,4 @@ Remotes:
     gsm.kri=Gilead-Public/gsm.kri@main,
     gsm.reporting=Gilead-Public/gsm.reporting@main,
     workr=Gilead-Public/workr@main
+Config/roxygen2/version: 8.0.0
