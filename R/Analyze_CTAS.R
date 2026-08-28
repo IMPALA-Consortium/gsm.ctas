@@ -64,14 +64,17 @@
 #'   site = pharmaversesdtm::dm$SITEID,
 #'   country = pharmaversesdtm::dm$COUNTRY
 #' )
-#' dfLong <- Standardize_Domain(
+#' dfValues <- Standardize_Domain(
 #'   dfDomain = pharmaversesdtm::vs,
 #'   dfSubjects = dfSubjects,
-#'   strTestCDCol = "VSTESTCD", strTestCol = "VSTEST", strValueCol = "VSSTRESN",
+#'   strTestCDCol = "VSTESTCD", strTestCol = "VSTEST",
+#'   strValueCol = "VSSTRESN",
 #'   strCategory = "Vital Signs"
 #' )
-#' dfValues <- Input_Numeric(dfLong)
 #' dfResults <- Analyze_CTAS(dfValues, nSeed = 1)
+#' lAnalysis <- list(ID = "numeric", results = dfResults,
+#'                   input = dfValues, untransformed = dfValues)
+#' }
 #' lAnalysis <- list(ID = "numeric", results = dfResults,
 #'                   input = dfValues, untransformed = dfValues)
 #' }

@@ -106,24 +106,3 @@ Feature selection is a boolean-per-feature contract instead of the
 semicolon-delimited string CTAS accepts, so metric YAMLs can toggle
 features individually from \verb{meta:}.
 }
-\examples{
-\donttest{
-dfSubjects <- data.frame(
-  studyid = pharmaversesdtm::dm$STUDYID,
-  subject_id = pharmaversesdtm::dm$USUBJID,
-  site = pharmaversesdtm::dm$SITEID,
-  country = pharmaversesdtm::dm$COUNTRY
-)
-dfLong <- Standardize_Domain(
-  dfDomain = pharmaversesdtm::vs,
-  dfSubjects = dfSubjects,
-  strTestCDCol = "VSTESTCD", strTestCol = "VSTEST", strValueCol = "VSSTRESN",
-  strCategory = "Vital Signs"
-)
-dfValues <- Input_Numeric(dfLong)
-dfResults <- Analyze_CTAS(dfValues, nSeed = 1)
-lAnalysis <- list(ID = "numeric", results = dfResults,
-                  input = dfValues, untransformed = dfValues)
-}
-
-}

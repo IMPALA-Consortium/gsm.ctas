@@ -12,7 +12,10 @@ Input_Missing(df, strPrefix = "MISS")
 \item{strPrefix}{\code{character} Prefix for the generated \code{parameter_id}.}
 }
 \value{
-\code{data.frame} in the CTAS long-format vocabulary.
+\code{data.frame} in the CTAS long-format vocabulary. \code{parameter_id}
+is prefixed with \code{strPrefix}; \code{parameter_category_2} keeps the raw
+input \code{parameter_id} so ctasapp can stitch this metric with sibling
+metrics on the same field.
 }
 \description{
 Consumes the long-format frame produced by \code{\link[=Standardize_Domain]{Standardize_Domain()}} and

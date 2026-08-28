@@ -13,13 +13,17 @@
 #'
 #' @return `data.frame` in the CTAS long-format vocabulary carrying the extra
 #'   `original_value`/`lower`/`upper`/`original_category` columns.
+#'   `parameter_id` is prefixed with `strPrefix`; `parameter_category_2` keeps
+#'   the raw input `parameter_id` so ctasapp can stitch this metric with
+#'   sibling metrics on the same field.
 #'
 #' @export
 Input_Range <- function(df, strPrefix = "RANGE") {
   AssertColumns(
     df,
     c("subject_id", "parameter_id", "parameter_name",
-      "parameter_category_1", "visit", "visitnum",
+      "parameter_category_1", "parameter_category_2",
+      "visit", "visitnum",
       "value", "low", "high"),
     "df"
   )
@@ -31,8 +35,7 @@ Input_Range <- function(df, strPrefix = "RANGE") {
       lower = as.numeric(.data$low),
       upper = as.numeric(.data$high),
       original_category = NA_character_,
-      parameter_category_2 = paste0(.env$strPrefix, "_", .data$parameter_id),
-      parameter_id = paste0(.env$strPrefix, "_", .data$parameter_id),
+      parameter_id = paste0(.env$strPrefix, "_", .data$parameter_category_2),
       parameter_name = paste0(.data$parameter_category_1, " (norm): ", .data$parameter_name),
       parameter_category_3 = "range_normalized",
       timepoint_1_name = .data$visit,

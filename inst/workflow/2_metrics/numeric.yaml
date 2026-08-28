@@ -42,7 +42,7 @@ spec:
 steps:
   # Rename SDTM columns to the CTAS vocabulary and stamp the category. The
   # visit filter has already run in the mapping layer, so we disable it here.
-  - output: Temp_CTAS_Long
+  - output: Temp_CTAS_Values
     name: gsm.ctas::Standardize_Domain
     params:
       dfDomain: Mapped_VS
@@ -52,12 +52,8 @@ steps:
       strValueCol: VSSTRESN
       strCategory: Vital Signs
       strExcludePattern: ~
-  # Apply the numeric transform (values used as-is).
-  - output: Temp_CTAS_Values
-    name: gsm.ctas::Input_Numeric
-    params:
-      df: Temp_CTAS_Long
-  # Score sites with CTAS.
+  # `Standardize_Domain` already emits the numeric CTAS vocab, so no
+  # separate Input step is needed for this metric.
   - output: Temp_CTAS_Results
     name: gsm.ctas::Analyze_CTAS
     params:
@@ -75,8 +71,8 @@ steps:
       strScoringMethod: ScoringMethod
       strPadjustMethod: PadjustMethod
       nSeed: Seed
-  # Bundle results with the ctasapp-shaped shards. Numeric has no
-  # `original_value`, so no `untransformed` shard is emitted.
+  # `Temp_CTAS_Values` carries no `original_value`, so no `untransformed`
+  # is emitted for this metric.
   - output: lAnalysis
     name: base::list
     params:

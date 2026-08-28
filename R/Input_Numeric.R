@@ -14,7 +14,10 @@
 #'   never collide on the same test.
 #'
 #' @return `data.frame` in the CTAS long-format vocabulary, ready to be passed
-#'   to [Analyze_CTAS()]. All non-value columns from `df` are preserved.
+#'   to [Analyze_CTAS()]. `parameter_id` is prefixed with `strPrefix` so it
+#'   stays unique per metric, while `parameter_category_2` keeps the raw
+#'   input `parameter_id` so ctasapp can stitch this metric together with
+#'   sibling metrics on the same field. All non-value columns are preserved.
 #'
 #' @export
 Input_Numeric <- function(df, strPrefix = "NUM") {
@@ -28,7 +31,7 @@ Input_Numeric <- function(df, strPrefix = "NUM") {
   df |>
     dplyr::filter(!is.na(.data$value)) |>
     dplyr::mutate(
-      parameter_category_2 = paste0(.env$strPrefix, "_", .data$parameter_id),
+      parameter_category_2 = .data$parameter_id,
       parameter_id = paste0(.env$strPrefix, "_", .data$parameter_id),
       parameter_name = paste0(.data$parameter_category_1, ": ", .data$parameter_name),
       parameter_category_3 = "numeric",

@@ -1,7 +1,9 @@
-# Tests for Standardize_Domain, Input_Numeric, Input_Range and Input_Missing.
-# The single-df pattern (ctasval convention) means each function takes a
-# long-format frame and returns the same shape with the required CTAS columns
-# added. Standardize_Domain does the SDTM -> CTAS vocabulary translation.
+# Tests for Standardize_Domain, Input_Range and Input_Missing. The
+# single-df pattern (ctasval convention) means each function takes a
+# long-format frame and returns the same shape with the required CTAS
+# columns added. `Standardize_Domain` translates SDTM to the CTAS vocabulary
+# and emits the numeric-ready frame directly, so a separate `Input_Numeric`
+# step is no longer needed.
 
 # --- helpers -----------------------------------------------------------------
 
@@ -43,13 +45,39 @@ MakeLBLong <- function() {
 test_that("Standardize_Domain returns the CTAS long-format vocabulary", {
   dfLong <- MakeVSLong()
 
-  expect_true(all(
-    c("studyid", "subject_id", "site", "country",
-      "parameter_id", "parameter_name", "parameter_category_1",
-      "visit", "visitnum", "value") %in% names(dfLong)
-  ))
+  vRequired <- c(
+    "studyid", "subject_id", "site", "country",
+    "parameter_id", "parameter_name",
+    "parameter_category_1", "parameter_category_2", "parameter_category_3",
+    "visit", "visitnum", "value",
+    "timepoint_1_name", "timepoint_2_name", "timepoint_rank",
+    "result", "baseline"
+  )
+  expect_true(all(vRequired %in% names(dfLong)))
   expect_setequal(unique(dfLong$parameter_category_1), "Vital Signs")
-  expect_true(is.numeric(dfLong$visitnum))
+  expect_setequal(unique(dfLong$parameter_category_3), "numeric")
+  expect_equal(dfLong$parameter_category_2, dfLong$parameter_id)
+  expect_true(is.numeric(dfLong$timepoint_rank))
+  expect_true(is.numeric(dfLong$result))
+})
+
+test_that("Standardize_Domain applies an optional prefix while keeping cat2 raw", {
+  dfSubjects <- data.frame(subject_id = "S1", site = "701")
+  dfDomain <- data.frame(
+    USUBJID = "S1", VSTESTCD = "SYSBP", VSTEST = "SBP",
+    VSSTRESN = 120, VISIT = "WEEK 2", VISITNUM = 3
+  )
+
+  dfLong <- Standardize_Domain(
+    dfDomain, dfSubjects,
+    strTestCDCol = "VSTESTCD", strTestCol = "VSTEST",
+    strValueCol = "VSSTRESN",
+    strCategory = "Vital Signs",
+    strPrefix = "NUM"
+  )
+
+  expect_equal(dfLong$parameter_id, "NUM_SYSBP")
+  expect_equal(dfLong$parameter_category_2, "SYSBP")
 })
 
 test_that("Standardize_Domain joins studyid/site/country from dfSubjects", {
@@ -114,63 +142,13 @@ test_that("Standardize_Domain errors informatively on missing columns", {
   )
 })
 
-# --- Input_Numeric -----------------------------------------------------------
-
-test_that("Input_Numeric produces the CTAS long-format columns", {
-  dfLong <- MakeVSLong()
-
-  df <- Input_Numeric(dfLong)
-
-  vRequired <- c(
-    "subject_id", "site", "parameter_id", "parameter_name",
-    "parameter_category_1", "parameter_category_2", "parameter_category_3",
-    "timepoint_1_name", "timepoint_2_name", "timepoint_rank",
-    "result", "baseline"
-  )
-  expect_true(all(vRequired %in% names(df)))
-  expect_setequal(unique(df$parameter_category_3), "numeric")
-  expect_true(is.numeric(df$result))
-  expect_false(any(is.na(df$result)))
-})
-
-test_that("Input_Numeric prefixes parameter_id and preserves it in parameter_category_2", {
-  dfLong <- MakeVSLong()
-
-  df <- Input_Numeric(dfLong)
-
-  expect_true(all(grepl("^NUM_", df$parameter_id)))
-  expect_equal(df$parameter_id, df$parameter_category_2)
-})
-
-test_that("Input_Numeric supports a custom prefix", {
-  dfLong <- MakeVSLong()
-
-  df <- Input_Numeric(dfLong, strPrefix = "EG")
-
-  expect_true(all(grepl("^EG_", df$parameter_id)))
-})
-
-test_that("Input_Numeric drops rows with NA value", {
-  dfLong <- data.frame(
-    studyid = "A", subject_id = "S1", site = "701",
-    parameter_id = "SYSBP", parameter_name = "SBP",
-    parameter_category_1 = "Vital Signs",
-    visit = c("WEEK 2", "WEEK 4"), visitnum = c(3, 4),
-    value = c(120, NA_real_)
-  )
-
-  df <- Input_Numeric(dfLong)
-
-  expect_equal(nrow(df), 1)
-})
-
 # --- Input_Range -------------------------------------------------------------
 
 test_that("Input_Range normalises values by their reference range", {
   dfLong <- data.frame(
     studyid = "A", subject_id = "S1", site = "701",
     parameter_id = "ALT", parameter_name = "Alanine Aminotransferase",
-    parameter_category_1 = "Labs",
+    parameter_category_1 = "Labs", parameter_category_2 = "ALT",
     visit = c("WEEK 2", "WEEK 4"), visitnum = c(3, 4),
     value = c(10, 40), low = c(10, 10), high = c(40, 40)
   )
@@ -186,7 +164,7 @@ test_that("Input_Range drops rows with an unusable reference range", {
   dfLong <- data.frame(
     studyid = "A", subject_id = "S1", site = "701",
     parameter_id = "ALT", parameter_name = "ALT",
-    parameter_category_1 = "Labs",
+    parameter_category_1 = "Labs", parameter_category_2 = "ALT",
     visit = c("WEEK 2", "WEEK 4"), visitnum = c(3, 4),
     value = c(10, 40), low = c(10, NA), high = c(40, 40)
   )
@@ -210,7 +188,7 @@ test_that("Input_Missing retains missing rows and encodes the running ratio", {
   dfLong <- data.frame(
     studyid = "A", subject_id = "S1", site = "701",
     parameter_id = "ALT", parameter_name = "ALT",
-    parameter_category_1 = "Labs",
+    parameter_category_1 = "Labs", parameter_category_2 = "ALT",
     visit = c("WEEK 2", "WEEK 4"), visitnum = c(3, 4),
     value = c(10, NA)
   )
@@ -220,4 +198,19 @@ test_that("Input_Missing retains missing rows and encodes the running ratio", {
   expect_equal(nrow(df), 2)
   expect_equal(df$result, c(0, 0.5))
   expect_setequal(df$parameter_category_3, "ratio_missing")
+})
+
+# --- cross-metric stitching --------------------------------------------------
+
+test_that("Input_Range and Input_Missing share parameter_category_2 on the same field", {
+  dfLong <- MakeLBLong()
+
+  dfRange <- Input_Range(dfLong)
+  dfMissing <- Input_Missing(dfLong)
+
+  vShared <- intersect(unique(dfRange$parameter_category_2),
+                       unique(dfMissing$parameter_category_2))
+
+  expect_gt(length(vShared), 0)
+  expect_true(all(vShared %in% unique(dfLong$parameter_id)))
 })

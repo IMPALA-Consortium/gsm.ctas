@@ -16,6 +16,7 @@ Standardize_Domain(
   strLowCol = NULL,
   strHighCol = NULL,
   strCategory,
+  strPrefix = "",
   strVisitPattern = NULL,
   strExcludePattern = "unsch"
 )
@@ -33,15 +34,21 @@ when the source has no ranges.}
 
 \item{strCategory}{\code{character} Constant stamped onto \code{parameter_category_1}.}
 
+\item{strPrefix}{\code{character} Optional prefix applied to \code{parameter_id}
+(e.g. \code{"NUM"} -> \code{"NUM_SYSBP"}). Empty by default; \code{parameter_category_2}
+always keeps the raw test code so ctasapp can stitch sibling metrics.}
+
 \item{strVisitPattern, strExcludePattern}{\code{character} Passed to
 \code{\link[=FilterVisits]{FilterVisits()}}.}
 }
 \value{
-\code{data.frame} in the CTAS long-format vocabulary. Columns:
-\code{studyid} (when present on \code{dfSubjects}), \code{subject_id}, \code{site}, \code{country},
-\code{region}, \code{parameter_id}, \code{parameter_name}, \code{parameter_category_1},
-\code{visit}, \code{visitnum}, \code{value}, and \code{low}/\code{high} when the range columns
-were supplied.
+\code{data.frame} in the CTAS long-format vocabulary. Includes the raw
+SDTM-derived columns (\code{visit}, \code{visitnum}, \code{value}, and \code{low}/\code{high} when
+supplied) alongside the CTAS-ready columns (\code{parameter_category_2},
+\code{parameter_category_3 = "numeric"}, \code{timepoint_1_name}, \code{timepoint_rank},
+\code{result}, \code{baseline}). The default output is ready to feed straight into
+\code{\link[=Analyze_CTAS]{Analyze_CTAS()}}; use \code{\link[=Input_Range]{Input_Range()}} or \code{\link[=Input_Missing]{Input_Missing()}} to overwrite
+\code{result}/\code{parameter_category_3}/\code{parameter_id} for those transforms.
 }
 \description{
 The single step that translates SDTM column names into the CTAS +

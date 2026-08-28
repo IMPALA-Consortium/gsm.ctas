@@ -88,6 +88,22 @@ test_that("only range_normalized publishes an untransformed shard", {
   )
 })
 
+test_that("range_normalized and ratio_missing share cat2 for stitching", {
+  # ctasapp groups sidebar entries by parameter_category_2, so LB tests
+  # scored by both metrics must publish the same cat2 on both sides.
+  vRange <- unique(
+    lAnalysis$Analysis_range_normalized$input$parameter_category_2
+  )
+  vMissing <- unique(
+    lAnalysis$Analysis_ratio_missing$input$parameter_category_2
+  )
+  vShared <- intersect(vRange, vMissing)
+
+  expect_gt(length(vShared), 0)
+  # cat2 must be the raw LBTESTCD, not an Input_*-prefixed id.
+  expect_false(any(grepl("^(RANGE|MISS|NUM)_", vShared)))
+})
+
 test_that("parameter_category_3 identifies the transformation each metric ran", {
   expect_setequal(
     unique(lAnalysis$Analysis_numeric$results$parameter_category_3), "numeric"

@@ -74,9 +74,10 @@ names(lMapped)
 
 ## 2.1 Data Types / Metrics
 
-Each metric is a three-step chain: `Standardize_Domain()` renames the SDTM
-domain to the CTAS vocabulary, an `Input_*()` transform picks the value
-column, and `Analyze_CTAS()` scores the sites.
+`Standardize_Domain()` renames an SDTM domain into the CTAS vocabulary and,
+by default, emits a numeric-ready frame that can flow straight into
+`Analyze_CTAS()`. Range and missing-ratio metrics chain an `Input_*()`
+transform in between to overwrite `result` and `parameter_category_3`.
 
 ### Range-normalized labs
 
@@ -111,8 +112,8 @@ as_tibble(dfAna)
 
 ### Numeric vital signs
 
-`Input_Numeric()` keeps raw numeric values, so no low/high bounds are needed
-on the standardised frame.
+`Standardize_Domain()` stamps `parameter_category_3 = "numeric"` and
+`result = as.numeric(value)`, so no separate transform step is needed.
 
 ```{r numeric}
 as_tibble(lMapped$Mapped_VS)
@@ -129,11 +130,7 @@ dfStandard <- Standardize_Domain(
 
 as_tibble(dfStandard)
 
-dfNumeric <- Input_Numeric(dfStandard)
-
-as_tibble(dfNumeric)
-
-dfAna <- Analyze_CTAS(dfNumeric)
+dfAna <- Analyze_CTAS(dfStandard)
 
 as_tibble(dfAna)
 ```
@@ -164,6 +161,34 @@ as_tibble(dfMissing)
 dfAna <- Analyze_CTAS(dfMissing)
 
 as_tibble(dfAna)
+```
+
+### Stitching metrics on the same field
+
+ctasapp groups sidebar entries by `parameter_category_2`, so when the same
+LB test flows through both `Input_Range()` and `Input_Missing()` the two
+metrics collapse into a single field entry with a faceted plot.
+`Standardize_Domain()` sets `parameter_category_2` to the raw test code
+(e.g. `"ALT"`); the `Input_*()` wrappers only prefix `parameter_id` itself
+(`RANGE_ALT`, `MISS_ALT`) so the score tables stay unique.
+
+```{r stitching}
+dfLB <- Standardize_Domain(
+  dfDomain = lMapped$Mapped_LB,
+  dfSubjects = lMapped$Mapped_Subjects,
+  strTestCDCol = "LBTESTCD",
+  strTestCol = "LBTEST",
+  strValueCol = "LBSTRESN",
+  strLowCol = "LBSTNRLO",
+  strHighCol = "LBSTNRHI",
+  strCategory = "Labs",
+  strExcludePattern = NULL
+)
+
+intersect(
+  unique(Input_Range(dfLB)$parameter_category_2),
+  unique(Input_Missing(dfLB)$parameter_category_2)
+) |> head()
 ```
 
 

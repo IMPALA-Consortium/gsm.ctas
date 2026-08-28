@@ -3,7 +3,6 @@
 export(Analyze_CTAS)
 export(FilterVisits)
 export(Input_Missing)
-export(Input_Numeric)
 export(Input_Range)
 export(Prepare_Categorical)
 export(Prepare_MissingRatio)

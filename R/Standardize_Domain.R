@@ -17,14 +17,19 @@
 #' @param strLowCol,strHighCol `character` Reference-bound columns. `NULL`
 #'   when the source has no ranges.
 #' @param strCategory `character` Constant stamped onto `parameter_category_1`.
+#' @param strPrefix `character` Optional prefix applied to `parameter_id`
+#'   (e.g. `"NUM"` -> `"NUM_SYSBP"`). Empty by default; `parameter_category_2`
+#'   always keeps the raw test code so ctasapp can stitch sibling metrics.
 #' @param strVisitPattern,strExcludePattern `character` Passed to
 #'   [FilterVisits()].
 #'
-#' @return `data.frame` in the CTAS long-format vocabulary. Columns:
-#'   `studyid` (when present on `dfSubjects`), `subject_id`, `site`, `country`,
-#'   `region`, `parameter_id`, `parameter_name`, `parameter_category_1`,
-#'   `visit`, `visitnum`, `value`, and `low`/`high` when the range columns
-#'   were supplied.
+#' @return `data.frame` in the CTAS long-format vocabulary. Includes the raw
+#'   SDTM-derived columns (`visit`, `visitnum`, `value`, and `low`/`high` when
+#'   supplied) alongside the CTAS-ready columns (`parameter_category_2`,
+#'   `parameter_category_3 = "numeric"`, `timepoint_1_name`, `timepoint_rank`,
+#'   `result`, `baseline`). The default output is ready to feed straight into
+#'   [Analyze_CTAS()]; use [Input_Range()] or [Input_Missing()] to overwrite
+#'   `result`/`parameter_category_3`/`parameter_id` for those transforms.
 #'
 #' @examples
 #' Standardize_Domain(
@@ -51,6 +56,7 @@ Standardize_Domain <- function(dfDomain,
                                strLowCol = NULL,
                                strHighCol = NULL,
                                strCategory,
+                               strPrefix = "",
                                strVisitPattern = NULL,
                                strExcludePattern = "unsch") {
   AssertColumns(
@@ -73,10 +79,21 @@ Standardize_Domain <- function(dfDomain,
     parameter_id = as.character(dfFiltered[[strTestCDCol]]),
     parameter_name = as.character(dfFiltered[[strTestCol]]),
     parameter_category_1 = strCategory,
+    parameter_category_2 = as.character(dfFiltered[[strTestCDCol]]),
+    parameter_category_3 = "numeric",
     visit = as.character(dfFiltered[[strVisitCol]]),
     visitnum = as.numeric(dfFiltered[[strVisitNumCol]]),
-    value = dfFiltered[[strValueCol]]
+    timepoint_1_name = as.character(dfFiltered[[strVisitCol]]),
+    timepoint_2_name = NA_character_,
+    timepoint_rank = as.numeric(dfFiltered[[strVisitNumCol]]),
+    value = dfFiltered[[strValueCol]],
+    result = as.numeric(dfFiltered[[strValueCol]]),
+    baseline = NA_real_
   )
+
+  if (nzchar(strPrefix)) {
+    dfLong$parameter_id <- paste0(strPrefix, "_", dfLong$parameter_id)
+  }
 
   if (!is.null(strLowCol)) {
     dfLong$low <- as.numeric(dfFiltered[[strLowCol]])

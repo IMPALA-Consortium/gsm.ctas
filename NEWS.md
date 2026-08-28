@@ -1,5 +1,29 @@
 # gsm.ctas (development)
 
+## Numeric-by-default `Standardize_Domain()`
+
+* **Breaking:** `Input_Numeric()` is removed. `Standardize_Domain()` now
+  emits the numeric CTAS-vocab columns (`parameter_category_2`,
+  `parameter_category_3 = "numeric"`, `timepoint_1_name`, `timepoint_rank`,
+  `result`, `baseline`) alongside the raw SDTM-derived columns, so the
+  numeric metric YAML feeds the standardised frame straight into
+  `Analyze_CTAS()`. Range and ratio-missing metrics still chain
+  `Input_Range()` / `Input_Missing()` to overwrite `result`,
+  `parameter_category_3`, and prefix `parameter_id`.
+* `Standardize_Domain()` gains an optional `strPrefix` argument
+  (default `""`) that prefixes `parameter_id` when supplied. The raw test
+  code is preserved on `parameter_category_2` so ctasapp can still stitch
+  sibling metrics.
+
+## ctasapp stitching contract
+
+* **Breaking:** `Input_Numeric()`, `Input_Range()` and `Input_Missing()`
+  now keep `parameter_category_2` equal to the raw input `parameter_id`
+  (e.g. `LBTESTCD`) instead of prefixing it with the transformation. This
+  makes the same test's `range_normalized` and `ratio_missing` metrics
+  stitch into a single ctasapp field entry. `parameter_id` remains
+  prefixed (`NUM_`, `RANGE_`, `MISS_`) so score tables stay unique.
+
 ## ctasval-aligned redesign
 
 * Adopted the [ctasval](https://github.com/IMPALA-Consortium/ctasval)
