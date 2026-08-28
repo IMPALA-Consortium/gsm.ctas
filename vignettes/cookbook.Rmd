@@ -1,8 +1,8 @@
 ---
-title: "gsm.ctas end to end"
+title: "gsm.ctas cookbook"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{gsm.ctas end to end}
+  %\VignetteIndexEntry{gsm.ctas cookbook}
   %\VignetteEncoding{UTF-8}
   %\VignetteEngine{knitr::rmarkdown}
 editor_options:
@@ -74,27 +74,96 @@ names(lMapped)
 
 ## 2.1 Data Types / Metrics
 
-```{r}
+Each metric is a three-step chain: `Standardize_Domain()` renames the SDTM
+domain to the CTAS vocabulary, an `Input_*()` transform picks the value
+column, and `Analyze_CTAS()` scores the sites.
 
+### Range-normalized labs
+
+`Input_Range()` rescales each result into its reference range; values with
+missing bounds are dropped.
+
+```{r range}
 as_tibble(lMapped$Mapped_LB)
 
-lRange <- Input_Range(
+dfStandard <- Standardize_Domain(
   dfDomain = lMapped$Mapped_LB,
-  strStudyCol = "STUDYID",
-  strSubjectCol = "USUBJID",
+  dfSubjects = lMapped$Mapped_Subjects,
   strTestCDCol = "LBTESTCD",
   strTestCol = "LBTEST",
   strValueCol = "LBSTRESN",
   strLowCol = "LBSTNRLO",
   strHighCol = "LBSTNRHI",
-  strVisitCol = "VISIT",
-  strVisitNumCol = "VISITNUM",
-  strCategoryCol = "~",
-  strCategory = "Labs"
+  strCategory = "Labs",
+  strExcludePattern = NULL
 )
 
-str(lRange)
+as_tibble(dfStandard)
 
+dfRange <- Input_Range(dfStandard)
+
+as_tibble(dfRange)
+
+dfAna <- Analyze_CTAS(dfRange)
+
+as_tibble(dfAna)
+```
+
+### Numeric vital signs
+
+`Input_Numeric()` keeps raw numeric values, so no low/high bounds are needed
+on the standardised frame.
+
+```{r numeric}
+as_tibble(lMapped$Mapped_VS)
+
+dfStandard <- Standardize_Domain(
+  dfDomain = lMapped$Mapped_VS,
+  dfSubjects = lMapped$Mapped_Subjects,
+  strTestCDCol = "VSTESTCD",
+  strTestCol = "VSTEST",
+  strValueCol = "VSSTRESN",
+  strCategory = "Vital Signs",
+  strExcludePattern = NULL
+)
+
+as_tibble(dfStandard)
+
+dfNumeric <- Input_Numeric(dfStandard)
+
+as_tibble(dfNumeric)
+
+dfAna <- Analyze_CTAS(dfNumeric)
+
+as_tibble(dfAna)
+```
+
+### Ratio-missing labs
+
+`Input_Missing()` converts each observation into a 0/1 indicator of whether
+the value is missing, so the resulting CTAS signal is per-site missingness
+over time.
+
+```{r ratio_missing}
+dfStandard <- Standardize_Domain(
+  dfDomain = lMapped$Mapped_LB,
+  dfSubjects = lMapped$Mapped_Subjects,
+  strTestCDCol = "LBTESTCD",
+  strTestCol = "LBTEST",
+  strValueCol = "LBSTRESN",
+  strCategory = "Labs",
+  strExcludePattern = NULL
+)
+
+as_tibble(dfStandard)
+
+dfMissing <- Input_Missing(dfStandard)
+
+as_tibble(dfMissing)
+
+dfAna <- Analyze_CTAS(dfMissing)
+
+as_tibble(dfAna)
 ```
 
 

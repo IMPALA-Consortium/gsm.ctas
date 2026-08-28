@@ -40,35 +40,28 @@ spec:
     VISITNUM:
       type: numeric
 steps:
-  - output: Temp_CTAS_Subjects
-    name: gsm.ctas::Input_Subjects
-    params:
-      dfDM: Mapped_Subjects
-  # Column overrides here are the whole data-type transform: point the generic
-  # `Input_Numeric` at the raw SDTM column names of the numeric source (VS).
-  - output: Temp_CTAS_Values
-    name: gsm.ctas::Input_Numeric
+  # Rename SDTM columns to the CTAS vocabulary and stamp the category. The
+  # visit filter has already run in the mapping layer, so we disable it here.
+  - output: Temp_CTAS_Long
+    name: gsm.ctas::Standardize_Domain
     params:
       dfDomain: Mapped_VS
-      strStudyCol: STUDYID
-      strSubjectCol: USUBJID
+      dfSubjects: Mapped_Subjects
       strTestCDCol: VSTESTCD
       strTestCol: VSTEST
       strValueCol: VSSTRESN
-      strVisitCol: VISIT
-      strVisitNumCol: VISITNUM
-      strCategoryCol: ~
       strCategory: Vital Signs
-  - output: Temp_CTAS_Input
-    name: gsm.ctas::Combine_CTAS_Input
+      strExcludePattern: ~
+  # Apply the numeric transform (values used as-is).
+  - output: Temp_CTAS_Values
+    name: gsm.ctas::Input_Numeric
     params:
-      lNumeric: Temp_CTAS_Values
-      dfSubjects: Temp_CTAS_Subjects
-  - output: lAnalysis
+      df: Temp_CTAS_Long
+  # Score sites with CTAS.
+  - output: Temp_CTAS_Results
     name: gsm.ctas::Analyze_CTAS
     params:
-      lInput: Temp_CTAS_Input
-      strID: ID
+      df: Temp_CTAS_Values
       bAutocorr: FeatureAutocorr
       bAverage: FeatureAverage
       bSD: FeatureSD
@@ -82,3 +75,11 @@ steps:
       strScoringMethod: ScoringMethod
       strPadjustMethod: PadjustMethod
       nSeed: Seed
+  # Bundle results with the ctasapp-shaped shards. Numeric has no
+  # `original_value`, so no `untransformed` shard is emitted.
+  - output: lAnalysis
+    name: base::list
+    params:
+      ID: ID
+      results: Temp_CTAS_Results
+      input: Temp_CTAS_Values

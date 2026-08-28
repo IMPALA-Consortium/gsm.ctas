@@ -1,12 +1,35 @@
 # gsm.ctas (development)
 
+## ctasval-aligned redesign
+
+* Adopted the [ctasval](https://github.com/IMPALA-Consortium/ctasval)
+  single-frame convention: every stage after `Standardize_Domain()` operates
+  on one long-format data frame carrying subject, site, parameter, timepoint,
+  result and (for range) untransformed detail. `Analyze_CTAS()` re-derives
+  the CTAS `subjects`, `parameters` and `data` internally via `distinct()`.
+* New exported `Standardize_Domain()` renames an SDTM findings domain into
+  the CTAS + ctasapp vocabulary and joins the standardised subject table in
+  a single step. Metric YAMLs now chain
+  `Standardize_Domain -> Input_* -> Analyze_CTAS` with three steps.
+* `Input_Numeric()`, `Input_Range()` and `Input_Missing()` are now `df -> df`
+  functions that consume the output of `Standardize_Domain()` and enrich it
+  with the CTAS `result`/`baseline` columns and category triad.
+  `Input_Range()` preserves the pre-transform values as extra columns
+  (`original_value`/`lower`/`upper`/`original_category`) on the same frame;
+  `Analyze_CTAS()` detects these and emits the `untransformed` shard.
+* `Combine_CTAS_Input()`, `Input_Subjects()` and `Input_OneHot()` are removed;
+  they are no longer required with the single-df flow.
+* `Analyze_CTAS()` gains named `dfCustomTimeseries` and
+  `dfCustomReferenceGroups` arguments (defaulting to `ctas::ctas_data`) so
+  the ctas customisation surface is exposed at the wrapper.
+
 ## Multi-study redesign
 
 * Multi-study inputs are honoured throughout: a `studyid` column is threaded
   through the mapping layer and `Analyze_CTAS()` splits the input by study,
   runs CTAS on each, and stacks the results with a `study` column on every
   row of `results`, `input` and `untransformed`.
-* `Analyze_CTAS()` now returns a flat `list(ID, results, input, untransformed)`
+* `Analyze_CTAS()` returns a flat `list(ID, results, input, untransformed)`
   in the shape [ctasapp](https://github.com/IMPALA-Consortium/ctasapp)
   uploads consume. Feature selection is expressed as seven boolean flags
   (`bAutocorr`, `bAverage`, `bSD`, `bRange`, `bUniqueValueCountRelative`,

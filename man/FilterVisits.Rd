@@ -27,8 +27,8 @@ visits. \code{NULL} disables the exclusion.}
 \code{data.frame} A filtered copy of \code{dfInput}.
 }
 \description{
-Applied before any CTAS timeseries is constructed. Both patterns are
-deliberately parameterised: sponsors encode scheduled visits differently, so
-the defaults must stay permissive and any sponsor-specific convention must be
-supplied through the workflow YAML rather than baked into the mapping layer.
+Applied by \code{\link[=Standardize_Domain]{Standardize_Domain()}} before any CTAS timeseries is constructed.
+Sponsors encode scheduled visits differently, so the defaults stay
+permissive and any sponsor-specific convention must be supplied through the
+workflow YAML rather than baked into the mapping layer.
 }

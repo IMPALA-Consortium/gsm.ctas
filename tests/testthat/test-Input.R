@@ -1,355 +1,223 @@
-# Tests use the standardised long-format schema published by the mapping layer.
-# Helpers below rename the SDTM columns of pharmaverse fixtures so the Input_*
-# functions can be exercised with their new defaults.
+# Tests for Standardize_Domain, Input_Numeric, Input_Range and Input_Missing.
+# The single-df pattern (ctasval convention) means each function takes a
+# long-format frame and returns the same shape with the required CTAS columns
+# added. Standardize_Domain does the SDTM -> CTAS vocabulary translation.
 
-StdDM <- function(df) {
+# --- helpers -----------------------------------------------------------------
+
+MakeSubjects <- function() {
   data.frame(
-    studyid = if ("STUDYID" %in% names(df)) as.character(df$STUDYID) else "STUDY_A",
-    subject_id = as.character(df$USUBJID),
-    site = as.character(df$SITEID),
-    country = if ("COUNTRY" %in% names(df)) as.character(df$COUNTRY) else NA_character_,
+    studyid = as.character(pharmaversesdtm::dm$STUDYID),
+    subject_id = as.character(pharmaversesdtm::dm$USUBJID),
+    site = as.character(pharmaversesdtm::dm$SITEID),
+    country = as.character(pharmaversesdtm::dm$COUNTRY),
     stringsAsFactors = FALSE
   )
 }
 
-StdVS <- function(df) {
-  data.frame(
-    studyid = if ("STUDYID" %in% names(df)) as.character(df$STUDYID) else "STUDY_A",
-    subject_id = as.character(df$USUBJID),
-    parameter_id = as.character(df$VSTESTCD),
-    parameter_name = as.character(df$VSTEST),
-    parameter_category_1 = "Vital Signs",
-    visit = as.character(df$VISIT),
-    visitnum = as.numeric(df$VISITNUM),
-    value = as.numeric(df$VSSTRESN),
-    stringsAsFactors = FALSE
+MakeVSLong <- function() {
+  Standardize_Domain(
+    dfDomain = pharmaversesdtm::vs,
+    dfSubjects = MakeSubjects(),
+    strTestCDCol = "VSTESTCD", strTestCol = "VSTEST",
+    strValueCol = "VSSTRESN",
+    strCategory = "Vital Signs",
+    strExcludePattern = NULL
   )
 }
 
-StdLB <- function(df) {
-  data.frame(
-    studyid = if ("STUDYID" %in% names(df)) as.character(df$STUDYID) else "STUDY_A",
-    subject_id = as.character(df$USUBJID),
-    parameter_id = as.character(df$LBTESTCD),
-    parameter_name = as.character(df$LBTEST),
-    parameter_category_1 = "Labs",
-    visit = as.character(df$VISIT),
-    visitnum = as.numeric(df$VISITNUM),
-    value = as.numeric(df$LBSTRESN),
-    low = as.numeric(df$LBSTNRLO),
-    high = as.numeric(df$LBSTNRHI),
-    stringsAsFactors = FALSE
+MakeLBLong <- function() {
+  Standardize_Domain(
+    dfDomain = pharmaversesdtm::lb,
+    dfSubjects = MakeSubjects(),
+    strTestCDCol = "LBTESTCD", strTestCol = "LBTEST",
+    strValueCol = "LBSTRESN",
+    strLowCol = "LBSTNRLO", strHighCol = "LBSTNRHI",
+    strCategory = "Labs",
+    strExcludePattern = NULL
   )
 }
 
-vs <- StdVS(pharmaversesdtm::vs)
-dm <- StdDM(pharmaversesdtm::dm)
+# --- Standardize_Domain ------------------------------------------------------
 
-# --- Input_Subjects -----------------------------------------------------------
+test_that("Standardize_Domain returns the CTAS long-format vocabulary", {
+  dfLong <- MakeVSLong()
 
-test_that("Input_Subjects returns one row per subject with the CTAS columns", {
-  dfSubjects <- Input_Subjects(dm)
-
-  expect_named(dfSubjects, c("studyid", "subject_id", "site", "country", "region"))
-  expect_equal(nrow(dfSubjects), dplyr::n_distinct(dm$subject_id))
-  expect_true(all(vapply(dfSubjects, is.character, logical(1))))
+  expect_true(all(
+    c("studyid", "subject_id", "site", "country",
+      "parameter_id", "parameter_name", "parameter_category_1",
+      "visit", "visitnum", "value") %in% names(dfLong)
+  ))
+  expect_setequal(unique(dfLong$parameter_category_1), "Vital Signs")
+  expect_true(is.numeric(dfLong$visitnum))
 })
 
-test_that("Input_Subjects derives country from a supplied function", {
-  dfSubjects <- Input_Subjects(
-    data.frame(studyid = "A", subject_id = "S1", site = "STUDY-001-DEU-01"),
-    strCountryCol = NULL,
-    fnCountry = function(vSite) substr(vSite, 11, 13)
+test_that("Standardize_Domain joins studyid/site/country from dfSubjects", {
+  dfSubjects <- data.frame(
+    studyid = "A", subject_id = "S1",
+    site = "701", country = "USA",
+    stringsAsFactors = FALSE
+  )
+  dfDomain <- data.frame(
+    USUBJID = "S1", VSTESTCD = "SYSBP", VSTEST = "Systolic Blood Pressure",
+    VSSTRESN = 120, VISIT = "WEEK 2", VISITNUM = 3
   )
 
-  expect_equal(dfSubjects$country, "DEU")
-})
-
-test_that("Input_Subjects can opt out of the study contract", {
-  dfSubjects <- Input_Subjects(
-    data.frame(subject_id = "S1", site = "701", country = "USA"),
-    strStudyCol = NULL
+  dfLong <- Standardize_Domain(
+    dfDomain, dfSubjects,
+    strTestCDCol = "VSTESTCD", strTestCol = "VSTEST",
+    strValueCol = "VSSTRESN",
+    strCategory = "Vital Signs"
   )
 
-  expect_false("studyid" %in% names(dfSubjects))
+  expect_equal(dfLong$studyid, "A")
+  expect_equal(dfLong$site, "701")
+  expect_equal(dfLong$country, "USA")
 })
 
-test_that("Input_Subjects errors informatively on missing columns", {
+test_that("Standardize_Domain filters unscheduled visits by default", {
+  dfSubjects <- data.frame(subject_id = "S1", site = "701")
+  dfDomain <- data.frame(
+    USUBJID = c("S1", "S1"),
+    VSTESTCD = "SYSBP", VSTEST = "Systolic Blood Pressure",
+    VSSTRESN = c(120, 122),
+    VISIT = c("WEEK 2", "UNSCHEDULED 1"),
+    VISITNUM = c(3, 3.5)
+  )
+
+  dfLong <- Standardize_Domain(
+    dfDomain, dfSubjects,
+    strTestCDCol = "VSTESTCD", strTestCol = "VSTEST",
+    strValueCol = "VSSTRESN",
+    strCategory = "Vital Signs"
+  )
+
+  expect_setequal(dfLong$visit, "WEEK 2")
+})
+
+test_that("Standardize_Domain carries low/high when the columns are supplied", {
+  dfLong <- MakeLBLong()
+
+  expect_true(all(c("low", "high") %in% names(dfLong)))
+})
+
+test_that("Standardize_Domain errors informatively on missing columns", {
   expect_error(
-    Input_Subjects(data.frame(subject_id = "S1")),
+    Standardize_Domain(
+      data.frame(USUBJID = "S1"),
+      dfSubjects = data.frame(subject_id = "S1", site = "701"),
+      strTestCDCol = "VSTESTCD", strTestCol = "VSTEST",
+      strValueCol = "VSSTRESN",
+      strCategory = "Vital Signs"
+    ),
     "missing required column"
   )
 })
 
-# --- Input_Numeric ------------------------------------------------------------
+# --- Input_Numeric -----------------------------------------------------------
 
-test_that("Input_Numeric produces the CTAS data and parameters schema", {
-  lInput <- Input_Numeric(vs)
+test_that("Input_Numeric produces the CTAS long-format columns", {
+  dfLong <- MakeVSLong()
 
-  expect_named(lInput, c("data", "parameters", "untransformed"))
-  expect_named(lInput$data, c(
-    "subject_id", "parameter_id", "timepoint_1_name", "timepoint_2_name",
-    "timepoint_rank", "result", "baseline"
-  ))
-  expect_named(lInput$parameters, c(
-    "parameter_id", "parameter_name", "parameter_category_1",
-    "parameter_category_2", "parameter_category_3"
-  ))
-  expect_true(is.numeric(lInput$data$timepoint_rank))
-  expect_true(is.numeric(lInput$data$result))
-  expect_false(any(is.na(lInput$data$result)))
-})
+  df <- Input_Numeric(dfLong)
 
-test_that("Input_Numeric derives one parameter per test code", {
-  lInput <- Input_Numeric(vs)
-
-  expect_setequal(
-    lInput$parameters$parameter_id,
-    paste0("NUM_", sort(unique(vs$parameter_id)))
+  vRequired <- c(
+    "subject_id", "site", "parameter_id", "parameter_name",
+    "parameter_category_1", "parameter_category_2", "parameter_category_3",
+    "timepoint_1_name", "timepoint_2_name", "timepoint_rank",
+    "result", "baseline"
   )
-  expect_setequal(lInput$parameters$parameter_id, unique(lInput$data$parameter_id))
+  expect_true(all(vRequired %in% names(df)))
+  expect_setequal(unique(df$parameter_category_3), "numeric")
+  expect_true(is.numeric(df$result))
+  expect_false(any(is.na(df$result)))
 })
 
-test_that("Input_Numeric reads parameter_category_1 from the input frame", {
-  lInput <- Input_Numeric(vs)
+test_that("Input_Numeric prefixes parameter_id and preserves it in parameter_category_2", {
+  dfLong <- MakeVSLong()
 
-  expect_setequal(lInput$parameters$parameter_category_1, "Vital Signs")
+  df <- Input_Numeric(dfLong)
+
+  expect_true(all(grepl("^NUM_", df$parameter_id)))
+  expect_equal(df$parameter_id, df$parameter_category_2)
 })
 
-test_that("Input_Numeric passes visits unfiltered when strExcludePattern is NULL", {
-  # Mapping now filters unscheduled visits, so Input_Numeric's default is a
-  # no-op. Confirm it can still filter when asked.
-  vsWithUnsch <- vs
-  vsWithUnsch$visit[1] <- "UNSCHEDULED 1"
+test_that("Input_Numeric supports a custom prefix", {
+  dfLong <- MakeVSLong()
 
-  lInputKept <- Input_Numeric(vsWithUnsch)
-  lInputFiltered <- Input_Numeric(vsWithUnsch, strExcludePattern = "unsch")
+  df <- Input_Numeric(dfLong, strPrefix = "EG")
 
-  expect_true(any(grepl("UNSCHEDULED", lInputKept$data$timepoint_1_name)))
-  expect_false(any(grepl("unsch", lInputFiltered$data$timepoint_1_name, ignore.case = TRUE)))
+  expect_true(all(grepl("^EG_", df$parameter_id)))
 })
 
-test_that("Input_Numeric honours a positive visit pattern", {
-  lInput <- Input_Numeric(vs, strVisitPattern = "^WEEK")
-
-  expect_true(all(grepl("^WEEK", lInput$data$timepoint_1_name)))
-})
-
-test_that("Input_Numeric returns contiguous ranks within subject and parameter", {
-  lInput <- Input_Numeric(vs)
-
-  dfCheck <- lInput$data |>
-    dplyr::summarise(
-      Contiguous = identical(sort(.data$timepoint_rank), as.numeric(seq_len(dplyr::n()))),
-      .by = c("subject_id", "parameter_id")
-    )
-
-  expect_true(all(dfCheck$Contiguous))
-})
-
-test_that("Input_Numeric supports alternate column names", {
-  dfECG <- data.frame(
-    STUDY = "A", SUBJ = "S1", CODE = "QT", NAME = "QT Interval",
-    VIS = "WEEK 2", VISNUM = 3, RES = 400
+test_that("Input_Numeric drops rows with NA value", {
+  dfLong <- data.frame(
+    studyid = "A", subject_id = "S1", site = "701",
+    parameter_id = "SYSBP", parameter_name = "SBP",
+    parameter_category_1 = "Vital Signs",
+    visit = c("WEEK 2", "WEEK 4"), visitnum = c(3, 4),
+    value = c(120, NA_real_)
   )
 
-  lInput <- Input_Numeric(
-    dfECG,
-    strSubjectCol = "SUBJ", strTestCDCol = "CODE", strTestCol = "NAME",
-    strValueCol = "RES", strVisitCol = "VIS", strVisitNumCol = "VISNUM",
-    strStudyCol = "STUDY", strCategoryCol = NULL,
-    strCategory = "ECG", strPrefix = "EG"
-  )
+  df <- Input_Numeric(dfLong)
 
-  expect_equal(lInput$data$parameter_id, "EG_QT")
-  expect_equal(lInput$parameters$parameter_category_1, "ECG")
+  expect_equal(nrow(df), 1)
 })
 
-test_that("Input_Numeric returns empty typed frames when nothing survives", {
-  lInput <- Input_Numeric(vs[vs$value < 0 & !is.na(vs$value), ])
-
-  expect_equal(nrow(lInput$data), 0)
-  expect_equal(nrow(lInput$parameters), 0)
-  expect_true(is.character(lInput$data$subject_id))
-})
-
-# --- Input_Range --------------------------------------------------------------
+# --- Input_Range -------------------------------------------------------------
 
 test_that("Input_Range normalises values by their reference range", {
-  dfLB <- data.frame(
-    studyid = "A", subject_id = c("S1", "S1"),
+  dfLong <- data.frame(
+    studyid = "A", subject_id = "S1", site = "701",
     parameter_id = "ALT", parameter_name = "Alanine Aminotransferase",
     parameter_category_1 = "Labs",
     visit = c("WEEK 2", "WEEK 4"), visitnum = c(3, 4),
     value = c(10, 40), low = c(10, 10), high = c(40, 40)
   )
 
-  lInput <- Input_Range(dfLB)
+  df <- Input_Range(dfLong)
 
-  expect_equal(lInput$data$result, c(0, 1))
-  expect_equal(lInput$parameters$parameter_category_3, "range_normalized")
-  expect_equal(lInput$parameters$parameter_category_1, "Labs")
-  expect_equal(lInput$untransformed$original_value, c(10, 40))
+  expect_equal(df$result, c(0, 1))
+  expect_setequal(df$parameter_category_3, "range_normalized")
+  expect_equal(df$original_value, c(10, 40))
 })
 
 test_that("Input_Range drops rows with an unusable reference range", {
-  dfLB <- data.frame(
-    studyid = "A", subject_id = "S1",
+  dfLong <- data.frame(
+    studyid = "A", subject_id = "S1", site = "701",
     parameter_id = "ALT", parameter_name = "ALT",
     parameter_category_1 = "Labs",
     visit = c("WEEK 2", "WEEK 4"), visitnum = c(3, 4),
     value = c(10, 40), low = c(10, NA), high = c(40, 40)
   )
 
-  lInput <- Input_Range(dfLB)
+  df <- Input_Range(dfLong)
 
-  expect_equal(nrow(lInput$data), 1)
+  expect_equal(nrow(df), 1)
 })
 
-# --- Input_OneHot -------------------------------------------------------------
+test_that("Input_Range carries the untransformed detail columns", {
+  dfLong <- MakeLBLong()
 
-test_that("Input_OneHot creates one binary parameter per observed level", {
-  dfRS <- data.frame(
-    studyid = "A",
-    subject_id = c("S1", "S1", "S2", "S2"),
-    parameter_id = "OVRLRESP", parameter_name = "Overall Response",
-    parameter_category_1 = "Response",
-    visit = c("WEEK 2", "WEEK 4", "WEEK 2", "WEEK 4"),
-    visitnum = c(3, 4, 3, 4),
-    value = c("CR", "PR", "PR", "PR")
-  )
+  df <- Input_Range(dfLong)
 
-  lInput <- Input_OneHot(dfRS)
-
-  expect_setequal(
-    lInput$parameters$parameter_id,
-    c("CAT_OVRLRESP=CR", "CAT_OVRLRESP=PR")
-  )
-  expect_setequal(lInput$data$result, c(0, 1))
-  expect_equal(nrow(lInput$data), nrow(dfRS) * 2)
-  expect_true(all(lInput$parameters$parameter_category_2 == "CAT_OVRLRESP"))
+  expect_true(all(c("original_value", "lower", "upper", "original_category") %in% names(df)))
 })
 
-test_that("Input_OneHot returns empty frames when no categories are present", {
-  dfRS <- data.frame(
-    studyid = "A", subject_id = "S1",
-    parameter_id = "OVRLRESP", parameter_name = "Overall Response",
-    parameter_category_1 = "Response",
-    visit = "WEEK 2", visitnum = 3, value = NA_character_
-  )
-
-  lInput <- Input_OneHot(dfRS)
-
-  expect_equal(nrow(lInput$data), 0)
-  expect_equal(nrow(lInput$parameters), 0)
-})
-
-# --- Input_Missing ------------------------------------------------------------
+# --- Input_Missing -----------------------------------------------------------
 
 test_that("Input_Missing retains missing rows and encodes the running ratio", {
-  dfLB <- data.frame(
-    studyid = "A", subject_id = "S1",
+  dfLong <- data.frame(
+    studyid = "A", subject_id = "S1", site = "701",
     parameter_id = "ALT", parameter_name = "ALT",
     parameter_category_1 = "Labs",
     visit = c("WEEK 2", "WEEK 4"), visitnum = c(3, 4),
     value = c(10, NA)
   )
 
-  lInput <- Input_Missing(dfLB)
+  df <- Input_Missing(dfLong)
 
-  expect_equal(nrow(lInput$data), 2)
-  expect_equal(lInput$data$result, c(0, 0.5))
-  expect_equal(lInput$parameters$parameter_category_3, "ratio_missing")
-})
-
-# --- Combine_CTAS_Input -------------------------------------------------------
-
-test_that("Combine_CTAS_Input emits the five CTAS input frames", {
-  lCombined <- Combine_CTAS_Input(
-    Input_Numeric(vs),
-    dfSubjects = Input_Subjects(dm)
-  )
-
-  expect_named(lCombined, c(
-    "data", "subjects", "parameters", "custom_timeseries",
-    "custom_reference_groups", "untransformed"
-  ))
-  expect_true("studyid" %in% names(lCombined$subjects))
-  expect_equal(nrow(lCombined$custom_timeseries), 0)
-  expect_equal(nrow(lCombined$custom_reference_groups), 0)
-})
-
-test_that("Combine_CTAS_Input adds the per-parameter tuning columns as NA", {
-  lCombined <- Combine_CTAS_Input(
-    Input_Numeric(vs),
-    dfSubjects = Input_Subjects(dm)
-  )
-
-  vTuning <- c(
-    "time_point_count_min", "subject_count_min", "max_share_missing",
-    "generate_change_from_baseline", "timeseries_features_to_calculate",
-    "use_only_custom_timeseries"
-  )
-
-  expect_true(all(vTuning %in% names(lCombined$parameters)))
-  expect_true(all(is.na(lCombined$parameters[vTuning])))
-})
-
-test_that("Combine_CTAS_Input binds several domains and deduplicates parameters", {
-  dfLB <- data.frame(
-    studyid = "STUDY_A", subject_id = "01-701-1015",
-    parameter_id = "ALT", parameter_name = "ALT",
-    parameter_category_1 = "Labs",
-    visit = c("WEEK 2", "WEEK 4"), visitnum = c(3, 4),
-    value = c(10, 40), low = 10, high = 40
-  )
-
-  lCombined <- Combine_CTAS_Input(
-    Input_Numeric(vs),
-    Input_Range(dfLB),
-    dfSubjects = Input_Subjects(dm)
-  )
-
-  expect_true("RANGE_ALT" %in% lCombined$parameters$parameter_id)
-  expect_false(any(duplicated(lCombined$parameters$parameter_id)))
-})
-
-test_that("Combine_CTAS_Input validates its arguments", {
-  expect_error(
-    Combine_CTAS_Input(dfSubjects = Input_Subjects(dm)),
-    "At least one"
-  )
-  expect_error(
-    Combine_CTAS_Input(list(data = data.frame()), dfSubjects = Input_Subjects(dm)),
-    "must be a list"
-  )
-  expect_error(
-    Combine_CTAS_Input(Input_Numeric(vs), dfSubjects = data.frame(subject_id = "S1")),
-    "missing required column"
-  )
-})
-
-test_that("Combine_CTAS_Input output satisfies ctas::process_a_study input checks", {
-  skip_if_not_installed("ctas")
-
-  lCombined <- Combine_CTAS_Input(
-    Input_Numeric(vs),
-    dfSubjects = Input_Subjects(dm)
-  )
-
-  expect_no_error(
-    getFromNamespace("check_input_data", "ctas")(
-      subjects = lCombined$subjects,
-      parameters = lCombined$parameters,
-      data = lCombined$data,
-      custom_timeseries = lCombined$custom_timeseries,
-      custom_reference_groups = lCombined$custom_reference_groups,
-      default_timeseries_features_to_calculate = "autocorr;average;sd;unique_value_count_relative",
-      default_minimum_timepoints_per_series = 3,
-      default_minimum_subjects_per_series = 3,
-      default_max_share_missing_timepoints_per_series = 0.5,
-      default_generate_change_from_baseline = FALSE,
-      autogenerate_timeseries = TRUE
-    )
-  )
+  expect_equal(nrow(df), 2)
+  expect_equal(df$result, c(0, 0.5))
+  expect_setequal(df$parameter_category_3, "ratio_missing")
 })

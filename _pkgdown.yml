@@ -14,11 +14,11 @@ articles:
 
 reference:
 - title: Mapping
-  desc: Map SDTM domains into CTAS input frames.
+  desc: Map SDTM domains into the CTAS long-format vocabulary.
   contents:
   - FilterVisits
+  - Standardize_Domain
   - starts_with("Input_")
-  - Combine_CTAS_Input
 - title: Preparation
   desc: Make values comparable across parameters.
   contents:

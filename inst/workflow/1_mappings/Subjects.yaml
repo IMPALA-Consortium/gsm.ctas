@@ -15,8 +15,9 @@ spec:
       type: character
 steps:
   # `Mapped_Subjects` is the transformation-neutral subject table that every
-  # metric YAML consumes via `Input_Subjects()`. Column names are lower-case to
-  # match the CTAS vocabulary so downstream code never has to translate.
+  # metric YAML consumes via `Standardize_Domain()`. Column names are
+  # lower-case to match the CTAS vocabulary so downstream code never has to
+  # translate.
   - output: Mapped_Subjects
     name: workr::RunQuery
     params:

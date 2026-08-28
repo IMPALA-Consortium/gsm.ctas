@@ -2,84 +2,21 @@
 % Please edit documentation in R/Input_Missing.R
 \name{Input_Missing}
 \alias{Input_Missing}
-\title{Map a findings frame to a missingness-ratio CTAS input}
+\title{Convert findings to a running missing-ratio timeseries for CTAS}
 \usage{
-Input_Missing(
-  dfDomain,
-  strSubjectCol = "subject_id",
-  strTestCDCol = "parameter_id",
-  strTestCol = "parameter_name",
-  strValueCol = "value",
-  strVisitCol = "visit",
-  strVisitNumCol = "visitnum",
-  strStudyCol = "studyid",
-  strCategoryCol = "parameter_category_1",
-  strVisitPattern = NULL,
-  strExcludePattern = NULL,
-  strCategory = NA_character_,
-  strPrefix = "MISS"
-)
+Input_Missing(df, strPrefix = "MISS")
 }
 \arguments{
-\item{dfDomain}{\code{data.frame} A findings-shaped domain, standardised or SDTM.}
+\item{df}{\code{data.frame} Long-format output of \code{\link[=Standardize_Domain]{Standardize_Domain()}}.}
 
-\item{strSubjectCol}{\code{character} Subject identifier column.}
-
-\item{strTestCDCol}{\code{character} Short test-code column.}
-
-\item{strTestCol}{\code{character} Long test-name column. Falls back to
-\code{strTestCDCol} when \code{NULL}.}
-
-\item{strValueCol}{\code{character} Result column.}
-
-\item{strVisitCol}{\code{character} Name of the visit column.}
-
-\item{strVisitNumCol}{\code{character} Numeric visit-order column.}
-
-\item{strStudyCol}{\code{character} Study identifier column. \code{NULL} disables the
-check and drops \code{studyid} from the output.}
-
-\item{strCategoryCol}{\code{character} Column carrying \code{parameter_category_1}, if
-available. \code{NULL} leaves the column off the output.}
-
-\item{strVisitPattern}{\code{character} Regular expression that a visit must match
-to be retained. \code{NULL} (default) keeps all visits.}
-
-\item{strExcludePattern}{\code{character} Regular expression whose matches are
-dropped. Matched case-insensitively. Default \code{"unsch"} removes unscheduled
-visits. \code{NULL} disables the exclusion.}
-
-\item{strCategory}{\code{character} Fallback value written to
-\code{parameter_category_1} when \code{strCategoryCol} is \code{NULL} or absent from
-\code{dfDomain}. Reads the category from the input column when it is present.}
-
-\item{strPrefix}{\code{character} Prefix for the generated \code{parameter_id}, kept
-distinct per transformation so \code{range_normalized} and \code{ratio_missing}
-never collide on the same lab test.}
+\item{strPrefix}{\code{character} Prefix for the generated \code{parameter_id}.}
 }
 \value{
-\code{list} with elements \code{data}, \code{parameters} and \code{untransformed}.
+\code{data.frame} in the CTAS long-format vocabulary.
 }
 \description{
-Turns data \emph{completeness} into a timeseries: for each subject and test, the
-running proportion of missing results over visits (\code{\link[=Prepare_MissingRatio]{Prepare_MissingRatio()}}).
-This lets CTAS flag sites whose reporting completeness deviates from the
-study, which the value-based inputs cannot see because they drop \code{NA} rows.
-}
-\details{
-Unlike the other \verb{Input_*()} functions, rows with missing results are
-retained - they are the signal.
-}
-\examples{
-Input_Missing(data.frame(
-  studyid = "A",
-  subject_id = c("S1", "S1"),
-  parameter_id = c("ALT", "ALT"),
-  parameter_name = c("Alanine Aminotransferase", "Alanine Aminotransferase"),
-  parameter_category_1 = "Labs",
-  visit = c("WEEK 2", "WEEK 4"),
-  visitnum = c(3, 4),
-  value = c(20, NA)
-))
-
+Consumes the long-format frame produced by \code{\link[=Standardize_Domain]{Standardize_Domain()}} and
+replaces \code{value} with a running missing ratio per (subject, parameter,
+visit) so CTAS can score sites on data-completeness patterns. Rows with
+\code{NA} values are kept because they carry the signal.
 }

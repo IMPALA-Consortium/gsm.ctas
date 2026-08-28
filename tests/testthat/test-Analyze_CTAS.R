@@ -1,97 +1,88 @@
+# Tests for Analyze_CTAS. The single-df API takes a long-format CTAS input
+# frame and returns the flat `results` data frame directly. The metric YAML
+# bundles that with `input` and `untransformed` via a `base::list` step.
+
 MakeInput <- function(nSites = 3, nSubjectsPerSite = 4, nVisits = 5,
                       strStudy = "STUDY_A") {
-  dfSubjects <- data.frame(
+  dfRows <- data.frame(
     studyid = character(0),
-    subject_id = character(0), site = character(0),
-    country = character(0), region = character(0)
+    subject_id = character(0),
+    site = character(0),
+    country = character(0),
+    parameter_id = character(0),
+    parameter_name = character(0),
+    parameter_category_1 = character(0),
+    parameter_category_2 = character(0),
+    parameter_category_3 = character(0),
+    timepoint_1_name = character(0),
+    timepoint_2_name = character(0),
+    timepoint_rank = numeric(0),
+    result = numeric(0),
+    baseline = numeric(0),
+    stringsAsFactors = FALSE
   )
-  dfData <- EmptyCTASData()
 
   for (iSite in seq_len(nSites)) {
     for (iSubject in seq_len(nSubjectsPerSite)) {
       strSubject <- paste0(strStudy, "_S", iSite, "_", iSubject)
-      dfSubjects <- rbind(dfSubjects, data.frame(
+      dfRows <- rbind(dfRows, data.frame(
         studyid = strStudy,
         subject_id = strSubject,
         site = paste0(strStudy, "_SITE", iSite),
         country = "USA",
-        region = NA_character_
-      ))
-      dfData <- rbind(dfData, data.frame(
-        subject_id = strSubject,
-        parameter_id = "NUM_SYSBP",
-        timepoint_1_name = paste("VISIT", seq_len(nVisits)),
-        timepoint_2_name = NA_character_,
-        timepoint_rank = as.numeric(seq_len(nVisits)),
-        result = 120 + iSite + stats::rnorm(nVisits),
-        baseline = NA_real_
-      ))
-    }
-  }
-
-  lInput <- Combine_CTAS_Input(
-    list(
-      data = dfData,
-      parameters = data.frame(
         parameter_id = "NUM_SYSBP",
         parameter_name = "Systolic Blood Pressure",
         parameter_category_1 = "Vital Signs",
         parameter_category_2 = "NUM_SYSBP",
-        parameter_category_3 = "numeric"
-      )
-    ),
-    dfSubjects = dfSubjects
-  )
+        parameter_category_3 = "numeric",
+        timepoint_1_name = paste("VISIT", seq_len(nVisits)),
+        timepoint_2_name = NA_character_,
+        timepoint_rank = as.numeric(seq_len(nVisits)),
+        result = 120 + iSite + stats::rnorm(nVisits),
+        baseline = NA_real_,
+        stringsAsFactors = FALSE
+      ))
+    }
+  }
 
-  lInput
+  dfRows
 }
 
-# --- input validation ---------------------------------------------------------
+# --- input validation --------------------------------------------------------
 
-test_that("Analyze_CTAS rejects objects that are not a Combine_CTAS_Input list", {
-  expect_error(Analyze_CTAS(data.frame(a = 1)), "must be a list")
-  expect_error(Analyze_CTAS(list(data = data.frame())), "missing required element")
+test_that("Analyze_CTAS rejects objects that are not a data.frame", {
+  expect_error(Analyze_CTAS(list(a = 1)), "must be a")
 })
 
-test_that("Analyze_CTAS rejects non-data.frame elements", {
-  lInput <- MakeInput()
-  lInput$parameters <- "not a data frame"
-
-  expect_error(Analyze_CTAS(lInput), "must be")
+test_that("Analyze_CTAS errors informatively on missing columns", {
+  expect_error(Analyze_CTAS(data.frame(a = 1)), "missing required column")
 })
 
-test_that("Analyze_CTAS errors on empty data or parameters", {
-  lInput <- MakeInput()
-
-  lEmptyData <- lInput
-  lEmptyData$data <- EmptyCTASData()
-  expect_error(Analyze_CTAS(lEmptyData), "no rows")
-
-  lEmptyParams <- lInput
-  lEmptyParams$parameters <- lInput$parameters[0, ]
-  expect_error(Analyze_CTAS(lEmptyParams), "no rows")
+test_that("Analyze_CTAS errors on empty data", {
+  df <- MakeInput()[0, ]
+  expect_error(Analyze_CTAS(df), "no rows")
 })
 
 test_that("Analyze_CTAS errors when fewer than two sites are present", {
-  lInput <- MakeInput(nSites = 1)
+  df <- MakeInput(nSites = 1)
 
-  expect_error(Analyze_CTAS(lInput), "at least 2 sites")
+  expect_error(Analyze_CTAS(df), "at least 2 sites")
 })
 
 test_that("Analyze_CTAS validates the scoring method", {
-  lInput <- MakeInput()
+  df <- MakeInput()
 
-  expect_error(Analyze_CTAS(lInput, strScoringMethod = "nonsense"), "must be one of")
+  expect_error(Analyze_CTAS(df, strScoringMethod = "nonsense"), "must be one of")
 })
 
-# --- feature toggles ----------------------------------------------------------
+# --- feature toggles ---------------------------------------------------------
 
 test_that("Analyze_CTAS aborts when every feature flag is FALSE", {
-  lInput <- MakeInput()
+  df <- MakeInput()
 
   expect_error(
     Analyze_CTAS(
-      lInput,
+      df,
       bAutocorr = FALSE, bAverage = FALSE, bSD = FALSE, bRange = FALSE,
       bUniqueValueCountRelative = FALSE, bOwnSiteSimilScore = FALSE, bLOF = FALSE
     ),
@@ -100,19 +91,19 @@ test_that("Analyze_CTAS aborts when every feature flag is FALSE", {
 })
 
 test_that("Analyze_CTAS restricts scoring to the requested features", {
-  lInput <- MakeInput()
+  df <- MakeInput()
 
-  lAnalysis <- suppressWarnings(Analyze_CTAS(
-    lInput,
+  dfResults <- suppressWarnings(Analyze_CTAS(
+    df,
     bAutocorr = FALSE, bAverage = TRUE, bSD = TRUE, bRange = FALSE,
     bUniqueValueCountRelative = FALSE,
     nSeed = 1
   ))
 
-  expect_setequal(unique(lAnalysis$results$feature), c("average", "sd"))
+  expect_setequal(unique(dfResults$feature), c("average", "sd"))
 })
 
-# --- degenerate results -------------------------------------------------------
+# --- degenerate results ------------------------------------------------------
 
 test_that("AssertCTASResult turns NULL CTAS output into an informative error", {
   expect_error(
@@ -133,85 +124,69 @@ test_that("AssertCTASResult turns NULL CTAS output into an informative error", {
 })
 
 test_that("Analyze_CTAS errors informatively when no timeseries can be built", {
-  lInput <- MakeInput(nVisits = 5)
+  df <- MakeInput(nVisits = 5)
 
   expect_error(
-    Analyze_CTAS(lInput, nMinTimepoints = 99),
+    Analyze_CTAS(df, nMinTimepoints = 99),
     "no timeseries features|no site scores"
   )
 })
 
-# --- successful run -----------------------------------------------------------
+# --- successful run ----------------------------------------------------------
 
-test_that("Analyze_CTAS returns the ctasapp-shaped list", {
-  lInput <- MakeInput()
+test_that("Analyze_CTAS returns the flat results data.frame", {
+  df <- MakeInput()
 
-  lAnalysis <- suppressWarnings(Analyze_CTAS(lInput, strID = "numeric", nSeed = 1))
+  dfResults <- suppressWarnings(Analyze_CTAS(df, nSeed = 1))
 
-  expect_named(lAnalysis, c("ID", "results", "input", "untransformed"))
-  expect_equal(lAnalysis$ID, "numeric")
+  expect_s3_class(dfResults, "data.frame")
   expect_true(all(
     c("site", "feature", "fdr_corrected_pvalue_logp",
       "parameter_id", "parameter_category_1", "parameter_category_3") %in%
-      names(lAnalysis$results)
+      names(dfResults)
   ))
-  expect_true(all(
-    c("subject_id", "parameter_id", "timepoint_1_name", "result", "site",
-      "parameter_name", "parameter_category_1") %in%
-      names(lAnalysis$input)
-  ))
-  expect_gt(nrow(lAnalysis$results), 0)
-  expect_gt(nrow(lAnalysis$input), 0)
+  expect_gt(nrow(dfResults), 0)
 })
 
 test_that("Analyze_CTAS is reproducible when nSeed is supplied", {
-  lInput <- MakeInput()
+  df <- MakeInput()
 
-  lFirst <- suppressWarnings(Analyze_CTAS(lInput, nSeed = 42))
-  lSecond <- suppressWarnings(Analyze_CTAS(lInput, nSeed = 42))
+  dfFirst <- suppressWarnings(Analyze_CTAS(df, nSeed = 42))
+  dfSecond <- suppressWarnings(Analyze_CTAS(df, nSeed = 42))
 
-  expect_equal(lFirst$results, lSecond$results)
+  expect_equal(dfFirst, dfSecond)
 })
 
-# --- multi-study --------------------------------------------------------------
+# --- multi-study -------------------------------------------------------------
 
-test_that("Analyze_CTAS tags every result frame with study on a single-study run", {
-  lInput <- MakeInput(strStudy = "STUDY_A")
+test_that("Analyze_CTAS tags results with study on a single-study run", {
+  df <- MakeInput(strStudy = "STUDY_A")
 
-  lAnalysis <- suppressWarnings(Analyze_CTAS(lInput, nSeed = 1))
+  dfResults <- suppressWarnings(Analyze_CTAS(df, nSeed = 1))
 
-  expect_true("study" %in% names(lAnalysis$results))
-  expect_true("study" %in% names(lAnalysis$input))
-  expect_setequal(unique(lAnalysis$results$study), "STUDY_A")
+  expect_true("study" %in% names(dfResults))
+  expect_setequal(unique(dfResults$study), "STUDY_A")
 })
 
 test_that("Analyze_CTAS splits by studyid and stacks the flat frames", {
-  lInputA <- MakeInput(strStudy = "STUDY_A")
-  lInputB <- MakeInput(strStudy = "STUDY_B")
+  dfA <- MakeInput(strStudy = "STUDY_A")
+  dfB <- MakeInput(strStudy = "STUDY_B")
+  df <- rbind(dfA, dfB)
 
-  lInput <- list(
-    data = dplyr::bind_rows(lInputA$data, lInputB$data),
-    subjects = dplyr::bind_rows(lInputA$subjects, lInputB$subjects),
-    parameters = lInputA$parameters,
-    custom_timeseries = lInputA$custom_timeseries,
-    custom_reference_groups = lInputA$custom_reference_groups
-  )
+  dfResults <- suppressWarnings(Analyze_CTAS(df, nSeed = 1))
 
-  lAnalysis <- suppressWarnings(Analyze_CTAS(lInput, nSeed = 1))
-
-  expect_setequal(unique(lAnalysis$results$study), c("STUDY_A", "STUDY_B"))
+  expect_setequal(unique(dfResults$study), c("STUDY_A", "STUDY_B"))
   expect_setequal(
-    unique(lAnalysis$results$site[lAnalysis$results$study == "STUDY_A"]),
-    unique(lInputA$subjects$site)
+    unique(dfResults$site[dfResults$study == "STUDY_A"]),
+    unique(dfA$site)
   )
 })
 
 test_that("Analyze_CTAS setting strStudyCol NULL runs one call without splitting", {
-  lInput <- MakeInput()
-  lInput$subjects$studyid <- NULL
+  df <- MakeInput()
+  df$studyid <- NULL
 
-  lAnalysis <- suppressWarnings(Analyze_CTAS(lInput, nSeed = 1, strStudyCol = NULL))
+  dfResults <- suppressWarnings(Analyze_CTAS(df, nSeed = 1, strStudyCol = NULL))
 
-  expect_false("study" %in% names(lAnalysis$results))
-  expect_false("study" %in% names(lAnalysis$input))
+  expect_false("study" %in% names(dfResults))
 })

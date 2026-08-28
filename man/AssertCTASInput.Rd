@@ -2,20 +2,19 @@
 % Please edit documentation in R/Analyze_CTAS.R
 \name{AssertCTASInput}
 \alias{AssertCTASInput}
-\title{Validate a combined CTAS input list}
+\title{Validate a CTAS long-format input frame}
 \usage{
-AssertCTASInput(lInput, strStudyCol = "studyid")
+AssertCTASInput(df, strStudyCol = "studyid")
 }
 \arguments{
-\item{lInput}{\code{list} Result of \code{\link[=Combine_CTAS_Input]{Combine_CTAS_Input()}}.}
+\item{df}{\code{data.frame} Long-format CTAS input.}
 
-\item{strStudyCol}{\code{character} Optional study column expected on
-\code{lInput$subjects}.}
+\item{strStudyCol}{\code{character} Optional study column expected on \code{df}.}
 }
 \value{
 \code{NULL}, invisibly. Aborts when the input is unusable.
 }
 \description{
-Validate a combined CTAS input list
+Validate a CTAS long-format input frame
 }
 \keyword{internal}

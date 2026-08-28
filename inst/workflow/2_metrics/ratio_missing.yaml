@@ -42,34 +42,25 @@ spec:
     VISITNUM:
       type: numeric
 steps:
-  - output: Temp_CTAS_Subjects
-    name: gsm.ctas::Input_Subjects
+  - output: Temp_CTAS_Long
+    name: gsm.ctas::Standardize_Domain
     params:
-      dfDM: Mapped_Subjects
+      dfDomain: Mapped_LB
+      dfSubjects: Mapped_Subjects
+      strTestCDCol: LBTESTCD
+      strTestCol: LBTEST
+      strValueCol: LBSTRESN
+      strCategory: Labs
+      strExcludePattern: ~
   # NA values in LBSTRESN are the missingness signal `Input_Missing` picks up.
   - output: Temp_CTAS_Values
     name: gsm.ctas::Input_Missing
     params:
-      dfDomain: Mapped_LB
-      strStudyCol: STUDYID
-      strSubjectCol: USUBJID
-      strTestCDCol: LBTESTCD
-      strTestCol: LBTEST
-      strValueCol: LBSTRESN
-      strVisitCol: VISIT
-      strVisitNumCol: VISITNUM
-      strCategoryCol: ~
-      strCategory: Labs
-  - output: Temp_CTAS_Input
-    name: gsm.ctas::Combine_CTAS_Input
-    params:
-      lMissing: Temp_CTAS_Values
-      dfSubjects: Temp_CTAS_Subjects
-  - output: lAnalysis
+      df: Temp_CTAS_Long
+  - output: Temp_CTAS_Results
     name: gsm.ctas::Analyze_CTAS
     params:
-      lInput: Temp_CTAS_Input
-      strID: ID
+      df: Temp_CTAS_Values
       bAutocorr: FeatureAutocorr
       bAverage: FeatureAverage
       bSD: FeatureSD
@@ -83,3 +74,9 @@ steps:
       strScoringMethod: ScoringMethod
       strPadjustMethod: PadjustMethod
       nSeed: Seed
+  - output: lAnalysis
+    name: base::list
+    params:
+      ID: ID
+      results: Temp_CTAS_Results
+      input: Temp_CTAS_Values

@@ -44,37 +44,26 @@ spec:
     VISITNUM:
       type: numeric
 steps:
-  - output: Temp_CTAS_Subjects
-    name: gsm.ctas::Input_Subjects
-    params:
-      dfDM: Mapped_Subjects
-  # Column overrides here are the whole data-type transform: point the generic
-  # `Input_Range` at the raw SDTM column names of the range source (LB).
-  - output: Temp_CTAS_Values
-    name: gsm.ctas::Input_Range
+  - output: Temp_CTAS_Long
+    name: gsm.ctas::Standardize_Domain
     params:
       dfDomain: Mapped_LB
-      strStudyCol: STUDYID
-      strSubjectCol: USUBJID
+      dfSubjects: Mapped_Subjects
       strTestCDCol: LBTESTCD
       strTestCol: LBTEST
       strValueCol: LBSTRESN
       strLowCol: LBSTNRLO
       strHighCol: LBSTNRHI
-      strVisitCol: VISIT
-      strVisitNumCol: VISITNUM
-      strCategoryCol: ~
       strCategory: Labs
-  - output: Temp_CTAS_Input
-    name: gsm.ctas::Combine_CTAS_Input
+      strExcludePattern: ~
+  - output: Temp_CTAS_Values
+    name: gsm.ctas::Input_Range
     params:
-      lRange: Temp_CTAS_Values
-      dfSubjects: Temp_CTAS_Subjects
-  - output: lAnalysis
+      df: Temp_CTAS_Long
+  - output: Temp_CTAS_Results
     name: gsm.ctas::Analyze_CTAS
     params:
-      lInput: Temp_CTAS_Input
-      strID: ID
+      df: Temp_CTAS_Values
       bAutocorr: FeatureAutocorr
       bAverage: FeatureAverage
       bSD: FeatureSD
@@ -88,3 +77,12 @@ steps:
       strScoringMethod: ScoringMethod
       strPadjustMethod: PadjustMethod
       nSeed: Seed
+  # `Input_Range` stamps `original_value`/`lower`/`upper` onto `Temp_CTAS_Values`,
+  # which flows through as the `untransformed` shard.
+  - output: lAnalysis
+    name: base::list
+    params:
+      ID: ID
+      results: Temp_CTAS_Results
+      input: Temp_CTAS_Values
+      untransformed: Temp_CTAS_Values

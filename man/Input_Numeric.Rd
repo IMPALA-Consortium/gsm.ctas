@@ -2,86 +2,27 @@
 % Please edit documentation in R/Input_Numeric.R
 \name{Input_Numeric}
 \alias{Input_Numeric}
-\title{Map a numeric findings frame to CTAS input}
+\title{Transform a standardised numeric findings frame for CTAS}
 \usage{
-Input_Numeric(
-  dfDomain,
-  strSubjectCol = "subject_id",
-  strTestCDCol = "parameter_id",
-  strTestCol = "parameter_name",
-  strValueCol = "value",
-  strVisitCol = "visit",
-  strVisitNumCol = "visitnum",
-  strStudyCol = "studyid",
-  strCategoryCol = "parameter_category_1",
-  strVisitPattern = NULL,
-  strExcludePattern = NULL,
-  strCategory = NA_character_,
-  strPrefix = "NUM"
-)
+Input_Numeric(df, strPrefix = "NUM")
 }
 \arguments{
-\item{dfDomain}{\code{data.frame} A findings-shaped domain, standardised or SDTM.}
-
-\item{strSubjectCol}{\code{character} Subject identifier column.}
-
-\item{strTestCDCol}{\code{character} Short test-code column.}
-
-\item{strTestCol}{\code{character} Long test-name column. Falls back to
-\code{strTestCDCol} when \code{NULL}.}
-
-\item{strValueCol}{\code{character} Result column.}
-
-\item{strVisitCol}{\code{character} Name of the visit column.}
-
-\item{strVisitNumCol}{\code{character} Numeric visit-order column.}
-
-\item{strStudyCol}{\code{character} Study identifier column. \code{NULL} disables the
-check and drops \code{studyid} from the output.}
-
-\item{strCategoryCol}{\code{character} Column carrying \code{parameter_category_1}, if
-available. \code{NULL} leaves the column off the output.}
-
-\item{strVisitPattern}{\code{character} Regular expression that a visit must match
-to be retained. \code{NULL} (default) keeps all visits.}
-
-\item{strExcludePattern}{\code{character} Regular expression whose matches are
-dropped. Matched case-insensitively. Default \code{"unsch"} removes unscheduled
-visits. \code{NULL} disables the exclusion.}
-
-\item{strCategory}{\code{character} Fallback value written to
-\code{parameter_category_1} when \code{strCategoryCol} is \code{NULL} or absent from
-\code{dfDomain}. Reads the category from the input column when it is present.}
+\item{df}{\code{data.frame} Long-format output of \code{\link[=Standardize_Domain]{Standardize_Domain()}}, with
+at minimum \code{subject_id}, \code{parameter_id}, \code{parameter_name},
+\code{parameter_category_1}, \code{visit}, \code{visitnum}, \code{value}.}
 
 \item{strPrefix}{\code{character} Prefix for the generated \code{parameter_id}, kept
 distinct per transformation so \code{range_normalized} and \code{ratio_missing}
-never collide on the same lab test.}
+never collide on the same test.}
 }
 \value{
-\code{list} with elements \code{data}, \code{parameters} and \code{untransformed},
-ready to be passed to \code{\link[=Combine_CTAS_Input]{Combine_CTAS_Input()}}.
+\code{data.frame} in the CTAS long-format vocabulary, ready to be passed
+to \code{\link[=Analyze_CTAS]{Analyze_CTAS()}}. All non-value columns from \code{df} are preserved.
 }
 \description{
-Produces one CTAS timeseries per subject and test code from a plain numeric
-findings frame. Values are used as-is; use \code{\link[=Input_Range]{Input_Range()}} when reference
-ranges are available and values must be made comparable across tests.
-}
-\details{
-The function is named for the \emph{data type}, not the SDTM domain, so the same
-code serves VS, EG or any other numeric findings source. The metric YAML
-points \code{Input_Numeric()} at the source columns via its \code{str*Col} overrides;
-no intermediate mapping frame is required.
-}
-\examples{
-Input_Numeric(data.frame(
-  studyid = "A",
-  subject_id = c("S1", "S1"),
-  parameter_id = c("SYSBP", "SYSBP"),
-  parameter_name = c("Systolic Blood Pressure", "Systolic Blood Pressure"),
-  parameter_category_1 = "Vital Signs",
-  visit = c("WEEK 2", "WEEK 4"),
-  visitnum = c(3, 4),
-  value = c(120, 124)
-))
-
+Consumes the long-format frame produced by \code{\link[=Standardize_Domain]{Standardize_Domain()}} and
+produces the same shape enriched with the CTAS \code{result}/\code{baseline} columns
+and the parameter-category triad expected by \code{\link[=Analyze_CTAS]{Analyze_CTAS()}}. Values are
+used as-is; use \code{\link[=Input_Range]{Input_Range()}} when reference ranges are available and
+values must be made comparable across tests.
 }

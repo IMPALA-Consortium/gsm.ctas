@@ -1,128 +1,46 @@
-#' Map a numeric findings frame with reference ranges to CTAS input
+#' Normalise reference-bounded numeric findings for CTAS
 #'
-#' Like [Input_Numeric()], but normalises each value by its own reference range
-#' via [Prepare_Normalize()], so that tests measured on different scales become
-#' directly comparable. Intended for lab-shaped data, but applies to any
-#' standardised frame carrying `low`/`high` bounds.
+#' Consumes the long-format frame produced by [Standardize_Domain()] and
+#' normalises `value` against the reference bounds `low`/`high` so results from
+#' different tests are comparable on the same scale. The original values are
+#' preserved as extra columns (`original_value`, `lower`, `upper`,
+#' `original_category`) so [Analyze_CTAS()] can emit the ctasapp-shaped
+#' `untransformed` frame without extra bookkeeping.
 #'
-#' Rows with an invalid range (missing bound or non-positive width) yield `NA`
-#' and are dropped, since CTAS cannot use them.
+#' @param df `data.frame` Long-format output of [Standardize_Domain()] with
+#'   the reference range columns `low`/`high`.
+#' @param strPrefix `character` Prefix for the generated `parameter_id`.
 #'
-#' @inheritParams Input_Numeric
-#' @param strLowCol `character` Lower reference-bound column.
-#' @param strHighCol `character` Upper reference-bound column.
-#'
-#' @return `list` with elements `data`, `parameters` and `untransformed`.
-#'
-#' @examples
-#' Input_Range(data.frame(
-#'   studyid = "A",
-#'   subject_id = c("S1", "S1"),
-#'   parameter_id = c("ALT", "ALT"),
-#'   parameter_name = c("Alanine Aminotransferase", "Alanine Aminotransferase"),
-#'   parameter_category_1 = "Labs",
-#'   visit = c("WEEK 2", "WEEK 4"),
-#'   visitnum = c(3, 4),
-#'   value = c(20, 30),
-#'   low = c(10, 10),
-#'   high = c(40, 40)
-#' ))
+#' @return `data.frame` in the CTAS long-format vocabulary carrying the extra
+#'   `original_value`/`lower`/`upper`/`original_category` columns.
 #'
 #' @export
-Input_Range <- function(dfDomain,
-                        strSubjectCol = "subject_id",
-                        strTestCDCol = "parameter_id",
-                        strTestCol = "parameter_name",
-                        strValueCol = "value",
-                        strLowCol = "low",
-                        strHighCol = "high",
-                        strVisitCol = "visit",
-                        strVisitNumCol = "visitnum",
-                        strStudyCol = "studyid",
-                        strCategoryCol = "parameter_category_1",
-                        strVisitPattern = NULL,
-                        strExcludePattern = NULL,
-                        strCategory = NA_character_,
-                        strPrefix = "RANGE") {
-  AssertColumns(dfDomain, c(strLowCol, strHighCol), "dfDomain")
-
-  dfBase <- StandardizeDomain(
-    dfDomain,
-    strSubjectCol = strSubjectCol,
-    strTestCDCol = strTestCDCol,
-    strTestCol = strTestCol,
-    strValueCol = strValueCol,
-    strVisitCol = strVisitCol,
-    strVisitNumCol = strVisitNumCol,
-    strStudyCol = strStudyCol,
-    strCategoryCol = strCategoryCol,
-    strVisitPattern = strVisitPattern,
-    strExcludePattern = strExcludePattern
+Input_Range <- function(df, strPrefix = "RANGE") {
+  AssertColumns(
+    df,
+    c("subject_id", "parameter_id", "parameter_name",
+      "parameter_category_1", "visit", "visitnum",
+      "value", "low", "high"),
+    "df"
   )
 
-  dfBounds <- dfDomain |>
-    FilterVisits(
-      strVisitCol = strVisitCol,
-      strVisitPattern = strVisitPattern,
-      strExcludePattern = strExcludePattern
-    )
-
-  dfBase$Low <- as.numeric(dfBounds[[strLowCol]])
-  dfBase$High <- as.numeric(dfBounds[[strHighCol]])
-
-  dfWork <- dfBase |>
+  df |>
+    dplyr::filter(!is.na(.data$value)) |>
     dplyr::mutate(
-      parameter_id = paste0(.env$strPrefix, "_", .data$TestCD),
-      result = Prepare_Normalize(
-        as.numeric(.data$Value), .data$Low, .data$High
-      )
+      original_value = as.numeric(.data$value),
+      lower = as.numeric(.data$low),
+      upper = as.numeric(.data$high),
+      original_category = NA_character_,
+      parameter_category_2 = paste0(.env$strPrefix, "_", .data$parameter_id),
+      parameter_id = paste0(.env$strPrefix, "_", .data$parameter_id),
+      parameter_name = paste0(.data$parameter_category_1, " (norm): ", .data$parameter_name),
+      parameter_category_3 = "range_normalized",
+      timepoint_1_name = .data$visit,
+      timepoint_2_name = NA_character_,
+      timepoint_rank = as.numeric(.data$visitnum),
+      result = Prepare_Normalize(.data$original_value, .data$lower, .data$upper),
+      baseline = NA_real_
     ) |>
-    dplyr::filter(!is.na(.data$result))
-
-  if (nrow(dfWork) == 0) {
-    return(list(
-      data = EmptyCTASData(),
-      parameters = EmptyCTASParameters(),
-      untransformed = EmptyCTASUntransformed()
-    ))
-  }
-
-  vCategoryCols <- if ("Category" %in% names(dfWork)) "Category" else character(0)
-  dfParameters <- dfWork |>
-    dplyr::distinct(dplyr::across(dplyr::all_of(c(
-      "parameter_id", "TestCD", "TestName", vCategoryCols
-    )))) |>
-    dplyr::mutate(
-      parameter_category_1 = if ("Category" %in% names(dfWork)) {
-        dplyr::coalesce(.data$Category, .env$strCategory)
-      } else {
-        .env$strCategory
-      }
-    ) |>
-    dplyr::transmute(
-      parameter_id = .data$parameter_id,
-      parameter_name = paste0(.data$parameter_category_1, " (norm): ", .data$TestName),
-      parameter_category_1 = .data$parameter_category_1,
-      parameter_category_2 = .data$parameter_id,
-      parameter_category_3 = "range_normalized"
-    ) |>
+    dplyr::filter(!is.na(.data$result)) |>
     as.data.frame()
-
-  dfUntransformed <- dfWork |>
-    dplyr::transmute(
-      subject_id = .data$subject_id,
-      parameter_category_2 = .data$parameter_id,
-      timepoint_1_name = .data$timepoint_1_name,
-      original_value = as.numeric(.data$Value),
-      lower = .data$Low,
-      upper = .data$High,
-      original_category = NA_character_
-    ) |>
-    as.data.frame()
-
-  list(
-    data = BuildCTASData(dfWork),
-    parameters = dfParameters,
-    untransformed = dfUntransformed
-  )
 }

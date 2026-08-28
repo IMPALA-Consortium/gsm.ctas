@@ -2,11 +2,10 @@
 % Please edit documentation in R/Analyze_CTAS.R
 \name{Analyze_CTAS}
 \alias{Analyze_CTAS}
-\title{Score sites with CTAS and emit ctasapp-shaped shards}
+\title{Score sites with CTAS}
 \usage{
 Analyze_CTAS(
-  lInput,
-  strID = "ctas",
+  df,
   bAutocorr = TRUE,
   bAverage = TRUE,
   bSD = TRUE,
@@ -21,15 +20,19 @@ Analyze_CTAS(
   bAutogenerate = TRUE,
   strScoringMethod = "ks",
   strPadjustMethod = "fdr",
+  dfCustomTimeseries = ctas::ctas_data$custom_timeseries,
+  dfCustomReferenceGroups = ctas::ctas_data$custom_reference_groups,
   nSeed = NULL,
   strStudyCol = "studyid",
   ...
 )
 }
 \arguments{
-\item{lInput}{\code{list} Result of \code{\link[=Combine_CTAS_Input]{Combine_CTAS_Input()}}.}
-
-\item{strID}{\code{character} Identifier written to the output list. Free-form.}
+\item{df}{\code{data.frame} Long-format CTAS input with at minimum \code{subject_id},
+\code{site}, \code{parameter_id}, \code{parameter_name}, \code{parameter_category_1/2/3},
+\code{timepoint_1_name}, \code{timepoint_2_name}, \code{timepoint_rank}, \code{result},
+\code{baseline}. Additional CTAS subject columns (\code{country}, \code{region}) are
+carried through when present.}
 
 \item{bAutocorr}{\code{logical} Score the \code{autocorr} feature.}
 
@@ -57,43 +60,47 @@ feature.}
 
 \item{bAutogenerate}{\code{logical} Autogenerate timeseries.}
 
-\item{strScoringMethod}{\code{character} One of "ks", "mixedeffects",
-"avg_feat_value".}
+\item{strScoringMethod}{\code{character} One of \code{"ks"}, \code{"mixedeffects"},
+\code{"avg_feat_value"}.}
 
 \item{strPadjustMethod}{\code{character} Passed to \code{\link[stats:p.adjust]{stats::p.adjust()}}.}
 
+\item{dfCustomTimeseries}{\code{data.frame} Custom timeseries table forwarded
+to \code{\link[ctas:process_a_study]{ctas::process_a_study()}}. Defaults to the shipped \code{ctas::ctas_data}.}
+
+\item{dfCustomReferenceGroups}{\code{data.frame} Custom reference-group table
+forwarded to \code{\link[ctas:process_a_study]{ctas::process_a_study()}}. Defaults to
+\code{ctas::ctas_data$custom_reference_groups}.}
+
 \item{nSeed}{\code{numeric} Optional seed for reproducibility.}
 
-\item{strStudyCol}{\code{character} Column on \code{lInput$subjects} identifying the
-study. \code{NULL} disables the split and drops the \code{study} output column.}
+\item{strStudyCol}{\code{character} Column on \code{df} identifying the study.
+\code{NULL} disables the split and drops the \code{study} output column.}
 
 \item{...}{Further arguments passed to \code{\link[ctas:process_a_study]{ctas::process_a_study()}}.}
 }
 \value{
-\code{list} with elements:
-\itemize{
-\item \code{ID} - copy of \code{strID}.
-\item \code{results} - flat data frame; one row per (site x timeseries x feature),
-carrying \code{parameter_id} and the category columns.
-\item \code{input} - flat data frame; the CTAS run's \code{data} joined to \code{subjects}
-and \code{parameters}, in the shape ctasapp displays.
-\item \code{untransformed} - \code{lInput$untransformed}, tagged with \code{study} when the
-multi-study contract is active.
-}
+\code{data.frame} One row per (site x timeseries x feature), carrying
+\code{parameter_id}, the category columns, and \code{study} (when the multi-study
+contract is active).
 }
 \description{
-A gsm-friendly wrapper around \code{\link[ctas:process_a_study]{ctas::process_a_study()}}. It validates the
-input list produced by \code{\link[=Combine_CTAS_Input]{Combine_CTAS_Input()}}, applies reproducible seeding,
-runs \code{process_a_study()} per study, and returns three flat frames in the
-shape \href{https://github.com/IMPALA-Consortium/ctasapp}{ctasapp} uploads
-consume.
+A gsm-friendly wrapper around \code{\link[ctas:process_a_study]{ctas::process_a_study()}}. It takes a single
+long data frame in the CTAS + \href{https://github.com/IMPALA-Consortium/ctasapp}{ctasapp}
+vocabulary (typically the output of an \verb{Input_*()} function), splits by
+study when the multi-study contract is active, runs \code{process_a_study()}
+per study, and returns the flat \code{results} frame ctasapp displays.
 }
 \details{
-\code{process_a_study()} is single-study by construction. When \code{lInput$subjects}
-contains more than one value in \code{strStudyCol}, the input is split by study,
-scored per study, and the per-study \code{site_scores} and \code{timeseries} are
-stacked. The output column is named \code{study} (ctasapp vocabulary), not
-\code{studyid}.
+Only \code{results} is returned; the \code{input} and \code{untransformed} shards ctasapp
+also consumes are pure projections of the input \code{df}, so the metric YAML
+assembles the ctasapp payload in a separate \code{base::list} step (see
+\verb{inst/workflow/2_metrics/*.yaml}).
+
+The single-df pattern follows
+\href{https://github.com/IMPALA-Consortium/ctasval}{ctasval}: \code{subjects} and
+\code{parameters} are re-derived from \code{df} via \code{distinct()} inside the function
+so callers only have to keep one frame consistent.
 
 Feature selection is a boolean-per-feature contract instead of the
 semicolon-delimited string CTAS accepts, so metric YAMLs can toggle
@@ -101,29 +108,22 @@ features individually from \verb{meta:}.
 }
 \examples{
 \donttest{
-# Build a mapped numeric domain from raw SDTM. In practice this is done by
-# the mapping workflow YAMLs; see `vignette("gsm-ctas")`.
-dfVS <- data.frame(
-  studyid = as.character(pharmaversesdtm::vs$STUDYID),
-  subject_id = as.character(pharmaversesdtm::vs$USUBJID),
-  parameter_id = as.character(pharmaversesdtm::vs$VSTESTCD),
-  parameter_name = as.character(pharmaversesdtm::vs$VSTEST),
-  parameter_category_1 = "Vital Signs",
-  visit = as.character(pharmaversesdtm::vs$VISIT),
-  visitnum = as.numeric(pharmaversesdtm::vs$VISITNUM),
-  value = as.numeric(pharmaversesdtm::vs$VSSTRESN)
+dfSubjects <- data.frame(
+  studyid = pharmaversesdtm::dm$STUDYID,
+  subject_id = pharmaversesdtm::dm$USUBJID,
+  site = pharmaversesdtm::dm$SITEID,
+  country = pharmaversesdtm::dm$COUNTRY
 )
-dfDM <- data.frame(
-  studyid = as.character(pharmaversesdtm::dm$STUDYID),
-  subject_id = as.character(pharmaversesdtm::dm$USUBJID),
-  site = as.character(pharmaversesdtm::dm$SITEID),
-  country = as.character(pharmaversesdtm::dm$COUNTRY)
+dfLong <- Standardize_Domain(
+  dfDomain = pharmaversesdtm::vs,
+  dfSubjects = dfSubjects,
+  strTestCDCol = "VSTESTCD", strTestCol = "VSTEST", strValueCol = "VSSTRESN",
+  strCategory = "Vital Signs"
 )
-lInput <- Combine_CTAS_Input(
-  Input_Numeric(dfVS),
-  dfSubjects = Input_Subjects(dfDM)
-)
-lAnalysis <- Analyze_CTAS(lInput, strID = "numeric")
+dfValues <- Input_Numeric(dfLong)
+dfResults <- Analyze_CTAS(dfValues, nSeed = 1)
+lAnalysis <- list(ID = "numeric", results = dfResults,
+                  input = dfValues, untransformed = dfValues)
 }
 
 }

@@ -2,92 +2,25 @@
 % Please edit documentation in R/Input_Range.R
 \name{Input_Range}
 \alias{Input_Range}
-\title{Map a numeric findings frame with reference ranges to CTAS input}
+\title{Normalise reference-bounded numeric findings for CTAS}
 \usage{
-Input_Range(
-  dfDomain,
-  strSubjectCol = "subject_id",
-  strTestCDCol = "parameter_id",
-  strTestCol = "parameter_name",
-  strValueCol = "value",
-  strLowCol = "low",
-  strHighCol = "high",
-  strVisitCol = "visit",
-  strVisitNumCol = "visitnum",
-  strStudyCol = "studyid",
-  strCategoryCol = "parameter_category_1",
-  strVisitPattern = NULL,
-  strExcludePattern = NULL,
-  strCategory = NA_character_,
-  strPrefix = "RANGE"
-)
+Input_Range(df, strPrefix = "RANGE")
 }
 \arguments{
-\item{dfDomain}{\code{data.frame} A findings-shaped domain, standardised or SDTM.}
+\item{df}{\code{data.frame} Long-format output of \code{\link[=Standardize_Domain]{Standardize_Domain()}} with
+the reference range columns \code{low}/\code{high}.}
 
-\item{strSubjectCol}{\code{character} Subject identifier column.}
-
-\item{strTestCDCol}{\code{character} Short test-code column.}
-
-\item{strTestCol}{\code{character} Long test-name column. Falls back to
-\code{strTestCDCol} when \code{NULL}.}
-
-\item{strValueCol}{\code{character} Result column.}
-
-\item{strLowCol}{\code{character} Lower reference-bound column.}
-
-\item{strHighCol}{\code{character} Upper reference-bound column.}
-
-\item{strVisitCol}{\code{character} Name of the visit column.}
-
-\item{strVisitNumCol}{\code{character} Numeric visit-order column.}
-
-\item{strStudyCol}{\code{character} Study identifier column. \code{NULL} disables the
-check and drops \code{studyid} from the output.}
-
-\item{strCategoryCol}{\code{character} Column carrying \code{parameter_category_1}, if
-available. \code{NULL} leaves the column off the output.}
-
-\item{strVisitPattern}{\code{character} Regular expression that a visit must match
-to be retained. \code{NULL} (default) keeps all visits.}
-
-\item{strExcludePattern}{\code{character} Regular expression whose matches are
-dropped. Matched case-insensitively. Default \code{"unsch"} removes unscheduled
-visits. \code{NULL} disables the exclusion.}
-
-\item{strCategory}{\code{character} Fallback value written to
-\code{parameter_category_1} when \code{strCategoryCol} is \code{NULL} or absent from
-\code{dfDomain}. Reads the category from the input column when it is present.}
-
-\item{strPrefix}{\code{character} Prefix for the generated \code{parameter_id}, kept
-distinct per transformation so \code{range_normalized} and \code{ratio_missing}
-never collide on the same lab test.}
+\item{strPrefix}{\code{character} Prefix for the generated \code{parameter_id}.}
 }
 \value{
-\code{list} with elements \code{data}, \code{parameters} and \code{untransformed}.
+\code{data.frame} in the CTAS long-format vocabulary carrying the extra
+\code{original_value}/\code{lower}/\code{upper}/\code{original_category} columns.
 }
 \description{
-Like \code{\link[=Input_Numeric]{Input_Numeric()}}, but normalises each value by its own reference range
-via \code{\link[=Prepare_Normalize]{Prepare_Normalize()}}, so that tests measured on different scales become
-directly comparable. Intended for lab-shaped data, but applies to any
-standardised frame carrying \code{low}/\code{high} bounds.
-}
-\details{
-Rows with an invalid range (missing bound or non-positive width) yield \code{NA}
-and are dropped, since CTAS cannot use them.
-}
-\examples{
-Input_Range(data.frame(
-  studyid = "A",
-  subject_id = c("S1", "S1"),
-  parameter_id = c("ALT", "ALT"),
-  parameter_name = c("Alanine Aminotransferase", "Alanine Aminotransferase"),
-  parameter_category_1 = "Labs",
-  visit = c("WEEK 2", "WEEK 4"),
-  visitnum = c(3, 4),
-  value = c(20, 30),
-  low = c(10, 10),
-  high = c(40, 40)
-))
-
+Consumes the long-format frame produced by \code{\link[=Standardize_Domain]{Standardize_Domain()}} and
+normalises \code{value} against the reference bounds \code{low}/\code{high} so results from
+different tests are comparable on the same scale. The original values are
+preserved as extra columns (\code{original_value}, \code{lower}, \code{upper},
+\code{original_category}) so \code{\link[=Analyze_CTAS]{Analyze_CTAS()}} can emit the ctasapp-shaped
+\code{untransformed} frame without extra bookkeeping.
 }

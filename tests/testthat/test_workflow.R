@@ -38,22 +38,24 @@ test_that("one metric workflow is produced per transformation type", {
 
 test_that("every metric workflow emits the ctasapp-shaped list", {
   purrr::iwalk(lAnalysis, function(lResult, strID) {
-    expect_named(lResult, c("ID", "results", "input", "untransformed"))
+    expect_true(all(c("ID", "results", "input") %in% names(lResult)))
     expect_true(all(
       c("site", "feature", "fdr_corrected_pvalue_logp",
         "parameter_id", "parameter_category_1", "parameter_category_3",
         "study") %in%
         names(lResult$results)
     ))
+    # `input` is the raw `Input_*()` output, so it carries `studyid`;
+    # `Write_Results()` renames it to `study` on the way to parquet.
     expect_true(all(
       c("subject_id", "parameter_id", "timepoint_1_name", "result",
-        "site", "study", "parameter_name",
+        "site", "studyid", "parameter_name",
         "parameter_category_1", "parameter_category_2",
         "parameter_category_3") %in%
         names(lResult$input)
     ))
     expect_setequal(unique(lResult$results$study), vStudyIDs)
-    expect_setequal(unique(lResult$input$study), vStudyIDs)
+    expect_setequal(unique(lResult$input$studyid), vStudyIDs)
   })
 })
 
@@ -77,9 +79,13 @@ test_that("ratio_missing metric drops the autocorr feature", {
   )
 })
 
-test_that("only range_normalized carries untransformed rows", {
-  expect_equal(nrow(lAnalysis$Analysis_numeric$untransformed), 0)
+test_that("only range_normalized publishes an untransformed shard", {
+  expect_false("untransformed" %in% names(lAnalysis$Analysis_numeric))
+  expect_false("untransformed" %in% names(lAnalysis$Analysis_ratio_missing))
   expect_gt(nrow(lAnalysis$Analysis_range_normalized$untransformed), 0)
+  expect_true(
+    "original_value" %in% names(lAnalysis$Analysis_range_normalized$untransformed)
+  )
 })
 
 test_that("parameter_category_3 identifies the transformation each metric ran", {

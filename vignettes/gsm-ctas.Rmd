@@ -123,10 +123,12 @@ YAML pulls from directly via column overrides.
 ## 2. Metrics
 
 Each metric YAML runs CTAS once for its data type and emits the ctasapp shards.
-The data-type transform lives here: the metric YAML points `Input_Numeric()`,
-`Input_Range()` or `Input_Missing()` at the SDTM columns with `str*Col`
-overrides, so adding another numeric source (e.g. EG) is a metric-YAML edit,
-not a mapping-YAML one.
+The data-type transform is a three-step chain: `Standardize_Domain()` renames
+the SDTM columns to the CTAS long-format vocabulary and joins subject
+metadata, `Input_Numeric()` / `Input_Range()` / `Input_Missing()` adds the
+`result` and category columns, and `Analyze_CTAS()` scores the sites. Adding
+another numeric source (e.g. EG) is a metric-YAML edit, not a mapping-YAML
+one.
 
 ```{r metrics}
 lMetricWorkflows <- workr::MakeWorkflowList(
