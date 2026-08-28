@@ -24,21 +24,13 @@ reference:
   contents:
   - starts_with("Prepare_")
 - title: Analysis
-  desc: Run CTAS and bridge into the gsm analysis contract.
+  desc: Run CTAS and emit ctasapp-shaped shards.
   contents:
   - Analyze_CTAS
-  - Combine_CTAS_Scores
-  - Summarize_CTAS
-  - Flag_CTAS
 - title: Reporting
-  desc: Adjust the stock gsm.kri report for CTAS metrics.
+  desc: Bind ctasapp shards and write them to disk for the ctasapp dashboard.
   contents:
-  - DropChart
-- title: Drill-down
-  desc: Retain and export timeseries-level detail for the ctasapp dashboard.
-  contents:
-  - Combine_CTAS_Detail
-  - Write_CTAS_Detail
+  - Write_Results
 - title: Package
   contents:
   - gsm.ctas-package

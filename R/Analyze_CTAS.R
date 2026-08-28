@@ -1,23 +1,32 @@
-#' Run the CTAS engine over a combined study input
+#' Score sites with CTAS and emit ctasapp-shaped shards
 #'
 #' A gsm-friendly wrapper around [ctas::process_a_study()]. It validates the
 #' input list produced by [Combine_CTAS_Input()], applies reproducible seeding,
-#' and converts the degenerate cases CTAS signals by returning `NULL` elements
-#' into an informative error.
+#' runs `process_a_study()` per study, and returns three flat frames in the
+#' shape [ctasapp](https://github.com/IMPALA-Consortium/ctasapp) uploads
+#' consume.
 #'
 #' `process_a_study()` is single-study by construction. When `lInput$subjects`
 #' contains more than one value in `strStudyCol`, the input is split by study,
-#' scored per study, and the four result frames are stacked with `studyid`
-#' tagged onto every row so the downstream contract is study-aware without
-#' calling code learning a second function.
+#' scored per study, and the per-study `site_scores` and `timeseries` are
+#' stacked. The output column is named `study` (ctasapp vocabulary), not
+#' `studyid`.
 #'
-#' `process_a_study()` is an all-metrics-at-once engine: a single call scores
-#' every (timeseries x feature x site) combination. It is therefore intended to
-#' run once per study, with each metric workflow filtering the shared result to
-#' one feature family.
+#' Feature selection is a boolean-per-feature contract instead of the
+#' semicolon-delimited string CTAS accepts, so metric YAMLs can toggle
+#' features individually from `meta:`.
 #'
 #' @param lInput `list` Result of [Combine_CTAS_Input()].
-#' @param strFeatures `character` Semicolon-delimited CTAS features.
+#' @param strID `character` Identifier written to the output list. Free-form.
+#' @param bAutocorr `logical` Score the `autocorr` feature.
+#' @param bAverage `logical` Score the `average` feature.
+#' @param bSD `logical` Score the `sd` feature.
+#' @param bRange `logical` Score the `range` feature.
+#' @param bUniqueValueCountRelative `logical` Score the
+#'   `unique_value_count_relative` feature.
+#' @param bOwnSiteSimilScore `logical` Score the `own_site_simil_score`
+#'   feature.
+#' @param bLOF `logical` Score the `lof` feature.
 #' @param nMinTimepoints `numeric` Minimum timepoints per timeseries.
 #' @param nMinSubjects `numeric` Minimum subjects per timeseries.
 #' @param dMaxShareMissing `numeric` Maximum share of missing timepoints.
@@ -28,26 +37,55 @@
 #' @param strPadjustMethod `character` Passed to [stats::p.adjust()].
 #' @param nSeed `numeric` Optional seed for reproducibility.
 #' @param strStudyCol `character` Column on `lInput$subjects` identifying the
-#'   study. `NULL` disables the split and runs `process_a_study()` once on the
-#'   whole input.
+#'   study. `NULL` disables the split and drops the `study` output column.
 #' @param ... Further arguments passed to [ctas::process_a_study()].
 #'
-#' @return `list` with `timeseries`, `timeseries_features`, `PCA_coordinates`
-#'   and `site_scores`. Each frame carries the `strStudyCol` column when the
-#'   split was active.
+#' @return `list` with elements:
+#'   * `ID` - copy of `strID`.
+#'   * `results` - flat data frame; one row per (site x timeseries x feature),
+#'     carrying `parameter_id` and the category columns.
+#'   * `input` - flat data frame; the CTAS run's `data` joined to `subjects`
+#'     and `parameters`, in the shape ctasapp displays.
+#'   * `untransformed` - `lInput$untransformed`, tagged with `study` when the
+#'     multi-study contract is active.
 #'
 #' @examples
 #' \donttest{
-#' lInput <- Combine_CTAS_Input(
-#'   Input_Numeric(pharmaversesdtm::vs),
-#'   dfSubjects = Input_Subjects(pharmaversesdtm::dm)
+#' # Build a mapped numeric domain from raw SDTM. In practice this is done by
+#' # the mapping workflow YAMLs; see `vignette("gsm-ctas")`.
+#' dfVS <- data.frame(
+#'   studyid = as.character(pharmaversesdtm::vs$STUDYID),
+#'   subject_id = as.character(pharmaversesdtm::vs$USUBJID),
+#'   parameter_id = as.character(pharmaversesdtm::vs$VSTESTCD),
+#'   parameter_name = as.character(pharmaversesdtm::vs$VSTEST),
+#'   parameter_category_1 = "Vital Signs",
+#'   visit = as.character(pharmaversesdtm::vs$VISIT),
+#'   visitnum = as.numeric(pharmaversesdtm::vs$VISITNUM),
+#'   value = as.numeric(pharmaversesdtm::vs$VSSTRESN)
 #' )
-#' lCTAS <- Analyze_CTAS(lInput)
+#' dfDM <- data.frame(
+#'   studyid = as.character(pharmaversesdtm::dm$STUDYID),
+#'   subject_id = as.character(pharmaversesdtm::dm$USUBJID),
+#'   site = as.character(pharmaversesdtm::dm$SITEID),
+#'   country = as.character(pharmaversesdtm::dm$COUNTRY)
+#' )
+#' lInput <- Combine_CTAS_Input(
+#'   Input_Numeric(dfVS),
+#'   dfSubjects = Input_Subjects(dfDM)
+#' )
+#' lAnalysis <- Analyze_CTAS(lInput, strID = "numeric")
 #' }
 #'
 #' @export
 Analyze_CTAS <- function(lInput,
-                         strFeatures = "autocorr;average;sd;unique_value_count_relative",
+                         strID = "ctas",
+                         bAutocorr = TRUE,
+                         bAverage = TRUE,
+                         bSD = TRUE,
+                         bRange = FALSE,
+                         bUniqueValueCountRelative = TRUE,
+                         bOwnSiteSimilScore = FALSE,
+                         bLOF = FALSE,
                          nMinTimepoints = 3,
                          nMinSubjects = 3,
                          dMaxShareMissing = 0.5,
@@ -62,6 +100,12 @@ Analyze_CTAS <- function(lInput,
 
   strScoringMethod <- rlang::arg_match(
     strScoringMethod, c("ks", "mixedeffects", "avg_feat_value")
+  )
+
+  strFeatures <- AssembleFeatures(
+    bAutocorr = bAutocorr, bAverage = bAverage, bSD = bSD, bRange = bRange,
+    bUniqueValueCountRelative = bUniqueValueCountRelative,
+    bOwnSiteSimilScore = bOwnSiteSimilScore, bLOF = bLOF
   )
 
   fnRunOne <- function(lSub) {
@@ -114,12 +158,152 @@ Analyze_CTAS <- function(lInput,
     )
   }
 
-  if (is.null(nSeed)) {
+  lCTAS <- if (is.null(nSeed)) {
     fnAll()
   } else {
     rlang::check_installed("withr", "to seed `Analyze_CTAS()`.")
     withr::with_seed(nSeed, fnAll())
   }
+
+  BuildAnalysisList(
+    strID = strID, lCTAS = lCTAS, lInput = lInput, strStudyCol = strStudyCol
+  )
+}
+
+#' Compose the CTAS feature string from boolean flags
+#'
+#' Aborts when every flag is `FALSE`, since `process_a_study()` fed an empty
+#' feature string would fail with an opaque error deep inside the engine.
+#'
+#' @keywords internal
+AssembleFeatures <- function(bAutocorr, bAverage, bSD, bRange,
+                             bUniqueValueCountRelative,
+                             bOwnSiteSimilScore, bLOF) {
+  vFlags <- c(
+    autocorr = isTRUE(bAutocorr),
+    average = isTRUE(bAverage),
+    sd = isTRUE(bSD),
+    range = isTRUE(bRange),
+    unique_value_count_relative = isTRUE(bUniqueValueCountRelative),
+    own_site_simil_score = isTRUE(bOwnSiteSimilScore),
+    lof = isTRUE(bLOF)
+  )
+
+  if (!any(vFlags)) {
+    cli::cli_abort(
+      "At least one {.arg b*} feature flag must be {.code TRUE}."
+    )
+  }
+
+  paste(names(vFlags)[vFlags], collapse = ";")
+}
+
+#' Build the ctasapp-shaped output list from a CTAS result and its input
+#'
+#' Joins `site_scores` to `timeseries` on `timeseries_id` to recover
+#' `parameter_id`, and to `parameters` to recover the category columns CTAS
+#' discards. Builds the flat `input` frame as `data ⨝ subjects ⨝ parameters`.
+#' `studyid` is renamed to `study` on the way out so the output matches the
+#' ctasapp upload contract.
+#'
+#' @keywords internal
+BuildAnalysisList <- function(strID, lCTAS, lInput, strStudyCol) {
+  vCategories <- c(
+    "parameter_category_1", "parameter_category_2", "parameter_category_3"
+  )
+  AssertColumns(
+    lInput$parameters, c("parameter_id", "parameter_name", vCategories),
+    "lInput$parameters"
+  )
+  AssertColumns(lInput$subjects, c("subject_id", "site"), "lInput$subjects")
+
+  dfTimeseries <- dplyr::distinct(
+    dplyr::select(lCTAS$timeseries, "timeseries_id", "parameter_id")
+  )
+
+  dfParameters <- dplyr::distinct(
+    dplyr::select(
+      lInput$parameters, "parameter_id", dplyr::all_of(vCategories)
+    )
+  )
+  if (anyDuplicated(dfParameters$parameter_id) > 0) {
+    cli::cli_abort(
+      "{.field parameter_id} is not unique in {.arg lInput$parameters}."
+    )
+  }
+
+  dfResults <- lCTAS$site_scores |>
+    dplyr::left_join(dfTimeseries, by = "timeseries_id") |>
+    dplyr::left_join(dfParameters, by = "parameter_id")
+
+  if (any(is.na(dfResults$parameter_id))) {
+    cli::cli_abort(
+      "{.field timeseries_id} in {.field site_scores} has no match in {.field timeseries}."
+    )
+  }
+  if (any(is.na(dfResults$parameter_category_1))) {
+    cli::cli_abort(
+      "Scored parameter{?s} absent from {.arg lInput$parameters}."
+    )
+  }
+
+  dfInput <- lInput$data |>
+    dplyr::left_join(lInput$subjects, by = "subject_id") |>
+    dplyr::left_join(
+      dplyr::select(
+        lInput$parameters, "parameter_id", "parameter_name",
+        dplyr::all_of(vCategories)
+      ),
+      by = "parameter_id"
+    )
+
+  if (any(is.na(dfInput$site))) {
+    cli::cli_abort(
+      "{.field subject_id} in {.arg lInput$data} has no match in {.arg lInput$subjects}."
+    )
+  }
+
+  dfUntransformed <- if (is.null(lInput$untransformed)) {
+    EmptyCTASUntransformed()
+  } else {
+    lInput$untransformed
+  }
+
+  # untransformed carries subject_id but no study; add it from subjects.
+  bStudy <- !is.null(strStudyCol) && strStudyCol %in% names(lInput$subjects)
+  if (bStudy && nrow(dfUntransformed) > 0 &&
+      !strStudyCol %in% names(dfUntransformed)) {
+    dfUntransformed <- dfUntransformed |>
+      dplyr::left_join(
+        dplyr::distinct(
+          dplyr::select(
+            lInput$subjects, "subject_id", dplyr::all_of(strStudyCol)
+          )
+        ),
+        by = "subject_id"
+      )
+  }
+
+  if (bStudy) {
+    if (strStudyCol %in% names(dfResults)) {
+      dfResults <- dplyr::rename(dfResults, study = dplyr::all_of(strStudyCol))
+    }
+    if (strStudyCol %in% names(dfInput)) {
+      dfInput <- dplyr::rename(dfInput, study = dplyr::all_of(strStudyCol))
+    }
+    if (strStudyCol %in% names(dfUntransformed)) {
+      dfUntransformed <- dplyr::rename(
+        dfUntransformed, study = dplyr::all_of(strStudyCol)
+      )
+    }
+  }
+
+  list(
+    ID = strID,
+    results = as.data.frame(dfResults),
+    input = as.data.frame(dfInput),
+    untransformed = as.data.frame(dfUntransformed)
+  )
 }
 
 #' Subset a CTAS input list to a single study
@@ -138,8 +322,6 @@ SubsetCTASInput <- function(lInput, strStudy, strStudyCol) {
 
   dfDataSub <- lInput$data[lInput$data$subject_id %in% vSubjects, , drop = FALSE]
 
-  # Trim `parameters` to what has data in this study so `process_a_study()`
-  # cannot try to score a parameter with no rows.
   dfParametersSub <- lInput$parameters[
     lInput$parameters$parameter_id %in% unique(dfDataSub$parameter_id), ,
     drop = FALSE

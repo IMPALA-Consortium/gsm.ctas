@@ -1,0 +1,20 @@
+meta:
+  Type: Reporting
+  ID: Write_Results
+  Description: Bind ctasapp-shaped shards across metric workflows and write to disk
+  Priority: 1
+  Active: true
+spec:
+  lAnalyzed:
+    type: list
+  strDir:
+    type: character
+  strFormat:
+    type: character
+steps:
+  - output: vPaths
+    name: gsm.ctas::Write_Results
+    params:
+      lAnalysis: lAnalyzed
+      strDir: strDir
+      strFormat: strFormat

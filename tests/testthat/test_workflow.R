@@ -6,7 +6,7 @@ skip_if_not(
 test_that("mapping publishes the standardised transformation-typed frames", {
   expect_true(all(
     c("Mapped_DM", "Mapped_VS", "Mapped_LB", "Mapped_SITE", "Mapped_STUDY",
-      "Mapped_Subjects", "Mapped_Numeric", "Mapped_Range") %in% names(lMapped)
+      "Mapped_Subjects") %in% names(lMapped)
   ))
 })
 
@@ -22,19 +22,9 @@ test_that("Mapped_Subjects carries the CTAS column vocabulary and every study", 
   expect_setequal(unique(lMapped$Mapped_Subjects$studyid), vStudyIDs)
 })
 
-test_that("Mapped_Numeric and Mapped_Range carry studyid + parameter_category_1", {
-  expect_true(all(
-    c("studyid", "subject_id", "parameter_id", "parameter_name",
-      "parameter_category_1", "visit", "visitnum", "value") %in%
-      names(lMapped$Mapped_Numeric)
-  ))
-  expect_true(all(
-    c("low", "high") %in% names(lMapped$Mapped_Range)
-  ))
-  expect_setequal(unique(lMapped$Mapped_Numeric$studyid), vStudyIDs)
-  expect_setequal(unique(lMapped$Mapped_Range$studyid), vStudyIDs)
-  expect_setequal(unique(lMapped$Mapped_Numeric$parameter_category_1), "Vital Signs")
-  expect_setequal(unique(lMapped$Mapped_Range$parameter_category_1), "Labs")
+test_that("Mapped_VS and Mapped_LB carry STUDYID across every stacked study", {
+  expect_setequal(unique(lMapped$Mapped_VS$STUDYID), vStudyIDs)
+  expect_setequal(unique(lMapped$Mapped_LB$STUDYID), vStudyIDs)
 })
 
 test_that("Mapped_SITE groups by STUDYID and SITEID so cloned sites stay separated", {
@@ -46,62 +36,35 @@ test_that("one metric workflow is produced per transformation type", {
   expect_setequal(names(lAnalysis), paste0("Analysis_", vMetricIDs))
 })
 
-test_that("each metric emits Analysis_Analyzed with a Feature column per feature", {
+test_that("every metric workflow emits the ctasapp-shaped list", {
   purrr::iwalk(lAnalysis, function(lResult, strID) {
-    dfAnalyzed <- lResult$Analysis_Analyzed
+    expect_named(lResult, c("ID", "results", "input", "untransformed"))
     expect_true(all(
-      c("studyid", "GroupID", "GroupLevel", "Feature",
-        "Numerator", "Denominator", "Metric", "Score") %in%
-        names(dfAnalyzed)
+      c("site", "feature", "fdr_corrected_pvalue_logp",
+        "parameter_id", "parameter_category_1", "parameter_category_3",
+        "study") %in%
+        names(lResult$results)
     ))
-    expect_gt(length(unique(dfAnalyzed$Feature)), 0)
-    expect_setequal(unique(dfAnalyzed$studyid), vStudyIDs)
-    expect_setequal(unique(dfAnalyzed$GroupLevel), "Site")
-  })
-})
-
-test_that("each metric workflow returns the gsm lAnalysis contract", {
-  purrr::walk(lAnalysis, function(lResult) {
-    expect_setequal(
-      names(lResult),
-      c("ID", "Analysis_Analyzed", "Analysis_Flagged", "Analysis_Summary")
-    )
-    expect_true("Flag" %in% names(lResult$Analysis_Flagged))
-  })
-})
-
-test_that("Analysis_Input and Analysis_Transformed are deliberately absent", {
-  purrr::walk(lAnalysis, function(lResult) {
-    expect_false("Analysis_Input" %in% names(lResult))
-    expect_false("Analysis_Transformed" %in% names(lResult))
+    expect_true(all(
+      c("subject_id", "parameter_id", "timepoint_1_name", "result",
+        "site", "study", "parameter_name",
+        "parameter_category_1", "parameter_category_2",
+        "parameter_category_3") %in%
+        names(lResult$input)
+    ))
+    expect_setequal(unique(lResult$results$study), vStudyIDs)
+    expect_setequal(unique(lResult$input$study), vStudyIDs)
   })
 })
 
 test_that("every site appears in every metric feature for every study", {
-  vSiteIDs <- sort(unique(as.character(dmSmall$SITEID)))
+  vExpectedPairs <- unique(paste(dmSmall$STUDYID, dmSmall$SITEID))
 
   purrr::walk(lAnalysis, function(lResult) {
-    dfAnalyzed <- lResult$Analysis_Analyzed
-    vFeatures <- unique(dfAnalyzed$Feature)
+    dfResults <- lResult$results
     expect_setequal(
-      unique(paste(dfAnalyzed$studyid, dfAnalyzed$GroupID)),
-      as.vector(outer(vStudyIDs, vSiteIDs, paste))
-    )
-    # Every (study, site) is present for every feature.
-    expect_equal(
-      nrow(dfAnalyzed),
-      length(vFeatures) * length(vSiteIDs) * length(vStudyIDs)
-    )
-  })
-})
-
-test_that("flagging is one-sided and unevaluated groups stay NA", {
-  purrr::walk(lAnalysis, function(lResult) {
-    vFlag <- lResult$Analysis_Flagged$Flag
-    expect_true(all(vFlag %in% c(0, 1, 2, NA)))
-    expect_equal(
-      is.na(vFlag),
-      is.na(lResult$Analysis_Flagged$Score)
+      unique(paste(dfResults$study, dfResults$site)),
+      vExpectedPairs
     )
   })
 })
@@ -110,21 +73,75 @@ test_that("ratio_missing metric drops the autocorr feature", {
   # Autocorrelation of a monotonic running ratio carries no additional signal,
   # so the ratio_missing YAML deliberately omits it.
   expect_false(
-    "autocorr" %in% unique(lAnalysis$Analysis_ratio_missing$Analysis_Analyzed$Feature)
+    "autocorr" %in% unique(lAnalysis$Analysis_ratio_missing$results$feature)
   )
 })
 
-test_that("metric metadata is complete enough for gsm.reporting", {
-  skip_if_not_installed("gsm.reporting")
+test_that("only range_normalized carries untransformed rows", {
+  expect_equal(nrow(lAnalysis$Analysis_numeric$untransformed), 0)
+  expect_gt(nrow(lAnalysis$Analysis_range_normalized$untransformed), 0)
+})
 
-  dfMetrics <- gsm.reporting::MakeMetric(lWorkflows = lMetricWorkflows)
+test_that("parameter_category_3 identifies the transformation each metric ran", {
+  expect_setequal(
+    unique(lAnalysis$Analysis_numeric$results$parameter_category_3), "numeric"
+  )
+  expect_setequal(
+    unique(lAnalysis$Analysis_range_normalized$results$parameter_category_3),
+    "range_normalized"
+  )
+  expect_setequal(
+    unique(lAnalysis$Analysis_ratio_missing$results$parameter_category_3),
+    "ratio_missing"
+  )
+})
 
-  expect_equal(nrow(dfMetrics), length(vMetricIDs))
-  expect_true(all(
-    c("MetricID", "GroupLevel", "Metric", "Threshold", "AnalysisType") %in%
-      names(dfMetrics)
-  ))
-  expect_setequal(dfMetrics$GroupLevel, "Site")
-  expect_length(unique(dfMetrics$Metric), length(vMetricIDs))
-  expect_length(unique(dfMetrics$Abbreviation), length(vMetricIDs))
+test_that("Write_Results binds all metric shards and writes readable files", {
+  skip_if_not_installed("arrow")
+
+  strDir <- withr::local_tempdir()
+  vPaths <- Write_Results(lAnalysis, strDir, strFormat = "parquet")
+
+  expect_true(all(file.exists(vPaths)))
+  expect_setequal(
+    basename(vPaths),
+    c("results.parquet", "input.parquet", "untransformed.parquet")
+  )
+
+  dfResults <- arrow::read_parquet(file.path(strDir, "results.parquet"))
+  expect_gt(nrow(dfResults), 0)
+  expect_setequal(
+    unique(dfResults$parameter_category_3),
+    vMetricIDs
+  )
+  expect_setequal(unique(dfResults$study), vStudyIDs)
+
+  dfInput <- arrow::read_parquet(file.path(strDir, "input.parquet"))
+  expect_gt(nrow(dfInput), 0)
+  expect_setequal(unique(dfInput$study), vStudyIDs)
+})
+
+test_that("Write_Results skips untransformed when no metric produced any", {
+  skip_if_not_installed("arrow")
+
+  lNumericOnly <- lAnalysis["Analysis_numeric"]
+
+  strDir <- withr::local_tempdir()
+  vPaths <- Write_Results(lNumericOnly, strDir, strFormat = "parquet")
+
+  expect_false("untransformed.parquet" %in% basename(vPaths))
+})
+
+test_that("Write_Results writes a queries file when supplied", {
+  skip_if_not_installed("arrow")
+
+  dfQueries <- data.frame(
+    study = "STUDY_A", subject_id = "S1", query = "check DBP"
+  )
+  strDir <- withr::local_tempdir()
+  vPaths <- Write_Results(
+    lAnalysis, strDir, strFormat = "parquet", dfQueries = dfQueries
+  )
+
+  expect_true("queries.parquet" %in% basename(vPaths))
 })

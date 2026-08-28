@@ -19,7 +19,7 @@ knitr::opts_chunk$set(
 # SDTM test data. Chunks are skipped rather than failed when they are missing,
 # so the vignette still builds on a minimal machine.
 bRun <- all(vapply(
-  c("gsm.core", "gsm.mapping", "gsm.reporting", "pharmaversesdtm", "workr"),
+  c("gsm.core", "gsm.mapping", "pharmaversesdtm", "workr", "arrow"),
   requireNamespace,
   logical(1),
   quietly = TRUE
@@ -30,12 +30,12 @@ knitr::opts_chunk$set(eval = bRun)
 
 `gsm.ctas` runs the [ctas](https://github.com/IMPALA-Consortium/ctas) anomaly
 detection engine inside the [gsm](https://github.com/Gilead-BioStats/gsm.core)
-workflow framework, so that CTAS site scores appear alongside the usual KRIs in
-a standard gsm site report.
+workflow framework and writes the three files
+[ctasapp](https://github.com/IMPALA-Consortium/ctasapp) reads.
 
-This vignette walks the whole path -- SDTM domains in, rendered KRI report out
--- and then covers the two things most users will want to change: the
-thresholds, and the set of metrics.
+This vignette walks the whole path -- SDTM domains in, ctasapp shards out --
+and covers the two things most users will want to change: the CTAS features
+each metric scores, and the set of metrics.
 
 ## Installation
 
@@ -43,9 +43,6 @@ thresholds, and the set of metrics.
 install.packages("pak")
 pak::pak("IMPALA-Consortium/gsm.ctas")
 ```
-
-The `ctas` engine and the gsm framework packages are declared in `Remotes` and
-are installed along with it.
 
 ```{r load, message = FALSE}
 library(gsm.ctas)
@@ -58,23 +55,20 @@ gsm is a YAML-driven engine: each layer is a directory of workflow files, and
 
 ```
 lRaw --Ingest--> lIngest --1_mappings--> lMapped --2_metrics--> lAnalysis
-     --3_reporting--> Reporting_* --4_modules--> HTML report
+     --3_reporting--> ctasapp shards on disk
 ```
 
-`gsm.ctas` ships all four layers in `inst/workflow/`:
+`gsm.ctas` ships three layers in `inst/workflow/`:
 
 | Layer | Contents |
 |---|---|
-| `1_mappings` | `DM`, `VS`, `LB`, `SITE`, `STUDY`, plus `CTAS_Input` -> `CTAS_SiteScores` -> `CTAS_Detail` |
-| `2_metrics` | `ctas0001`-`ctas0011`, one per parameter family x CTAS feature |
-| `3_reporting` | `Groups`, `Metrics`, `Results`, `Bounds` |
-| `4_modules` | `report_kri_site` |
+| `1_mappings` | SDTM readers (`DM`, `VS`, `LB`), site/study group tables, plus the transformation-typed frames `Subjects`, `Numeric`, `Range` |
+| `2_metrics` | One YAML per data-type transformation (`numeric`, `range_normalized`, `ratio_missing`), each running CTAS once |
+| `3_reporting` | `Write_Results`: bind ctasapp shards across metrics and write to disk |
 
-The important structural point: CTAS is an *all-metrics-at-once* engine. One
-`ctas::process_a_study()` call scores every timeseries x feature x site, so it
-runs **once**, in `1_mappings/CTAS_SiteScores.yaml`, and each metric workflow
-merely filters the shared `Mapped_CTAS_SiteScores` object down to one parameter
-family and one feature.
+Each metric emits three flat frames in the shape ctasapp reads:
+`results`, `input` and `untransformed`. The reporting layer binds them across
+metrics and writes them as parquet.
 
 ## Input data
 
@@ -101,7 +95,7 @@ lRaw <- list(
 )
 ```
 
-## 1. Mapping and the CTAS run
+## 1. Mapping
 
 ```{r mappings}
 lMappingWorkflows <- workr::MakeWorkflowList(
@@ -111,13 +105,10 @@ lMappingWorkflows <- workr::MakeWorkflowList(
 )
 
 lIngest <- gsm.mapping::Ingest(
-  lRaw,
-  gsm.mapping::CombineSpecs(lMappingWorkflows)
+  lRaw, gsm.mapping::CombineSpecs(lMappingWorkflows)
 )
 
 # CTAS emits `cor()` "standard deviation is zero" warnings for flat series.
-# They are genuine data-quality signal, so the package does not suppress them;
-# only this vignette does.
 lMapped <- suppressWarnings(
   gsm.core::RunWorkflows(lWorkflows = lMappingWorkflows, lData = lIngest)
 )
@@ -125,55 +116,17 @@ lMapped <- suppressWarnings(
 names(lMapped)
 ```
 
-Labs are mapped **twice** from the same domain, because the two questions are
-different:
-
-* `Input_Range()` -> `LB_NORM_*` -- do a site's *values* deviate, once the
-  reference range has made different tests comparable?
-* `Input_Missing()` -> `LB_MISS_*` -- does its *completeness* deviate? The
-  value-based input drops missing results, so it is structurally blind to this.
-
-`Mapped_CTAS_SiteScores` is the shared result: one row per timeseries x feature
-x site, carrying the identifiers needed to tell the families apart.
-
-```{r scores}
-utils::head(lMapped$Mapped_CTAS_SiteScores, 3)
-
-unique(lMapped$Mapped_CTAS_SiteScores[
-  , c("parameter_category_1", "parameter_category_3")
-])
-```
-
-The mapping functions also work directly, outside a workflow:
-
-```{r direct}
-lInput <- Combine_CTAS_Input(
-  dfVS = Input_Numeric(
-    dfDomain = lMapped$Mapped_VS,
-    strSubjectCol = "USUBJID",
-    strTestCDCol = "VSTESTCD",
-    strTestCol = "VSTEST",
-    strValueCol = "VSSTRESN",
-    strVisitCol = "VISIT",
-    strVisitNumCol = "VISITNUM",
-    strCategory = "Vital Signs",
-    strPrefix = "VS"
-  ),
-  dfSubjects = Input_Subjects(
-    dfDM = lMapped$Mapped_DM,
-    strSubjectCol = "USUBJID",
-    strSiteCol = "SITEID",
-    strCountryCol = "COUNTRY"
-  )
-)
-
-names(lInput)
-```
+`Mapped_Subjects` is the shared subject/site frame; `Mapped_VS` and `Mapped_LB`
+are the SDTM domain frames (with unscheduled visits filtered) that each metric
+YAML pulls from directly via column overrides.
 
 ## 2. Metrics
 
-Each metric filters the shared scores to one family and one feature, then
-aggregates timeseries into the gsm `Analysis_Analyzed` contract.
+Each metric YAML runs CTAS once for its data type and emits the ctasapp shards.
+The data-type transform lives here: the metric YAML points `Input_Numeric()`,
+`Input_Range()` or `Input_Missing()` at the SDTM columns with `str*Col`
+overrides, so adding another numeric source (e.g. EG) is a metric-YAML edit,
+not a mapping-YAML one.
 
 ```{r metrics}
 lMetricWorkflows <- workr::MakeWorkflowList(
@@ -182,156 +135,89 @@ lMetricWorkflows <- workr::MakeWorkflowList(
   strPackage = NULL
 )
 
-lAnalysis <- gsm.core::RunWorkflows(
-  lWorkflows = lMetricWorkflows,
-  lData = lMapped
+lAnalysis <- suppressWarnings(
+  gsm.core::RunWorkflows(lWorkflows = lMetricWorkflows, lData = lMapped)
 )
 
-utils::head(lAnalysis$Analysis_ctas0001$Analysis_Flagged)
+names(lAnalysis)
+names(lAnalysis$Analysis_numeric)
 ```
 
-The aggregation is:
+Feature selection is one boolean per CTAS feature in `meta:`, so any metric
+can toggle features individually:
 
-| gsm field | CTAS source |
-|---|---|
-| `GroupID` | `site_scores$site` |
-| `Numerator` | timeseries with `trigger == "Further Evaluation"` |
-| `Denominator` | timeseries evaluated for that group x feature |
-| `Metric` | `Numerator / Denominator` |
-| `Score` | `max(fdr_corrected_pvalue_logp)` |
+```yaml
+meta:
+  ID: numeric
+  FeatureAutocorr: true
+  FeatureAverage: true
+  FeatureSD: true
+  FeatureRange: false
+  FeatureUniqueValueCountRelative: true
+  FeatureOwnSiteSimilScore: false
+  FeatureLOF: false
+```
 
-Flagging is **one-sided** (`0`/`1`/`2`): $-\log_{10}p$ is unsigned, so it says
-that a site differs, not in which direction.
+Multi-study is honoured automatically: when `Mapped_Subjects` contains several
+values in `studyid`, `Analyze_CTAS()` splits the input by study, runs CTAS on
+each, and stacks the results with a `study` column tagged onto every row.
 
-`Denominator` counts *timeseries*, not participants and not tests -- CTAS
-autogenerates a timeseries per timepoint combination, so the lab families
-contribute more of them than vital signs do.
+## 3. Reporting: writing ctasapp shards
 
-## 3-4. Reporting and the KRI report
+`Write_Results()` binds the three shards across every metric and writes them
+to disk. Parquet is the default because `input` grows quickly.
 
-```{r reporting}
+```{r reporting, eval = FALSE}
+Write_Results(lAnalysis, strDir = "ctas_shards", strFormat = "parquet")
+```
+
+The equivalent workflow, driven from YAML:
+
+```{r reporting_yaml, eval = FALSE}
 lReportingWorkflows <- workr::MakeWorkflowList(
   strNames = NULL,
   strPath = system.file("workflow/3_reporting", package = "gsm.ctas"),
   strPackage = NULL
 )
 
-lReporting <- gsm.core::RunWorkflows(
+gsm.core::RunWorkflows(
   lWorkflows = lReportingWorkflows,
-  lData = c(
-    lMapped,
-    list(lAnalyzed = lAnalysis, lWorkflows = lMetricWorkflows)
+  lData = list(
+    lAnalyzed = lAnalysis, strDir = "ctas_shards", strFormat = "parquet"
   )
 )
-
-names(lReporting)
 ```
 
-There is deliberately no `Reporting_Input`. CTAS has no subject-level
-numerator/denominator -- each subject contributes a whole timeseries and the
-statistic is computed on a distribution -- so synthesising one would be a
-fiction that renders misleadingly. The stock `gsm.kri` site report does not need
-one.
+The three files map straight onto the ctasapp upload contract:
 
-```{r report, eval = FALSE}
-lModuleWorkflows <- workr::MakeWorkflowList(
-  strNames = NULL,
-  strPath = system.file("workflow/4_modules", package = "gsm.ctas"),
-  strPackage = NULL
-)
+| File | Contents |
+|---|---|
+| `results.parquet` | One row per (site x timeseries x feature); site scores joined to `parameter_id` and category labels. |
+| `input.parquet` | The CTAS run's `data`, joined to `subjects` and `parameters`, so ctasapp can plot the underlying series. |
+| `untransformed.parquet` | Original values recorded by `Input_Range()`, for showing lab results in their own units next to the normalised value. Omitted when no metric produced any. |
 
-workr::RunWorkflows(lModuleWorkflows, lReporting)
-```
-
-The module drops the stock scatter plot via `DropChart()`. That chart plots
-`Denominator` against `Numerator`, which suits a rate metric where the
-denominator is exposure; here it is a coverage count, near-identical across
-sites, so the points collapse onto one x position. The bar chart and KRI table
-carry the same information on the $-\log_{10}p$ scale the metric is actually
-defined on.
-
-## Customising thresholds
-
-Thresholds are exposed the gsm-native way, through `meta` and `ParseThreshold`.
-Edit the metric YAML -- no code change, no fork:
-
-```yaml
-meta:
-  Threshold: 0.842, 2.326   # flagging cut points, -log10(p) scale
-  TriggerHigh: 2.326        # timeseries -> "Further Evaluation"
-  TriggerLow: 0.842         # timeseries -> "Watch List"
-```
-
-`TriggerHigh` / `TriggerLow` classify *timeseries*, feeding `Numerator`.
-`Threshold` classifies *groups*, feeding `Flag`. The same numbers, different
-jobs.
-
-The defaults `2.326` and `0.842` are one-sided normal z-quantiles (99% and 80%)
-applied to a $-\log_{10}p$ scale, where they correspond to $p \approx 0.0047$
-and $p \approx 0.144$. They are adopted from operational experience for
-consistency with existing CTAS review, and documented here rather than silently
-inherited.
-
-To use your own workflows, copy the shipped directory and point
-`MakeWorkflowList()` at the copy:
-
-```{r custom, eval = FALSE}
-lMyMetrics <- workr::MakeWorkflowList(
-  strNames = NULL,
-  strPath = "my_workflows/2_metrics",
-  strPackage = NULL
-)
-```
+`queries` is optional and external -- typically an EDC export -- and can be
+handed to `Write_Results()` via `dfQueries` to travel alongside the shards.
 
 ## Adding a metric
 
-A new metric is a YAML file, not a function. Copy `ctas0001.yaml` and change a
-few `meta` fields:
+A new metric is a YAML file, not a function. Copy `numeric.yaml`, change the
+`ID`, point it at a mapped frame, and toggle the features it should score:
 
 ```yaml
 meta:
-  ID: ctas0012
-  Metric: CTAS Labs Missingness Autocorrelation
-  Feature: autocorr               # a ctas timeseries feature
-  Domain: "Labs"                  # parameter_category_1
-  Transformation: "ratio_missing" # parameter_category_3
+  ID: my_metric
+  FeatureAutocorr: false
+  FeatureAverage: true
+  FeatureSD: true
+  FeatureRange: false
+  FeatureUniqueValueCountRelative: true
+  FeatureOwnSiteSimilScore: false
+  FeatureLOF: false
+  MinTimepoints: 3
+  MinSubjects: 3
+  ...
 ```
 
-`Domain` and `Transformation` are required **together**, and `Summarize_CTAS()`
-errors if only one is supplied. Neither identifies a family alone:
-
-| | `Domain` | `Transformation` |
-|---|---|---|
-| `VS_*` | `Vital Signs` | `numeric` |
-| `LB_NORM_*` | `Labs` | `range_normalized` |
-| `LB_MISS_*` | `Labs` | `ratio_missing` |
-
-A selector matching nothing is an error rather than an empty result: zero
-timeseries would render every site as unevaluated, which is indistinguishable
-from a genuinely absent domain.
-
-To score a feature the shipped workflows do not compute, add it to `Features`
-in `1_mappings/CTAS_SiteScores.yaml` as well.
-
-## Drill-down: handing off to ctasapp
-
-Aggregation collapses many timeseries into one row per site. The timeseries
-detail is retained separately for the `ctasapp` dashboard, which is the tool for
-investigating a signal that the gsm report has detected.
-
-```{r detail}
-lDetail <- lMapped$Mapped_CTAS_Detail
-vapply(lDetail, nrow, numeric(1))
-```
-
-`Results` is the site scores unchanged; `Input` is the analysed series joined to
-site and parameter labels; `Untransformed` holds the original values, so a lab
-result can be shown in its own units next to the range-normalised value that was
-actually analysed. Write them out for upload with:
-
-```{r write, eval = FALSE}
-Write_CTAS_Detail(lDetail, strPath = "ctas_detail", strFormat = "csv")
-```
-
-`parquet` is available via `Suggests: arrow`, and is worth using for deployment
--- `Input` is one row per subject x parameter x timepoint and grows quickly.
+To use your own workflow set, copy `inst/workflow/` and point `workr::MakeWorkflowList()`
+at the copy.

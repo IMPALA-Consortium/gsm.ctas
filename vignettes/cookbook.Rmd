@@ -1,0 +1,163 @@
+---
+title: "gsm.ctas end to end"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{gsm.ctas end to end}
+  %\VignetteEncoding{UTF-8}
+  %\VignetteEngine{knitr::rmarkdown}
+editor_options:
+  chunk_output_type: console
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+
+```
+
+
+## Installation
+
+```{r install, eval = FALSE}
+install.packages("pak")
+pak::pak("IMPALA-Consortium/gsm.ctas")
+```
+
+```{r load, message = FALSE}
+library(gsm.ctas)
+library(dplyr)
+```
+
+## The shape of the pipeline
+
+
+## Input data
+
+`pharmaversesdtm` provides the SDTM domains. The example is cut down to six
+sites and a handful of tests to keep the engine fast.
+
+```{r data}
+
+dfDM <- pharmaversesdtm::dm
+dfVS <- pharmaversesdtm::vs
+dfLB <- pharmaversesdtm::lb
+
+lRaw <- list(
+  Raw_DM = as.data.frame(dfDM),
+  Raw_VS = as.data.frame(dfVS),
+  Raw_LB = as.data.frame(dfLB)
+)
+```
+
+## 1. Mapping
+
+```{r mappings}
+lMappingWorkflows <- workr::MakeWorkflowList(
+  strNames = NULL,
+  strPath = system.file("workflow/1_mappings", package = "gsm.ctas"),
+  strPackage = NULL
+)
+
+lIngest <- gsm.mapping::Ingest(
+  lRaw, gsm.mapping::CombineSpecs(lMappingWorkflows)
+)
+
+lMapped <- suppressWarnings(
+  gsm.core::RunWorkflows(lWorkflows = lMappingWorkflows, lData = lIngest)
+)
+
+names(lMapped)
+```
+
+
+## 2.1 Data Types / Metrics
+
+```{r}
+
+as_tibble(lMapped$Mapped_LB)
+
+lRange <- Input_Range(
+  dfDomain = lMapped$Mapped_LB,
+  strStudyCol = "STUDYID",
+  strSubjectCol = "USUBJID",
+  strTestCDCol = "LBTESTCD",
+  strTestCol = "LBTEST",
+  strValueCol = "LBSTRESN",
+  strLowCol = "LBSTNRLO",
+  strHighCol = "LBSTNRHI",
+  strVisitCol = "VISIT",
+  strVisitNumCol = "VISITNUM",
+  strCategoryCol = "~",
+  strCategory = "Labs"
+)
+
+str(lRange)
+
+```
+
+
+
+## 2. Metrics
+
+```{r metrics}
+lMetricWorkflows <- workr::MakeWorkflowList(
+  strNames = NULL,
+  strPath = system.file("workflow/2_metrics", package = "gsm.ctas"),
+  strPackage = NULL
+)
+
+lAnalysis <- suppressWarnings(
+  gsm.core::RunWorkflows(lWorkflows = lMetricWorkflows, lData = lMapped)
+)
+
+names(lAnalysis)
+names(lAnalysis$Analysis_numeric)
+```
+
+Feature selection is one boolean per CTAS feature in `meta:`, so any metric
+can toggle features individually:
+
+```yaml
+meta:
+  ID: numeric
+  FeatureAutocorr: true
+  FeatureAverage: true
+  FeatureSD: true
+  FeatureRange: false
+  FeatureUniqueValueCountRelative: true
+  FeatureOwnSiteSimilScore: false
+  FeatureLOF: false
+```
+
+Multi-study is honoured automatically: when `Mapped_Subjects` contains several
+values in `studyid`, `Analyze_CTAS()` splits the input by study, runs CTAS on
+each, and stacks the results with a `study` column tagged onto every row.
+
+## 3. Reporting: writing ctasapp shards
+
+`Write_Results()` binds the three shards across every metric and writes them
+to disk. Parquet is the default because `input` grows quickly.
+
+```{r reporting, eval = FALSE}
+Write_Results(lAnalysis, strDir = "ctas_shards", strFormat = "parquet")
+```
+
+The equivalent workflow, driven from YAML:
+
+```{r reporting_yaml, eval = FALSE}
+lReportingWorkflows <- workr::MakeWorkflowList(
+  strNames = NULL,
+  strPath = system.file("workflow/3_reporting", package = "gsm.ctas"),
+  strPackage = NULL
+)
+
+gsm.core::RunWorkflows(
+  lWorkflows = lReportingWorkflows,
+  lData = list(
+    lAnalyzed = lAnalysis, strDir = "ctas_shards", strFormat = "parquet"
+  )
+)
+```
+

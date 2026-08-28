@@ -2,11 +2,18 @@
 % Please edit documentation in R/Analyze_CTAS.R
 \name{Analyze_CTAS}
 \alias{Analyze_CTAS}
-\title{Run the CTAS engine over a combined study input}
+\title{Score sites with CTAS and emit ctasapp-shaped shards}
 \usage{
 Analyze_CTAS(
   lInput,
-  strFeatures = "autocorr;average;sd;unique_value_count_relative",
+  strID = "ctas",
+  bAutocorr = TRUE,
+  bAverage = TRUE,
+  bSD = TRUE,
+  bRange = FALSE,
+  bUniqueValueCountRelative = TRUE,
+  bOwnSiteSimilScore = FALSE,
+  bLOF = FALSE,
   nMinTimepoints = 3,
   nMinSubjects = 3,
   dMaxShareMissing = 0.5,
@@ -22,7 +29,23 @@ Analyze_CTAS(
 \arguments{
 \item{lInput}{\code{list} Result of \code{\link[=Combine_CTAS_Input]{Combine_CTAS_Input()}}.}
 
-\item{strFeatures}{\code{character} Semicolon-delimited CTAS features.}
+\item{strID}{\code{character} Identifier written to the output list. Free-form.}
+
+\item{bAutocorr}{\code{logical} Score the \code{autocorr} feature.}
+
+\item{bAverage}{\code{logical} Score the \code{average} feature.}
+
+\item{bSD}{\code{logical} Score the \code{sd} feature.}
+
+\item{bRange}{\code{logical} Score the \code{range} feature.}
+
+\item{bUniqueValueCountRelative}{\code{logical} Score the
+\code{unique_value_count_relative} feature.}
+
+\item{bOwnSiteSimilScore}{\code{logical} Score the \code{own_site_simil_score}
+feature.}
+
+\item{bLOF}{\code{logical} Score the \code{lof} feature.}
 
 \item{nMinTimepoints}{\code{numeric} Minimum timepoints per timeseries.}
 
@@ -42,41 +65,65 @@ Analyze_CTAS(
 \item{nSeed}{\code{numeric} Optional seed for reproducibility.}
 
 \item{strStudyCol}{\code{character} Column on \code{lInput$subjects} identifying the
-study. \code{NULL} disables the split and runs \code{process_a_study()} once on the
-whole input.}
+study. \code{NULL} disables the split and drops the \code{study} output column.}
 
 \item{...}{Further arguments passed to \code{\link[ctas:process_a_study]{ctas::process_a_study()}}.}
 }
 \value{
-\code{list} with \code{timeseries}, \code{timeseries_features}, \code{PCA_coordinates}
-and \code{site_scores}. Each frame carries the \code{strStudyCol} column when the
-split was active.
+\code{list} with elements:
+\itemize{
+\item \code{ID} - copy of \code{strID}.
+\item \code{results} - flat data frame; one row per (site x timeseries x feature),
+carrying \code{parameter_id} and the category columns.
+\item \code{input} - flat data frame; the CTAS run's \code{data} joined to \code{subjects}
+and \code{parameters}, in the shape ctasapp displays.
+\item \code{untransformed} - \code{lInput$untransformed}, tagged with \code{study} when the
+multi-study contract is active.
+}
 }
 \description{
 A gsm-friendly wrapper around \code{\link[ctas:process_a_study]{ctas::process_a_study()}}. It validates the
 input list produced by \code{\link[=Combine_CTAS_Input]{Combine_CTAS_Input()}}, applies reproducible seeding,
-and converts the degenerate cases CTAS signals by returning \code{NULL} elements
-into an informative error.
+runs \code{process_a_study()} per study, and returns three flat frames in the
+shape \href{https://github.com/IMPALA-Consortium/ctasapp}{ctasapp} uploads
+consume.
 }
 \details{
 \code{process_a_study()} is single-study by construction. When \code{lInput$subjects}
 contains more than one value in \code{strStudyCol}, the input is split by study,
-scored per study, and the four result frames are stacked with \code{studyid}
-tagged onto every row so the downstream contract is study-aware without
-calling code learning a second function.
+scored per study, and the per-study \code{site_scores} and \code{timeseries} are
+stacked. The output column is named \code{study} (ctasapp vocabulary), not
+\code{studyid}.
 
-\code{process_a_study()} is an all-metrics-at-once engine: a single call scores
-every (timeseries x feature x site) combination. It is therefore intended to
-run once per study, with each metric workflow filtering the shared result to
-one feature family.
+Feature selection is a boolean-per-feature contract instead of the
+semicolon-delimited string CTAS accepts, so metric YAMLs can toggle
+features individually from \verb{meta:}.
 }
 \examples{
 \donttest{
-lInput <- Combine_CTAS_Input(
-  Input_Numeric(pharmaversesdtm::vs),
-  dfSubjects = Input_Subjects(pharmaversesdtm::dm)
+# Build a mapped numeric domain from raw SDTM. In practice this is done by
+# the mapping workflow YAMLs; see `vignette("gsm-ctas")`.
+dfVS <- data.frame(
+  studyid = as.character(pharmaversesdtm::vs$STUDYID),
+  subject_id = as.character(pharmaversesdtm::vs$USUBJID),
+  parameter_id = as.character(pharmaversesdtm::vs$VSTESTCD),
+  parameter_name = as.character(pharmaversesdtm::vs$VSTEST),
+  parameter_category_1 = "Vital Signs",
+  visit = as.character(pharmaversesdtm::vs$VISIT),
+  visitnum = as.numeric(pharmaversesdtm::vs$VISITNUM),
+  value = as.numeric(pharmaversesdtm::vs$VSSTRESN)
 )
-lCTAS <- Analyze_CTAS(lInput)
+dfDM <- data.frame(
+  studyid = as.character(pharmaversesdtm::dm$STUDYID),
+  subject_id = as.character(pharmaversesdtm::dm$USUBJID),
+  site = as.character(pharmaversesdtm::dm$SITEID),
+  country = as.character(pharmaversesdtm::dm$COUNTRY)
+)
+lInput <- Combine_CTAS_Input(
+  Input_Numeric(dfVS),
+  dfSubjects = Input_Subjects(dfDM)
+)
+lAnalysis <- Analyze_CTAS(lInput, strID = "numeric")
 }
 
 }

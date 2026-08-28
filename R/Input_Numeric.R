@@ -1,13 +1,13 @@
 #' Map a numeric findings frame to CTAS input
 #'
 #' Produces one CTAS timeseries per subject and test code from a plain numeric
-#' findings frame such as a standardised `Mapped_Numeric`. Values are used
-#' as-is; use [Input_Range()] when reference ranges are available and values
-#' must be made comparable across tests.
+#' findings frame. Values are used as-is; use [Input_Range()] when reference
+#' ranges are available and values must be made comparable across tests.
 #'
 #' The function is named for the *data type*, not the SDTM domain, so the same
-#' code serves VS, EG or any other numeric findings source. Domain-specific
-#' knowledge lives in the mapping layer that produces the standardised input.
+#' code serves VS, EG or any other numeric findings source. The metric YAML
+#' points `Input_Numeric()` at the source columns via its `str*Col` overrides;
+#' no intermediate mapping frame is required.
 #'
 #' @inheritParams StandardizeDomain
 #' @param strCategory `character` Fallback value written to
@@ -94,21 +94,12 @@ Input_Numeric <- function(dfDomain,
     ) |>
     as.data.frame()
 
-  dfUntransformed <- dfWork |>
-    dplyr::transmute(
-      subject_id = .data$subject_id,
-      parameter_category_2 = .data$parameter_id,
-      timepoint_1_name = .data$timepoint_1_name,
-      original_value = .data$result,
-      lower = NA_real_,
-      upper = NA_real_,
-      original_category = NA_character_
-    ) |>
-    as.data.frame()
-
+  # `untransformed` is deliberately empty for the plain-numeric input:
+  # `result == original_value` here, so recording the pair would double the
+  # payload without adding information.
   list(
     data = BuildCTASData(dfWork),
     parameters = dfParameters,
-    untransformed = dfUntransformed
+    untransformed = EmptyCTASUntransformed()
   )
 }

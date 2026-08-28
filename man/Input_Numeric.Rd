@@ -63,14 +63,14 @@ ready to be passed to \code{\link[=Combine_CTAS_Input]{Combine_CTAS_Input()}}.
 }
 \description{
 Produces one CTAS timeseries per subject and test code from a plain numeric
-findings frame such as a standardised \code{Mapped_Numeric}. Values are used
-as-is; use \code{\link[=Input_Range]{Input_Range()}} when reference ranges are available and values
-must be made comparable across tests.
+findings frame. Values are used as-is; use \code{\link[=Input_Range]{Input_Range()}} when reference
+ranges are available and values must be made comparable across tests.
 }
 \details{
 The function is named for the \emph{data type}, not the SDTM domain, so the same
-code serves VS, EG or any other numeric findings source. Domain-specific
-knowledge lives in the mapping layer that produces the standardised input.
+code serves VS, EG or any other numeric findings source. The metric YAML
+points \code{Input_Numeric()} at the source columns via its \code{str*Col} overrides;
+no intermediate mapping frame is required.
 }
 \examples{
 Input_Numeric(data.frame(

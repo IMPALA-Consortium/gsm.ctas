@@ -22,15 +22,16 @@
 
 `gsm.ctas` runs the [ctas](https://github.com/IMPALA-Consortium/ctas) clinical
 trial anomaly detection engine inside the
-[gsm](https://github.com/Gilead-Public/gsm.core) workflow framework, so that
-CTAS site scores appear alongside the usual KRIs in a standard gsm site report.
+[gsm](https://github.com/Gilead-Public/gsm.core) workflow framework and writes
+the three files the
+[ctasapp](https://github.com/IMPALA-Consortium/ctasapp) dashboard reads.
 
 The two frameworks answer different questions. gsm KRIs count events against
 exposure -- enrolment rate, AE rate, query age. CTAS instead compares the
 *distribution* of a site's measurements against the rest of the study, and so
 detects patterns a rate-based metric cannot: values that are too consistent,
 too smooth over time, too rounded, or missing in a structured way. This package
-is the adapter that lets one report carry both.
+is the adapter that lets one workflow run both and drop the result on ctasapp.
 
 ## Installation
 
@@ -46,8 +47,8 @@ needs the full framework.
 
 ## Usage
 
-`gsm.ctas` ships all four gsm workflow layers in `inst/workflow/`, so a full
-run is a sequence of `RunWorkflows()` calls over SDTM input:
+`gsm.ctas` ships three gsm workflow layers in `inst/workflow/`, so a full run
+is a sequence of `RunWorkflows()` calls over SDTM input:
 
 ```r
 library(gsm.ctas)
@@ -70,41 +71,50 @@ lIngest <- gsm.mapping::Ingest(
 )
 
 lMapped <- gsm.core::RunWorkflows(lMappingWorkflows, lIngest)
+
+lMetricWorkflows <- workr::MakeWorkflowList(
+  strNames = NULL,
+  strPath = system.file("workflow/2_metrics", package = "gsm.ctas"),
+  strPackage = NULL
+)
+
+lAnalysis <- gsm.core::RunWorkflows(lMetricWorkflows, lMapped)
+
+Write_Results(lAnalysis, strDir = "ctas_shards", strFormat = "parquet")
 ```
 
-`lMapped$Mapped_CTAS_SiteScores` is then filtered by each metric workflow in
-`2_metrics`, summarised into the gsm analysis contract, and rendered by the
-stock `gsm.kri` site report. The full path -- including reporting and the
-rendered HTML -- is in `vignette("gsm-ctas")`.
+The last line writes `results.parquet`, `input.parquet` and (when non-empty)
+`untransformed.parquet` in the shape ctasapp uploads. The full walkthrough --
+mapping, metric YAMLs and the shard contract -- is in `vignette("gsm-ctas")`.
 
 ## How it fits together
 
 ```
 lRaw --Ingest--> lIngest --1_mappings--> lMapped --2_metrics--> lAnalysis
-     --3_reporting--> Reporting_* --4_modules--> HTML report
+     --3_reporting--> ctasapp shards on disk
 ```
 
 | Layer | Contents |
 |---|---|
-| `1_mappings` | `DM`, `VS`, `LB`, `SITE`, `STUDY`, plus `CTAS_Input` -> `CTAS_SiteScores` -> `CTAS_Detail` |
-| `2_metrics` | `ctas0001`-`ctas0011`, one per parameter family x CTAS feature |
-| `3_reporting` | `Groups`, `Metrics`, `Results`, `Bounds` |
-| `4_modules` | `report_kri_site` |
+| `1_mappings` | SDTM readers (`DM`, `VS`, `LB`), site/study group tables, plus the transformation-typed frames `Subjects`, `Numeric`, `Range` |
+| `2_metrics` | One YAML per data-type transformation (`numeric`, `range_normalized`, `ratio_missing`), each running CTAS once |
+| `3_reporting` | `Write_Results`: bind ctasapp shards across metrics and write them to disk |
 
-The key structural point is that CTAS is an *all-metrics-at-once* engine. A
-single `ctas::process_a_study()` call scores every timeseries x feature x site,
-so it runs **once**, in `1_mappings/CTAS_SiteScores.yaml`. Each metric workflow
-then merely filters that shared result down to one parameter family and one
-feature. Adding a metric is therefore a YAML change, not a code change.
+Each metric emits three flat frames -- `results`, `input`, `untransformed` --
+in the shape ctasapp uploads consume. Multi-study inputs are honoured
+automatically via a `studyid` column threaded through the mapping layer:
+`Analyze_CTAS()` splits the input by study, runs CTAS on each, and stacks the
+results with a `study` column on every row.
 
 ## Extending
 
 Both common customisations are config-only and are documented in the vignette:
 
-- **Thresholds** are exposed the gsm-native way, through `meta` and
-  `ParseThreshold` in each metric YAML.
-- **New metrics** are added by copying a metric YAML and changing the `Feature`,
-  `Domain` and `Transformation` fields.
+- **CTAS features** are exposed as boolean toggles in each metric's `meta:`
+  (`FeatureAutocorr`, `FeatureAverage`, ...), so any metric can score any
+  subset without editing R.
+- **New metrics** are added by copying a metric YAML and pointing it at a
+  different mapped frame or transformation.
 
 ## Related packages
 
@@ -112,13 +122,11 @@ Both common customisations are config-only and are documented in the vignette:
 |---|---|
 | [`ctas`](https://github.com/IMPALA-Consortium/ctas) | The statistics engine |
 | [`gsm.core`](https://github.com/Gilead-Public/gsm.core) | Workflow execution |
-| [`gsm.kri`](https://github.com/Gilead-Public/gsm.kri) | Report rendering |
 | [`ctasapp`](https://github.com/IMPALA-Consortium/ctasapp) | Dashboard for drilling into a flagged site |
 
-The division of labour between the last two is deliberate: the gsm report
-detects signals, `ctasapp` investigates them. `Combine_CTAS_Detail()` and
-`Write_CTAS_Detail()` retain the timeseries-level detail that aggregation
-discards, for handoff to the dashboard.
+`gsm.ctas` detects signals; `ctasapp` investigates them. `Write_Results()`
+retains the timeseries-level detail that aggregation would discard, in the
+layout ctasapp reads.
 
 ## Contributing
 
@@ -127,9 +135,9 @@ Issues and pull requests are welcome. Please use the issue templates in
 
 Exported functions follow a stage-based naming scheme --
 `Input_*` (SDTM to CTAS input), `Prepare_*` (make values comparable),
-`Analyze_*` / `Summarize_*` / `Flag_*` (run CTAS and bridge into gsm),
-`Combine_*` and `Write_*` (assemble and export). Note that `Transform_*` is
-**not** used, as it carries a specific and different meaning within gsm itself.
+`Analyze_*` (run CTAS and emit ctasapp shards), `Combine_*` and `Write_*`
+(assemble and export). Note that `Transform_*` is **not** used, as it carries
+a specific and different meaning within gsm itself.
 
 ## License
 

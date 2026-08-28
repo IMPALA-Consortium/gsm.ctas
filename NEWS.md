@@ -1,3 +1,27 @@
+# gsm.ctas (development)
+
+## Multi-study redesign
+
+* Multi-study inputs are honoured throughout: a `studyid` column is threaded
+  through the mapping layer and `Analyze_CTAS()` splits the input by study,
+  runs CTAS on each, and stacks the results with a `study` column on every
+  row of `results`, `input` and `untransformed`.
+* `Analyze_CTAS()` now returns a flat `list(ID, results, input, untransformed)`
+  in the shape [ctasapp](https://github.com/IMPALA-Consortium/ctasapp)
+  uploads consume. Feature selection is expressed as seven boolean flags
+  (`bAutocorr`, `bAverage`, `bSD`, `bRange`, `bUniqueValueCountRelative`,
+  `bOwnSiteSimilScore`, `bLOF`) instead of a semicolon-delimited string.
+* New `Write_Results()` binds the shards across metric workflows and writes
+  them as parquet or csv in the layout ctasapp reads.
+* Retired the gsm reporting bridge: `Combine_CTAS_Scores()`,
+  `Combine_CTAS_Detail()`, `Summarize_CTAS()`, `Flag_CTAS()`, `DropChart()`
+  and `Write_CTAS_Detail()` are removed. The `Bounds`/`Groups`/`Metrics`/
+  `Results` reporting YAMLs and the `4_modules` KRI report have been
+  retired with them.
+* Each metric YAML now runs CTAS once for its data type and emits the
+  ctasapp shards directly, keyed by a single `ID` in `meta:` instead of the
+  `ctas000X` grid.
+
 # gsm.ctas 0.0.0.9000
 
 First development release. `gsm.ctas` integrates the `ctas` anomaly detection

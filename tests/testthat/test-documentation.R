@@ -22,12 +22,12 @@ test_that("the vignette walks every workflow layer", {
 
   # The point of the vignette is the *whole* path, so a layer dropping out of it
   # is a regression even though nothing fails.
-  for (strLayer in c("1_mappings", "2_metrics", "3_reporting", "4_modules")) {
+  for (strLayer in c("1_mappings", "2_metrics", "3_reporting")) {
     expect_true(grepl(strLayer, strText, fixed = TRUE))
   }
 
   # The two documented customisation paths, per PLAN.md WP9.
-  expect_true(grepl("ParseThreshold", strText, fixed = TRUE))
+  expect_true(grepl("Write_Results", strText, fixed = TRUE))
   expect_true(grepl("Adding a metric", strText, fixed = TRUE))
 })
 

@@ -19,7 +19,7 @@ MakeInput <- function(nSites = 3, nSubjectsPerSite = 4, nVisits = 5,
       ))
       dfData <- rbind(dfData, data.frame(
         subject_id = strSubject,
-        parameter_id = "VS_SYSBP",
+        parameter_id = "NUM_SYSBP",
         timepoint_1_name = paste("VISIT", seq_len(nVisits)),
         timepoint_2_name = NA_character_,
         timepoint_rank = as.numeric(seq_len(nVisits)),
@@ -33,11 +33,11 @@ MakeInput <- function(nSites = 3, nSubjectsPerSite = 4, nVisits = 5,
     list(
       data = dfData,
       parameters = data.frame(
-        parameter_id = "VS_SYSBP",
+        parameter_id = "NUM_SYSBP",
         parameter_name = "Systolic Blood Pressure",
-        parameter_category_1 = "VS",
-        parameter_category_2 = "SYSBP",
-        parameter_category_3 = NA_character_
+        parameter_category_1 = "Vital Signs",
+        parameter_category_2 = "NUM_SYSBP",
+        parameter_category_3 = "numeric"
       )
     ),
     dfSubjects = dfSubjects
@@ -84,6 +84,34 @@ test_that("Analyze_CTAS validates the scoring method", {
   expect_error(Analyze_CTAS(lInput, strScoringMethod = "nonsense"), "must be one of")
 })
 
+# --- feature toggles ----------------------------------------------------------
+
+test_that("Analyze_CTAS aborts when every feature flag is FALSE", {
+  lInput <- MakeInput()
+
+  expect_error(
+    Analyze_CTAS(
+      lInput,
+      bAutocorr = FALSE, bAverage = FALSE, bSD = FALSE, bRange = FALSE,
+      bUniqueValueCountRelative = FALSE, bOwnSiteSimilScore = FALSE, bLOF = FALSE
+    ),
+    "At least one"
+  )
+})
+
+test_that("Analyze_CTAS restricts scoring to the requested features", {
+  lInput <- MakeInput()
+
+  lAnalysis <- suppressWarnings(Analyze_CTAS(
+    lInput,
+    bAutocorr = FALSE, bAverage = TRUE, bSD = TRUE, bRange = FALSE,
+    bUniqueValueCountRelative = FALSE,
+    nSeed = 1
+  ))
+
+  expect_setequal(unique(lAnalysis$results$feature), c("average", "sd"))
+})
+
 # --- degenerate results -------------------------------------------------------
 
 test_that("AssertCTASResult turns NULL CTAS output into an informative error", {
@@ -115,20 +143,25 @@ test_that("Analyze_CTAS errors informatively when no timeseries can be built", {
 
 # --- successful run -----------------------------------------------------------
 
-test_that("Analyze_CTAS returns the four CTAS result frames", {
+test_that("Analyze_CTAS returns the ctasapp-shaped list", {
   lInput <- MakeInput()
 
-  lCTAS <- suppressWarnings(Analyze_CTAS(lInput, nSeed = 1))
+  lAnalysis <- suppressWarnings(Analyze_CTAS(lInput, strID = "numeric", nSeed = 1))
 
-  expect_named(
-    lCTAS,
-    c("timeseries", "timeseries_features", "PCA_coordinates", "site_scores")
-  )
+  expect_named(lAnalysis, c("ID", "results", "input", "untransformed"))
+  expect_equal(lAnalysis$ID, "numeric")
   expect_true(all(
-    c("timeseries_id", "site", "feature", "fdr_corrected_pvalue_logp") %in%
-      names(lCTAS$site_scores)
+    c("site", "feature", "fdr_corrected_pvalue_logp",
+      "parameter_id", "parameter_category_1", "parameter_category_3") %in%
+      names(lAnalysis$results)
   ))
-  expect_gt(nrow(lCTAS$site_scores), 0)
+  expect_true(all(
+    c("subject_id", "parameter_id", "timepoint_1_name", "result", "site",
+      "parameter_name", "parameter_category_1") %in%
+      names(lAnalysis$input)
+  ))
+  expect_gt(nrow(lAnalysis$results), 0)
+  expect_gt(nrow(lAnalysis$input), 0)
 })
 
 test_that("Analyze_CTAS is reproducible when nSeed is supplied", {
@@ -137,29 +170,22 @@ test_that("Analyze_CTAS is reproducible when nSeed is supplied", {
   lFirst <- suppressWarnings(Analyze_CTAS(lInput, nSeed = 42))
   lSecond <- suppressWarnings(Analyze_CTAS(lInput, nSeed = 42))
 
-  expect_equal(lFirst$site_scores, lSecond$site_scores)
-})
-
-test_that("Analyze_CTAS restricts scoring to the requested features", {
-  lInput <- MakeInput()
-
-  lCTAS <- suppressWarnings(Analyze_CTAS(lInput, strFeatures = "average;sd", nSeed = 1))
-
-  expect_setequal(unique(lCTAS$timeseries_features$feature), c("average", "sd"))
+  expect_equal(lFirst$results, lSecond$results)
 })
 
 # --- multi-study --------------------------------------------------------------
 
-test_that("Analyze_CTAS tags every result frame with studyid on a single-study run", {
+test_that("Analyze_CTAS tags every result frame with study on a single-study run", {
   lInput <- MakeInput(strStudy = "STUDY_A")
 
-  lCTAS <- suppressWarnings(Analyze_CTAS(lInput, nSeed = 1))
+  lAnalysis <- suppressWarnings(Analyze_CTAS(lInput, nSeed = 1))
 
-  expect_true("studyid" %in% names(lCTAS$site_scores))
-  expect_setequal(unique(lCTAS$site_scores$studyid), "STUDY_A")
+  expect_true("study" %in% names(lAnalysis$results))
+  expect_true("study" %in% names(lAnalysis$input))
+  expect_setequal(unique(lAnalysis$results$study), "STUDY_A")
 })
 
-test_that("Analyze_CTAS splits by studyid and stacks the four frames", {
+test_that("Analyze_CTAS splits by studyid and stacks the flat frames", {
   lInputA <- MakeInput(strStudy = "STUDY_A")
   lInputB <- MakeInput(strStudy = "STUDY_B")
 
@@ -171,12 +197,11 @@ test_that("Analyze_CTAS splits by studyid and stacks the four frames", {
     custom_reference_groups = lInputA$custom_reference_groups
   )
 
-  lCTAS <- suppressWarnings(Analyze_CTAS(lInput, nSeed = 1))
+  lAnalysis <- suppressWarnings(Analyze_CTAS(lInput, nSeed = 1))
 
-  expect_setequal(unique(lCTAS$site_scores$studyid), c("STUDY_A", "STUDY_B"))
-  # Studies are scored independently, so each study contributes its own sites.
+  expect_setequal(unique(lAnalysis$results$study), c("STUDY_A", "STUDY_B"))
   expect_setequal(
-    unique(lCTAS$site_scores$site[lCTAS$site_scores$studyid == "STUDY_A"]),
+    unique(lAnalysis$results$site[lAnalysis$results$study == "STUDY_A"]),
     unique(lInputA$subjects$site)
   )
 })
@@ -185,23 +210,8 @@ test_that("Analyze_CTAS setting strStudyCol NULL runs one call without splitting
   lInput <- MakeInput()
   lInput$subjects$studyid <- NULL
 
-  lCTAS <- suppressWarnings(Analyze_CTAS(lInput, nSeed = 1, strStudyCol = NULL))
+  lAnalysis <- suppressWarnings(Analyze_CTAS(lInput, nSeed = 1, strStudyCol = NULL))
 
-  expect_false("studyid" %in% names(lCTAS$site_scores))
-})
-
-# --- cached fixture -----------------------------------------------------------
-
-test_that("the cached CTAS fixture is available for downstream work packages", {
-  strFixture <- testthat::test_path("fixtures", "ctas_result.rds")
-  skip_if_not(file.exists(strFixture), "CTAS fixture not built")
-
-  lFixture <- readRDS(strFixture)
-
-  expect_named(lFixture, c("input", "result"))
-  expect_true(all(
-    c("timeseries_id", "site", "feature", "fdr_corrected_pvalue_logp") %in%
-      names(lFixture$result$site_scores)
-  ))
-  expect_gt(dplyr::n_distinct(lFixture$result$site_scores$site), 1)
+  expect_false("study" %in% names(lAnalysis$results))
+  expect_false("study" %in% names(lAnalysis$input))
 })
