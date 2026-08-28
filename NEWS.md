@@ -1,5 +1,15 @@
 # gsm.ctas (development)
 
+## Visit rank normalization in Standardize_Domain
+
+* `Standardize_Domain()` now recalculates `visitnum` and `timepoint_rank`
+  as a contiguous `1..N` `row_number()` per `(subject_id, parameter_id)`,
+  ordered by the source `VISITNUM` with `VISIT` as a tiebreaker -- the
+  same algorithm as ctasapp's `recalculate_timepoint_rank()`. Callers no
+  longer need to remember to normalize the rank downstream, and the
+  `Prepare_TimepointRank()` call inside `Analyze_CTAS()` is now an
+  idempotent safety net.
+
 ## Reporting: bind shards without writing
 
 * New `Bind_Analysis(lAnalysis, strName)` concatenates one named shard

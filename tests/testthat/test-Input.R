@@ -155,6 +155,71 @@ test_that("Standardize_Domain errors informatively on missing columns", {
   )
 })
 
+test_that("Standardize_Domain re-ranks visitnum and timepoint_rank to 1..N", {
+  dfSubjects <- data.frame(subject_id = "S1", site = "701")
+  dfDomain <- data.frame(
+    USUBJID = "S1", VSTESTCD = "SYSBP", VSTEST = "SBP",
+    VSSTRESN = c(120, 122, 125),
+    VISIT = c("WEEK 2", "WEEK 4", "WEEK 12"),
+    VISITNUM = c(3, 7, 12)
+  )
+
+  dfLong <- Standardize_Domain(
+    dfDomain, dfSubjects,
+    strTestCDCol = "VSTESTCD", strTestCol = "VSTEST",
+    strValueCol = "VSSTRESN",
+    strCategory = "Vital Signs"
+  )
+
+  expect_equal(dfLong$timepoint_rank, c(1, 2, 3))
+  expect_equal(dfLong$visitnum, c(1, 2, 3))
+})
+
+test_that("Standardize_Domain restarts the rank per (subject_id, parameter_id)", {
+  dfSubjects <- data.frame(
+    subject_id = c("S1", "S2"), site = c("701", "701")
+  )
+  dfDomain <- data.frame(
+    USUBJID = c("S1", "S1", "S2", "S2"),
+    VSTESTCD = "SYSBP", VSTEST = "SBP",
+    VSSTRESN = c(120, 122, 118, 121),
+    VISIT = c("WEEK 4", "WEEK 12", "WEEK 2", "WEEK 8"),
+    VISITNUM = c(7, 12, 3, 9)
+  )
+
+  dfLong <- Standardize_Domain(
+    dfDomain, dfSubjects,
+    strTestCDCol = "VSTESTCD", strTestCol = "VSTEST",
+    strValueCol = "VSSTRESN",
+    strCategory = "Vital Signs"
+  )
+
+  dfLong <- dfLong[order(dfLong$subject_id, dfLong$timepoint_rank), ]
+  expect_equal(dfLong$timepoint_rank[dfLong$subject_id == "S1"], c(1, 2))
+  expect_equal(dfLong$timepoint_rank[dfLong$subject_id == "S2"], c(1, 2))
+})
+
+test_that("Standardize_Domain breaks visitnum ties on the VISIT name", {
+  dfSubjects <- data.frame(subject_id = "S1", site = "701")
+  dfDomain <- data.frame(
+    USUBJID = "S1", VSTESTCD = "SYSBP", VSTEST = "SBP",
+    VSSTRESN = c(120, 122),
+    VISIT = c("WEEK 12", "WEEK 2"),
+    VISITNUM = c(5, 5)
+  )
+
+  dfLong <- Standardize_Domain(
+    dfDomain, dfSubjects,
+    strTestCDCol = "VSTESTCD", strTestCol = "VSTEST",
+    strValueCol = "VSSTRESN",
+    strCategory = "Vital Signs"
+  )
+
+  dfLong <- dfLong[order(dfLong$timepoint_rank), ]
+  expect_equal(dfLong$visit, c("WEEK 12", "WEEK 2"))
+  expect_equal(dfLong$timepoint_rank, c(1, 2))
+})
+
 # --- Input_Range -------------------------------------------------------------
 
 test_that("Input_Range normalises values by their reference range", {

@@ -27,7 +27,11 @@
 #'   SDTM-derived columns (`visit`, `visitnum`, `value`, and `low`/`high` when
 #'   supplied) alongside the CTAS-ready columns (`parameter_category_2`,
 #'   `parameter_category_3 = "numeric"`, `timepoint_1_name`, `timepoint_rank`,
-#'   `result`, `baseline`). The default output is ready to feed straight into
+#'   `result`, `baseline`). `visitnum` and `timepoint_rank` are recalculated
+#'   as a contiguous `1..N` `row_number()` within each `(subject_id,
+#'   parameter_id)` group, ordered by the source `VISITNUM` with `VISIT` as
+#'   a tiebreaker -- matching ctasapp's `recalculate_timepoint_rank()`.
+#'   The default output is ready to feed straight into
 #'   [Analyze_CTAS()]; use [Input_Range()] or [Input_Missing()] to overwrite
 #'   `result`/`parameter_category_3`/`parameter_id` for those transforms.
 #'
@@ -94,6 +98,11 @@ Standardize_Domain <- function(dfDomain,
     result = vResult,
     baseline = NA_real_
   )
+
+  # Normalize visit rank to a contiguous 1..N per (subject_id, parameter_id),
+  # mirroring ctasapp's recalculate_timepoint_rank().
+  dfLong <- Prepare_TimepointRank(dfLong)
+  dfLong$visitnum <- dfLong$timepoint_rank
 
   if (nzchar(strPrefix)) {
     dfLong$parameter_id <- paste0(strPrefix, "_", dfLong$parameter_id)

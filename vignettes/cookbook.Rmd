@@ -78,9 +78,12 @@ str(lMapped)
 
 `Standardize_Domain()` renames an SDTM domain into the CTAS vocabulary and,
 by default, emits a numeric-ready frame that can flow straight into
-`Analyze_CTAS()`. Range, missing-ratio and categorical metrics chain an
-`Input_*()` transform in between to overwrite `result` and
-`parameter_category_3`.
+`Analyze_CTAS()`. It also normalizes `visitnum` and `timepoint_rank` to a
+contiguous `1..N` per `(subject_id, parameter_id)` -- matching ctasapp's
+`recalculate_timepoint_rank()` convention -- so downstream shards read
+cleanly regardless of how the source `VISITNUM` values were spaced.
+Range, missing-ratio and categorical metrics chain an `Input_*()`
+transform in between to overwrite `result` and `parameter_category_3`.
 
 ### Range-normalized labs
 

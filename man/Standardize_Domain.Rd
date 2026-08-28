@@ -46,7 +46,10 @@ always keeps the raw test code so ctasapp can stitch sibling metrics.}
 SDTM-derived columns (\code{visit}, \code{visitnum}, \code{value}, and \code{low}/\code{high} when
 supplied) alongside the CTAS-ready columns (\code{parameter_category_2},
 \code{parameter_category_3 = "numeric"}, \code{timepoint_1_name}, \code{timepoint_rank},
-\code{result}, \code{baseline}). The default output is ready to feed straight into
+\code{result}, \code{baseline}). \code{visitnum} and \code{timepoint_rank} are recalculated
+as a contiguous \verb{1..N} \code{row_number()} within each \verb{(subject_id, parameter_id)} group, ordered by the source \code{VISITNUM} with \code{VISIT} as
+a tiebreaker -- matching ctasapp's \code{recalculate_timepoint_rank()}.
+The default output is ready to feed straight into
 \code{\link[=Analyze_CTAS]{Analyze_CTAS()}}; use \code{\link[=Input_Range]{Input_Range()}} or \code{\link[=Input_Missing]{Input_Missing()}} to overwrite
 \code{result}/\code{parameter_category_3}/\code{parameter_id} for those transforms.
 }
