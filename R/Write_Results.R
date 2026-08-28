@@ -47,32 +47,12 @@ Write_Results <- function(lAnalysis,
     rlang::check_installed("arrow", "to write ctasapp shards as parquet.")
   }
 
-  fnPluck <- function(strName) {
-    dplyr::bind_rows(lapply(lAnalysis, `[[`, strName))
-  }
-
-  fnRenameStudy <- function(df) {
-    if (!is.null(df) && "studyid" %in% names(df) && !"study" %in% names(df)) {
-      df <- dplyr::rename(df, study = "studyid")
-    }
-    df
-  }
-
   dir.create(strDir, recursive = TRUE, showWarnings = FALSE)
 
-  dfUntransformed <- fnPluck("untransformed")
-  if (!is.null(dfUntransformed) && "original_value" %in% names(dfUntransformed)) {
-    dfUntransformed <- dfUntransformed[
-      !is.na(dfUntransformed$original_value), , drop = FALSE
-    ]
-  } else {
-    dfUntransformed <- dfUntransformed[0, , drop = FALSE]
-  }
-
   lWrite <- list(
-    results = fnRenameStudy(fnPluck("results")),
-    input = fnRenameStudy(fnPluck("input")),
-    untransformed = fnRenameStudy(dfUntransformed),
+    results = Bind_Analysis(lAnalysis, "results"),
+    input = Bind_Analysis(lAnalysis, "input"),
+    untransformed = Bind_Analysis(lAnalysis, "untransformed"),
     queries = dfQueries
   )
   lWrite <- Filter(function(df) !is.null(df) && nrow(df) > 0, lWrite)

@@ -1,5 +1,39 @@
 # gsm.ctas (development)
 
+## Reporting: bind shards without writing
+
+* New `Bind_Analysis(lAnalysis, strName)` concatenates one named shard
+  (`"results"`, `"input"` or `"untransformed"`) across every metric workflow
+  output. Renames `studyid` -> `study` and drops untransformed rows with
+  missing `original_value`, matching the ctasapp column contract.
+* New `inst/workflow/3_reporting/Results.yaml` runs three `Bind_Analysis`
+  steps and packages the bound frames as `list(results, input,
+  untransformed)`, ready to hand to
+  [ctasapp](https://github.com/IMPALA-Consortium/ctasapp) validators or
+  write to parquet.
+* `Write_Results()` now delegates its binding step to `Bind_Analysis()` so
+  the two entry points stay consistent.
+
+## Categorical / one-hot metric
+
+* New `Input_OneHot()` wrapper expands a categorical `value` column into one
+  row per (observation x observed level of the same test) and encodes
+  `result` as a 0/1 indicator. Levels are enumerated per
+  `parameter_category_2`, so distinct RS tests stay separated. Follows the
+  existing `Input_Range()` / `Input_Missing()` shape and prefixes
+  `parameter_id` with `"CAT"` (e.g. `CAT_OVRLRESP=CR`) while keeping
+  `parameter_category_2` as the raw test code so ctasapp stitches every
+  level of the same test into one faceted field entry.
+* New `inst/workflow/1_mappings/RS.yaml` maps SDTM RS (Disease Response,
+  `pharmaversesdtm::rs_onco`) and filters to `RSTESTCD == "OVRLRESP"`.
+* New `inst/workflow/2_metrics/categorical.yaml` chains
+  `Standardize_Domain` -> `Input_OneHot` -> `Analyze_CTAS` with the binary
+  series feature toggles (average on; autocorrelation, SD, range and unique
+  value count off).
+* `Standardize_Domain()` now leaves `result` as `NA_real_` when the raw
+  value column is not numeric (character categorical sources), instead of
+  emitting a coercion warning.
+
 ## Numeric-by-default `Standardize_Domain()`
 
 * **Breaking:** `Input_Numeric()` is removed. `Standardize_Domain()` now

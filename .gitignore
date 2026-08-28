@@ -7,3 +7,5 @@
 .Renviron
 docs
 .github/copilot-instructions.md
+pub
+ctasapp.yml

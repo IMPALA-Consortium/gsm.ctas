@@ -74,6 +74,10 @@ Standardize_Domain <- function(dfDomain,
     strExcludePattern = strExcludePattern
   )
 
+  vValue <- dfFiltered[[strValueCol]]
+  # Character sources (e.g. RSSTRESC) leave `result` for Input_OneHot to fill.
+  vResult <- if (is.numeric(vValue)) as.numeric(vValue) else rep(NA_real_, length(vValue))
+
   dfLong <- dplyr::tibble(
     subject_id = as.character(dfFiltered[[strSubjectCol]]),
     parameter_id = as.character(dfFiltered[[strTestCDCol]]),
@@ -86,8 +90,8 @@ Standardize_Domain <- function(dfDomain,
     timepoint_1_name = as.character(dfFiltered[[strVisitCol]]),
     timepoint_2_name = NA_character_,
     timepoint_rank = as.numeric(dfFiltered[[strVisitNumCol]]),
-    value = dfFiltered[[strValueCol]],
-    result = as.numeric(dfFiltered[[strValueCol]]),
+    value = vValue,
+    result = vResult,
     baseline = NA_real_
   )
 

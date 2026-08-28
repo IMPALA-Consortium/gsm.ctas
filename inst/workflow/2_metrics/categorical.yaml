@@ -1,0 +1,86 @@
+meta:
+  Type: Analysis
+  ID: categorical
+  # Binary one-hot series are degenerate for autocorrelation, SD, range and
+  # unique-value count. Site-level mean (= positive rate) is the meaningful
+  # CTAS signal.
+  FeatureAutocorr: false
+  FeatureAverage: true
+  FeatureSD: false
+  FeatureRange: false
+  FeatureUniqueValueCountRelative: false
+  FeatureOwnSiteSimilScore: false
+  FeatureLOF: false
+  MinTimepoints: 3
+  MinSubjects: 3
+  MaxShareMissing: 0.5
+  ScoringMethod: ks
+  PadjustMethod: fdr
+  Seed: 20260813
+spec:
+  Mapped_Subjects:
+    studyid:
+      type: character
+    subject_id:
+      type: character
+    site:
+      type: character
+    country:
+      type: character
+  Mapped_RS:
+    STUDYID:
+      type: character
+    USUBJID:
+      type: character
+    RSTESTCD:
+      type: character
+    RSTEST:
+      type: character
+    RSSTRESC:
+      type: character
+    VISIT:
+      type: character
+    VISITNUM:
+      type: numeric
+steps:
+  - output: Temp_CTAS_Long
+    name: gsm.ctas::Standardize_Domain
+    params:
+      dfDomain: Mapped_RS
+      dfSubjects: Mapped_Subjects
+      strTestCDCol: RSTESTCD
+      strTestCol: RSTEST
+      strValueCol: RSSTRESC
+      strCategory: Disease Response
+      strExcludePattern: ~
+  # `Input_OneHot` expands each row into one row per observed level of the
+  # same test; `result` becomes the 0/1 indicator scored by CTAS.
+  - output: Temp_CTAS_Values
+    name: gsm.ctas::Input_OneHot
+    params:
+      df: Temp_CTAS_Long
+  - output: Temp_CTAS_Results
+    name: gsm.ctas::Analyze_CTAS
+    params:
+      df: Temp_CTAS_Values
+      bAutocorr: FeatureAutocorr
+      bAverage: FeatureAverage
+      bSD: FeatureSD
+      bRange: FeatureRange
+      bUniqueValueCountRelative: FeatureUniqueValueCountRelative
+      bOwnSiteSimilScore: FeatureOwnSiteSimilScore
+      bLOF: FeatureLOF
+      nMinTimepoints: MinTimepoints
+      nMinSubjects: MinSubjects
+      dMaxShareMissing: MaxShareMissing
+      strScoringMethod: ScoringMethod
+      strPadjustMethod: PadjustMethod
+      nSeed: Seed
+  # `original_category` on `Temp_CTAS_Values` carries the raw label, so
+  # ctasapp detail panels do not need an `untransformed` shard here.
+  - output: lAnalysis
+    name: base::list
+    params:
+      ID: ID
+      results: Temp_CTAS_Results
+      input: Temp_CTAS_Values

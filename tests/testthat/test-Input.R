@@ -1,5 +1,5 @@
-# Tests for Standardize_Domain, Input_Range and Input_Missing. The
-# single-df pattern (ctasval convention) means each function takes a
+# Tests for Standardize_Domain, Input_Range, Input_Missing and Input_OneHot.
+# The single-df pattern (ctasval convention) means each function takes a
 # long-format frame and returns the same shape with the required CTAS
 # columns added. `Standardize_Domain` translates SDTM to the CTAS vocabulary
 # and emits the numeric-ready frame directly, so a separate `Input_Numeric`
@@ -36,6 +36,19 @@ MakeLBLong <- function() {
     strValueCol = "LBSTRESN",
     strLowCol = "LBSTNRLO", strHighCol = "LBSTNRHI",
     strCategory = "Labs",
+    strExcludePattern = NULL
+  )
+}
+
+MakeRSLong <- function() {
+  dfRS <- pharmaversesdtm::rs_onco
+  dfRS <- dfRS[dfRS$RSTESTCD == "OVRLRESP", ]
+  Standardize_Domain(
+    dfDomain = dfRS,
+    dfSubjects = MakeSubjects(),
+    strTestCDCol = "RSTESTCD", strTestCol = "RSTEST",
+    strValueCol = "RSSTRESC",
+    strCategory = "Disease Response",
     strExcludePattern = NULL
   )
 }
@@ -198,6 +211,98 @@ test_that("Input_Missing retains missing rows and encodes the running ratio", {
   expect_equal(nrow(df), 2)
   expect_equal(df$result, c(0, 0.5))
   expect_setequal(df$parameter_category_3, "ratio_missing")
+})
+
+# --- Input_OneHot -----------------------------------------------------------
+
+test_that("Input_OneHot expands to one row per observed level per input row", {
+  dfLong <- data.frame(
+    studyid = "A", subject_id = c("S1", "S1", "S1", "S1"),
+    site = "701",
+    parameter_id = "OVRLRESP", parameter_name = "Overall Response",
+    parameter_category_1 = "Disease Response",
+    parameter_category_2 = "OVRLRESP",
+    visit = c("WEEK 2", "WEEK 4", "WEEK 6", "WEEK 8"),
+    visitnum = c(3, 4, 5, 6),
+    value = c("CR", "PR", "SD", "PD"),
+    stringsAsFactors = FALSE
+  )
+
+  df <- Input_OneHot(dfLong)
+
+  expect_equal(nrow(df), 4 * 4)
+  expect_setequal(
+    unique(df$parameter_id),
+    paste0("CAT_OVRLRESP=", c("CR", "PR", "SD", "PD"))
+  )
+  expect_setequal(unique(df$parameter_category_2), "OVRLRESP")
+  expect_setequal(unique(df$parameter_category_3), "categorical")
+  expect_true(is.numeric(df$result))
+  expect_setequal(unique(df$result), c(0, 1))
+
+  vLevelFromID <- sub("^CAT_OVRLRESP=", "", df$parameter_id)
+  expect_equal(df$result, as.numeric(df$original_category == vLevelFromID))
+})
+
+test_that("Input_OneHot supports a custom prefix", {
+  dfLong <- data.frame(
+    studyid = "A", subject_id = "S1", site = "701",
+    parameter_id = "OVRLRESP", parameter_name = "Overall Response",
+    parameter_category_1 = "Disease Response",
+    parameter_category_2 = "OVRLRESP",
+    visit = "WEEK 2", visitnum = 3,
+    value = "CR",
+    stringsAsFactors = FALSE
+  )
+
+  df <- Input_OneHot(dfLong, strPrefix = "OH")
+
+  expect_equal(df$parameter_id, "OH_OVRLRESP=CR")
+})
+
+test_that("Input_OneHot drops rows with NA or empty value", {
+  dfLong <- data.frame(
+    studyid = "A", subject_id = c("S1", "S1", "S1"),
+    site = "701",
+    parameter_id = "OVRLRESP", parameter_name = "Overall Response",
+    parameter_category_1 = "Disease Response",
+    parameter_category_2 = "OVRLRESP",
+    visit = c("WEEK 2", "WEEK 4", "WEEK 6"),
+    visitnum = c(3, 4, 5),
+    value = c("CR", NA, ""),
+    stringsAsFactors = FALSE
+  )
+
+  df <- Input_OneHot(dfLong)
+
+  expect_equal(nrow(df), 1)
+  expect_equal(df$parameter_id, "CAT_OVRLRESP=CR")
+})
+
+test_that("Input_OneHot enumerates levels per parameter_category_2", {
+  dfLong <- data.frame(
+    studyid = "A", subject_id = "S1", site = "701",
+    parameter_id = c("OVRLRESP", "OVRLRESP", "TRGRESP", "TRGRESP"),
+    parameter_name = c("Overall Response", "Overall Response",
+                       "Target Response", "Target Response"),
+    parameter_category_1 = "Disease Response",
+    parameter_category_2 = c("OVRLRESP", "OVRLRESP", "TRGRESP", "TRGRESP"),
+    visit = c("WEEK 2", "WEEK 4", "WEEK 2", "WEEK 4"),
+    visitnum = c(3, 4, 3, 4),
+    value = c("CR", "PR", "CR", "PR"),
+    stringsAsFactors = FALSE
+  )
+
+  df <- Input_OneHot(dfLong)
+
+  expect_setequal(
+    df$parameter_id[df$parameter_category_2 == "OVRLRESP"],
+    c("CAT_OVRLRESP=CR", "CAT_OVRLRESP=PR")
+  )
+  expect_setequal(
+    df$parameter_id[df$parameter_category_2 == "TRGRESP"],
+    c("CAT_TRGRESP=CR", "CAT_TRGRESP=PR")
+  )
 })
 
 # --- cross-metric stitching --------------------------------------------------

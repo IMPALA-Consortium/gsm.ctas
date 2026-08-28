@@ -30,6 +30,7 @@ reference:
 - title: Reporting
   desc: Bind ctasapp shards and write them to disk for the ctasapp dashboard.
   contents:
+  - Bind_Analysis
   - Write_Results
 - title: Package
   contents:

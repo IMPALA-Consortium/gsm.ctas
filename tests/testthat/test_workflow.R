@@ -167,3 +167,27 @@ test_that("Write_Results writes a queries file when supplied", {
 
   expect_true("queries.parquet" %in% basename(vPaths))
 })
+
+test_that("Reporting workflow binds shards into a common list of frames", {
+  skip_if_not(bWorkflowRunnable)
+
+  lReportingWorkflows <- workr::MakeWorkflowList(
+    strNames = NULL,
+    strPath = system.file("workflow/3_reporting", package = "gsm.ctas"),
+    strPackage = NULL
+  )
+
+  lReporting <- suppressWarnings(gsm.core::RunWorkflows(
+    lWorkflows = lReportingWorkflows["Results"],
+    lData = list(lAnalyzed = lAnalysis)
+  ))
+
+  lFrames <- lReporting$Reporting_Results
+  expect_setequal(names(lFrames), c("results", "input", "untransformed"))
+  expect_s3_class(lFrames$results, "data.frame")
+  expect_s3_class(lFrames$input, "data.frame")
+
+  expect_setequal(unique(lFrames$results$parameter_category_3), vMetricIDs)
+  expect_setequal(unique(lFrames$results$study), vStudyIDs)
+  expect_setequal(unique(lFrames$input$study), vStudyIDs)
+})

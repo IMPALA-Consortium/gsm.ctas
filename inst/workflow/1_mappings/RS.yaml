@@ -1,0 +1,36 @@
+meta:
+  Type: Mapped
+  ID: RS
+  Description: SDTM RS (Disease Response) Data Mapping
+  Priority: 1
+spec:
+  Raw_RS:
+    STUDYID:
+      type: character
+    USUBJID:
+      type: character
+    RSTESTCD:
+      type: character
+    RSTEST:
+      type: character
+    RSSTRESC:
+      type: character
+    VISIT:
+      type: character
+    VISITNUM:
+      type: numeric
+steps:
+  # Keep the Overall Response test only; other RSTESTCDs (target/non-target
+  # response, new-lesion progression) are out of scope for the categorical
+  # example.
+  - output: Temp_RS_Raw
+    name: workr::RunQuery
+    params:
+      df: Raw_RS
+      strQuery: "SELECT * FROM df WHERE RSTESTCD = 'OVRLRESP'"
+  - output: Mapped_RS
+    name: gsm.ctas::FilterVisits
+    params:
+      dfInput: Temp_RS_Raw
+      strVisitCol: VISIT
+      strExcludePattern: unsch

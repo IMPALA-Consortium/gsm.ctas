@@ -43,11 +43,13 @@ sites and a handful of tests to keep the engine fast.
 dfDM <- pharmaversesdtm::dm
 dfVS <- pharmaversesdtm::vs
 dfLB <- pharmaversesdtm::lb
+dfRS <- pharmaversesdtm::rs_onco
 
 lRaw <- list(
   Raw_DM = as.data.frame(dfDM),
   Raw_VS = as.data.frame(dfVS),
-  Raw_LB = as.data.frame(dfLB)
+  Raw_LB = as.data.frame(dfLB),
+  Raw_RS = as.data.frame(dfRS)
 )
 ```
 
@@ -68,7 +70,7 @@ lMapped <- suppressWarnings(
   gsm.core::RunWorkflows(lWorkflows = lMappingWorkflows, lData = lIngest)
 )
 
-names(lMapped)
+str(lMapped)
 ```
 
 
@@ -76,8 +78,9 @@ names(lMapped)
 
 `Standardize_Domain()` renames an SDTM domain into the CTAS vocabulary and,
 by default, emits a numeric-ready frame that can flow straight into
-`Analyze_CTAS()`. Range and missing-ratio metrics chain an `Input_*()`
-transform in between to overwrite `result` and `parameter_category_3`.
+`Analyze_CTAS()`. Range, missing-ratio and categorical metrics chain an
+`Input_*()` transform in between to overwrite `result` and
+`parameter_category_3`.
 
 ### Range-normalized labs
 
@@ -163,6 +166,39 @@ dfAna <- Analyze_CTAS(dfMissing)
 as_tibble(dfAna)
 ```
 
+### Categorical response
+
+`Input_OneHot()` expands a categorical variable such as SDTM RS `RSSTRESC`
+into one binary CTAS timeseries per observed level, so `Analyze_CTAS()` can
+flag sites whose per-level rates drift from their peers.
+
+```{r categorical}
+dfRS <- pharmaversesdtm::rs_onco
+dfRS <- dfRS[dfRS$RSTESTCD == "OVRLRESP", ]
+
+dfStandard <- Standardize_Domain(
+  dfDomain = dfRS,
+  dfSubjects = lMapped$Mapped_Subjects,
+  strTestCDCol = "RSTESTCD",
+  strTestCol = "RSTEST",
+  strValueCol = "RSSTRESC",
+  strCategory = "Disease Response",
+  strExcludePattern = NULL
+)
+
+as_tibble(dfStandard)
+
+dfOneHot <- Input_OneHot(dfStandard)
+
+as_tibble(dfOneHot)
+
+unique(dfOneHot$parameter_id)
+
+dfAna <- Analyze_CTAS(dfOneHot)
+
+as_tibble(dfAna)
+```
+
 ### Stitching metrics on the same field
 
 ctasapp groups sidebar entries by `parameter_category_2`, so when the same
@@ -206,8 +242,7 @@ lAnalysis <- suppressWarnings(
   gsm.core::RunWorkflows(lWorkflows = lMetricWorkflows, lData = lMapped)
 )
 
-names(lAnalysis)
-names(lAnalysis$Analysis_numeric)
+str(lAnalysis)
 ```
 
 Feature selection is one boolean per CTAS feature in `meta:`, so any metric
@@ -231,27 +266,59 @@ each, and stacks the results with a `study` column tagged onto every row.
 
 ## 3. Reporting: writing ctasapp shards
 
-`Write_Results()` binds the three shards across every metric and writes them
-to disk. Parquet is the default because `input` grows quickly.
+`Bind_Analysis()` concatenates one named shard (`"results"`, `"input"` or
+`"untransformed"`) across every metric workflow output; `Results.yaml`
+wraps three of those steps into a single reporting call and packages the
+three bound frames as a list ready to be handed to
+[ctasapp](https://github.com/IMPALA-Consortium/ctasapp) validators or
+written to parquet.
 
-```{r reporting, eval = FALSE}
-Write_Results(lAnalysis, strDir = "ctas_shards", strFormat = "parquet")
-```
-
-The equivalent workflow, driven from YAML:
-
-```{r reporting_yaml, eval = FALSE}
+```{r reporting_results, eval = FALSE}
 lReportingWorkflows <- workr::MakeWorkflowList(
   strNames = NULL,
   strPath = system.file("workflow/3_reporting", package = "gsm.ctas"),
   strPackage = NULL
 )
 
-gsm.core::RunWorkflows(
-  lWorkflows = lReportingWorkflows,
-  lData = list(
-    lAnalyzed = lAnalysis, strDir = "ctas_shards", strFormat = "parquet"
-  )
+lReporting <- gsm.core::RunWorkflows(
+  lWorkflows = lReportingWorkflows["Results"],
+  lData = list(lAnalyzed = lAnalysis)
 )
+
+str(lReporting$Reporting_Results)
+```
+
+`Write_Results()` is the one-shot alternative that binds and writes to
+disk. Parquet is the default because `input` grows quickly.
+
+```{r reporting, eval = FALSE}
+Write_Results(lReporting, strDir = "pub", strFormat = "parquet")
+```
+
+Point [ctasapp](https://github.com/IMPALA-Consortium/ctasapp) at the same
+`pub/` folder by copying the shipped `ctasapp.yml` next to `app.R` and
+setting its `embedded:` block to the parquet files written above.
+`run_ctas_app()` discovers the config in the current working directory and
+loads the embedded dataset through the same validation pipeline it uses
+for uploads.
+
+```{r ctasapp, eval = FALSE}
+# install.packages("remotes")
+remotes::install_github("IMPALA-Consortium/ctasapp")
+
+file.copy(
+  system.file("ctasapp.yml", package = "ctasapp"),
+  "ctasapp.yml",
+  overwrite = TRUE
+)
+
+# Edit ctasapp.yml so the embedded block points at pub/:
+#
+# embedded:
+#   results: pub/results.parquet
+#   input: pub/input.parquet
+#   untransformed: pub/untransformed.parquet  # optional
+
+ctasapp::run_ctas_app()
 ```
 

@@ -18,7 +18,7 @@ bWorkflowRunnable <- all(vapply(
 
 lMapped <- NULL
 lAnalysis <- NULL
-vMetricIDs <- c("numeric", "range_normalized", "ratio_missing")
+vMetricIDs <- c("numeric", "range_normalized", "ratio_missing", "categorical")
 vStudyIDs <- c("STUDY_A", "STUDY_B")
 lMetricWorkflows <- NULL
 dmSmall <- NULL
@@ -33,6 +33,10 @@ if (bWorkflowRunnable) {
   lbSmall <- pharmaversesdtm::lb[
     pharmaversesdtm::lb$USUBJID %in% dmSmall$USUBJID &
       pharmaversesdtm::lb$LBTESTCD %in% c("ALB", "BILI", "CREAT"),
+  ]
+  rsSmall <- pharmaversesdtm::rs_onco[
+    pharmaversesdtm::rs_onco$USUBJID %in% dmSmall$USUBJID &
+      pharmaversesdtm::rs_onco$RSTESTCD == "OVRLRESP",
   ]
 
   # Stack a two-study fixture by cloning the slice and re-labelling STUDYID
@@ -57,6 +61,7 @@ if (bWorkflowRunnable) {
   dmSmall <- StackTwoStudies(dmSmall)
   vsSmall <- StackTwoStudies(vsSmall, strSiteCol = NULL)
   lbSmall <- StackTwoStudies(lbSmall, strSiteCol = NULL)
+  rsSmall <- StackTwoStudies(rsSmall, strSiteCol = NULL)
   vSites <- sort(unique(dmSmall$SITEID))
   vStudyIDs <- sort(unique(dmSmall$STUDYID))
 
@@ -75,7 +80,8 @@ if (bWorkflowRunnable) {
   lRaw <- list(
     Raw_DM = as.data.frame(dmSmall),
     Raw_VS = as.data.frame(vsSmall),
-    Raw_LB = as.data.frame(lbSmall)
+    Raw_LB = as.data.frame(lbSmall),
+    Raw_RS = as.data.frame(rsSmall)
   )
 
   lIngest <- gsm.mapping::Ingest(lRaw, gsm.mapping::CombineSpecs(lMappingWorkflows))
