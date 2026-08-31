@@ -141,6 +141,13 @@ test_that("Write_Results binds all metric shards and writes readable files", {
   dfInput <- arrow::read_parquet(file.path(strDir, "input.parquet"))
   expect_gt(nrow(dfInput), 0)
   expect_setequal(unique(dfInput$study), vStudyIDs)
+
+  dfUntransformed <- arrow::read_parquet(file.path(strDir, "untransformed.parquet"))
+  vOVRLRESP <- dfUntransformed$original_category[
+    dfUntransformed$parameter_category_2 == "OVRLRESP"
+  ]
+  expect_gt(length(vOVRLRESP), 0)
+  expect_false(any(is.na(vOVRLRESP)))
 })
 
 test_that("Write_Results skips untransformed when no metric produced any", {

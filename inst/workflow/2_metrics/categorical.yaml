@@ -76,11 +76,18 @@ steps:
       strScoringMethod: ScoringMethod
       strPadjustMethod: PadjustMethod
       nSeed: Seed
-  # `original_category` on `Temp_CTAS_Values` carries the raw label, so
-  # ctasapp detail panels do not need an `untransformed` shard here.
+  # `original_category` on `Temp_CTAS_Values` carries the raw label
+  # (e.g. `"CR"`, `"PD"`). We de-duplicate to one row per
+  # (subject x cat2 x visit) so it can flow through the `untransformed`
+  # shard without repeating each observation once per level.
+  - output: Temp_CTAS_Untransformed
+    name: gsm.ctas::Prepare_Untransformed
+    params:
+      dfInput: Temp_CTAS_Values
   - output: lAnalysis
     name: base::list
     params:
       ID: ID
       results: Temp_CTAS_Results
       input: Temp_CTAS_Values
+      untransformed: Temp_CTAS_Untransformed

@@ -1,5 +1,22 @@
 # gsm.ctas (development)
 
+## Categorical rows carry original_category into `untransformed`
+
+* New `Prepare_Untransformed()` helper de-duplicates a metric `input` frame
+  to one row per `(subject_id, parameter_category_2, timepoint_1_name)`,
+  so an `Input_OneHot()` output (multiplied by observed level) can flow
+  through the reporting workflow as an `untransformed` shard without
+  repeating each source observation once per level.
+* `inst/workflow/2_metrics/categorical.yaml` now emits an `untransformed`
+  entry backed by `Prepare_Untransformed(Temp_CTAS_Values)`, so
+  `pub/untransformed.parquet` includes `OVRLRESP` (and any other one-hot
+  test) with the raw label (`"CR"`, `"PR"`, `"SD"`, `"PD"`, ...) in
+  `original_category`.
+* `Bind_Analysis(strName = "untransformed")` now keeps rows where **either**
+  `original_value` or `original_category` is non-`NA`. Numeric metrics
+  keep contributing their `original_value`; categorical metrics keep
+  contributing their `original_category`.
+
 ## Visit rank normalization in Standardize_Domain
 
 * `Standardize_Domain()` now recalculates `visitnum` and `timepoint_rank`

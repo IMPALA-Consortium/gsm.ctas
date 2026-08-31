@@ -7,9 +7,10 @@
 #' internally by [Write_Results()].
 #'
 #' `studyid` is renamed to `study` when present so the bound frames match
-#' the ctasapp column convention. For `"untransformed"`, rows with a missing
-#' `original_value` are dropped because only some `Input_*()` functions
-#' record originals and the ctasapp `untransformed` file is empty-optional.
+#' the ctasapp column convention. For `"untransformed"`, rows are dropped
+#' only when both `original_value` and `original_category` are missing --
+#' numeric metrics carry `original_value`, categorical metrics carry
+#' `original_category`, and either signal is enough to keep the row.
 #'
 #' @param lAnalysis `list` Named list of metric workflow outputs, each with
 #'   `results`, `input` and optionally `untransformed` frames.
@@ -41,11 +42,12 @@ Bind_Analysis <- function(lAnalysis, strName) {
   }
 
   if (strName == "untransformed") {
-    if (!is.null(df) && "original_value" %in% names(df)) {
-      df <- df[!is.na(df$original_value), , drop = FALSE]
-    } else {
-      df <- df[0, , drop = FALSE]
+    if (is.null(df) || nrow(df) == 0) {
+      return(df[0, , drop = FALSE])
     }
+    vHasValue <- if ("original_value" %in% names(df)) !is.na(df$original_value) else rep(FALSE, nrow(df))
+    vHasCategory <- if ("original_category" %in% names(df)) !is.na(df$original_category) else rep(FALSE, nrow(df))
+    df <- df[vHasValue | vHasCategory, , drop = FALSE]
   }
 
   df

@@ -160,3 +160,46 @@ Prepare_TimepointRank <- function(dfInput) {
     )
 }
 
+#' Reduce a metric's `input` frame to the untransformed shard shape
+#'
+#' Keeps one row per `(subject_id, parameter_category_2, timepoint_1_name)`
+#' so [Input_OneHot()] outputs (multiplied by level) can be handed to the
+#' reporting workflow as an `untransformed` shard without duplicating the
+#' source observation across levels. Used by the categorical metric YAML;
+#' numeric and range metrics already emit one row per source observation
+#' and pass through unchanged.
+#'
+#' @param dfInput `data.frame` A metric `input` frame with at minimum
+#'   `subject_id`, `parameter_category_2` and `timepoint_1_name`.
+#'
+#' @return `data.frame` De-duplicated on
+#'   `(subject_id, parameter_category_2, timepoint_1_name)`, keeping the
+#'   first occurrence of every other column.
+#'
+#' @examples
+#' Prepare_Untransformed(data.frame(
+#'   subject_id = c("S1", "S1"),
+#'   parameter_category_2 = c("OVRLRESP", "OVRLRESP"),
+#'   timepoint_1_name = c("WEEK 2", "WEEK 2"),
+#'   original_category = c("CR", "CR")
+#' ))
+#'
+#' @export
+Prepare_Untransformed <- function(dfInput) {
+  vRequired <- c("subject_id", "parameter_category_2", "timepoint_1_name")
+  vMissing <- setdiff(vRequired, names(dfInput))
+
+  if (length(vMissing) > 0) {
+    cli::cli_abort(
+      "{.arg dfInput} is missing required column{?s}: {.val {vMissing}}."
+    )
+  }
+
+  dfInput |>
+    dplyr::distinct(
+      .data$subject_id, .data$parameter_category_2, .data$timepoint_1_name,
+      .keep_all = TRUE
+    ) |>
+    as.data.frame()
+}
+

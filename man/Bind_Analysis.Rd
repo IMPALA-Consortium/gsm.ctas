@@ -25,9 +25,10 @@ internally by \code{\link[=Write_Results]{Write_Results()}}.
 }
 \details{
 \code{studyid} is renamed to \code{study} when present so the bound frames match
-the ctasapp column convention. For \code{"untransformed"}, rows with a missing
-\code{original_value} are dropped because only some \verb{Input_*()} functions
-record originals and the ctasapp \code{untransformed} file is empty-optional.
+the ctasapp column convention. For \code{"untransformed"}, rows are dropped
+only when both \code{original_value} and \code{original_category} are missing --
+numeric metrics carry \code{original_value}, categorical metrics carry
+\code{original_category}, and either signal is enough to keep the row.
 }
 \examples{
 \dontrun{

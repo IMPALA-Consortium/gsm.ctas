@@ -149,3 +149,28 @@ test_that("Prepare_TimepointRank errors informatively on missing columns", {
   )
 })
 
+test_that("Prepare_Untransformed keeps one row per subject x cat2 x visit", {
+  df <- data.frame(
+    subject_id = c("S1", "S1", "S1", "S1"),
+    parameter_category_2 = "OVRLRESP",
+    timepoint_1_name = c("WEEK 2", "WEEK 2", "WEEK 2", "WEEK 4"),
+    parameter_id = c("CAT_OVRLRESP=CR", "CAT_OVRLRESP=PR",
+                     "CAT_OVRLRESP=SD", "CAT_OVRLRESP=CR"),
+    original_category = c("CR", "CR", "CR", "PR"),
+    stringsAsFactors = FALSE
+  )
+
+  dfOut <- Prepare_Untransformed(df)
+
+  expect_equal(nrow(dfOut), 2)
+  expect_setequal(dfOut$timepoint_1_name, c("WEEK 2", "WEEK 4"))
+  expect_setequal(dfOut$original_category, c("CR", "PR"))
+})
+
+test_that("Prepare_Untransformed errors informatively on missing columns", {
+  expect_error(
+    Prepare_Untransformed(data.frame(subject_id = "S1")),
+    "parameter_category_2"
+  )
+})
+
