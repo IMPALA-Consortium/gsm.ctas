@@ -330,7 +330,7 @@ test_that("Summary workflow packages a gsm KRI-shaped summary + metrics + groups
   )
 
   lReporting <- suppressWarnings(gsm.core::RunWorkflows(
-    lWorkflows = lReportingWorkflows[c("Results", "Summary")],
+    lWorkflows = lReportingWorkflows[c("Results", "Groups", "Summary")],
     lData = c(lMapped, list(lAnalyzed = lAnalysis))
   ))
 
@@ -354,10 +354,19 @@ test_that("Summary workflow packages a gsm KRI-shaped summary + metrics + groups
   dfGroups <- lSummary$groups
   expect_setequal(names(dfGroups),
                   c("GroupID", "GroupLevel", "Param", "Value"))
-  expect_true("Enrolled" %in% dfGroups$Param)
-  # Every stacked-fixture site must have at least one Enrolled row.
-  vEnrolled <- dfGroups$GroupID[dfGroups$Param == "Enrolled"]
-  expect_true(all(vSites %in% vEnrolled))
+  # Groups comes from the mapping layer (Mapped_STUDY + Mapped_SITE), so
+  # both group levels must be present and every stacked-fixture site must
+  # have a ParticipantCount row from Mapped_SITE.
+  expect_setequal(unique(dfGroups$GroupLevel), c("Site", "Study"))
+  expect_true("ParticipantCount" %in% dfGroups$Param)
+  vSiteRows <- dfGroups$GroupID[
+    dfGroups$GroupLevel == "Site" & dfGroups$Param == "ParticipantCount"
+  ]
+  expect_true(all(vSites %in% vSiteRows))
+  expect_setequal(
+    unique(dfGroups$GroupID[dfGroups$GroupLevel == "Study"]),
+    vStudyIDs
+  )
 })
 
 test_that("report_kri_site module renders a KRI HTML report", {
@@ -379,7 +388,7 @@ test_that("report_kri_site module renders a KRI HTML report", {
   # gsm.kri::Report_KRI is single-study; drop the second study block from
   # the summary before rendering.
   lReporting <- suppressWarnings(gsm.core::RunWorkflows(
-    lWorkflows = lReportingWorkflows[c("Results", "Summary")],
+    lWorkflows = lReportingWorkflows[c("Results", "Groups", "Summary")],
     lData = c(lMapped, list(lAnalyzed = lAnalysis))
   ))
   strStudyID <- vStudyIDs[1]

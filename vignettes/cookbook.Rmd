@@ -397,11 +397,20 @@ from the aggregation.
 
 ### Running the `Summary` workflow
 
-`Summary.yaml` (Priority 3) chains `Summarize_CTAS()` -> `Flag_CTAS()` ->
-`Make_KRI_Metrics()` -> `Make_KRI_Groups()` into a single reporting call
-and packages the three frames the stock `gsm.kri` report needs. Every
-threshold and grouping choice is a workflow `meta` parameter so a
-sponsor can retune the report in YAML without editing R.
+`Groups.yaml` (Priority 1) `bind_rows`-stacks `Mapped_STUDY` and
+`Mapped_SITE` from the mapping layer into a long-format `Reporting_Groups`
+frame (`GroupID`, `GroupLevel`, `Param`, `Value`) that carries the site
+meta the KRI template renders (country, investigator, participant count).
+Enriching the report is therefore a mapping-layer edit -- add columns to
+[`SITE.yaml`](https://github.com/IMPALA-Consortium/gsm.ctas/blob/main/inst/workflow/1_mappings/SITE.yaml)
+and they flow through unchanged.
+
+`Summary.yaml` (Priority 3) then chains `Summarize_CTAS()` ->
+`Flag_CTAS()` -> `Filter_Flagged()` -> `Make_KRI_Metrics()` and packages
+the three frames the stock `gsm.kri` report needs (`summary`, `metrics`,
+`groups`) into a single list. Every threshold and grouping choice is a
+workflow `meta` parameter so a sponsor can retune the report in YAML
+without editing R.
 
 Fields that never triggered a flag are dropped after `Flag_CTAS()` by
 `Filter_Flagged()` so the rendered report stays short. The cutoff is the
@@ -428,7 +437,7 @@ lReportingWorkflows <- workr::MakeWorkflowList(
 )
 
 lReporting <- gsm.core::RunWorkflows(
-  lWorkflows = lReportingWorkflows[c("Results", "Summary")],
+  lWorkflows = lReportingWorkflows,
   lData = c(lMapped, list(lAnalyzed = lAnalysis))
 )
 

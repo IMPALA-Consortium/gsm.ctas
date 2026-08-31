@@ -16,6 +16,9 @@ meta:
 spec:
   Reporting_Results:
     type: list
+  Reporting_Groups:
+    _all:
+      required: true
   Mapped_Subjects:
     studyid:
       type: character
@@ -53,10 +56,6 @@ steps:
     params:
       dfSummary: Reporting_Summary
       vThreshold: vThreshold
-  - output: Reporting_Groups
-    name: gsm.ctas::Make_KRI_Groups
-    params:
-      dfSubjects: Mapped_Subjects
   - output: lReportingSummary
     name: base::list
     params:

@@ -1,0 +1,19 @@
+meta:
+  Type: Reporting
+  ID: Groups
+  Description: Long-format group metadata for the gsm.kri report, sourced from the mapping layer.
+  Priority: 1
+  Active: true
+spec:
+  Mapped_STUDY:
+    _all:
+      required: true
+  Mapped_SITE:
+    _all:
+      required: true
+steps:
+  - output: Reporting_Groups
+    name: dplyr::bind_rows
+    params:
+      Study: Mapped_STUDY
+      Site: Mapped_SITE
