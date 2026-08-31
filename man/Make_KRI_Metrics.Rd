@@ -17,8 +17,14 @@ Written verbatim into the \code{Threshold} string. Default
 }
 \value{
 \code{data.frame} with the gsm KRI \code{dfMetrics} columns: \code{MetricID},
-\code{Metric}, \code{Numerator}, \code{Denominator}, \code{Threshold}, \code{GroupLevel},
-\code{AnalysisType}, \code{Model}.
+\code{Abbreviation}, \code{Metric}, \code{Numerator}, \code{Denominator}, \code{Score},
+\code{Threshold}, \code{GroupLevel}, \code{AnalysisType}, \code{Model}.
+
+\code{Abbreviation} is the short label the \code{gsm.kri} site-overview widget
+uses as each metric column's header (see \code{gsm.viz} \code{defineMetricColumns}:
+\code{label: metric.Abbreviation}); an empty \code{Abbreviation} renders as an
+empty column header. It is set here to \code{parameter_category_2} (with
+\code{(feature)} appended when the summary is per-feature).
 }
 \description{
 One row per unique \code{MetricID} in \code{dfSummary}, carrying the labels and

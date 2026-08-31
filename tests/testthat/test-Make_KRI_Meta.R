@@ -25,11 +25,22 @@ test_that("Make_KRI_Metrics: one row per unique MetricID", {
 test_that("Make_KRI_Metrics: emits required gsm KRI columns", {
   dfMetrics <- Make_KRI_Metrics(MakeSummaryFixture())
 
-  vRequired <- c("MetricID", "Metric", "Numerator", "Denominator",
+  vRequired <- c("MetricID", "Abbreviation", "Metric",
+                 "Numerator", "Denominator", "Score",
                  "Threshold", "GroupLevel", "AnalysisType", "Model")
   expect_true(all(vRequired %in% names(dfMetrics)))
   expect_setequal(unique(dfMetrics$GroupLevel), "Site")
   expect_setequal(unique(dfMetrics$AnalysisType), "CTAS")
+})
+
+test_that("Make_KRI_Metrics: Abbreviation is parameter_category_2 (drives site-overview column header)", {
+  dfMetrics <- Make_KRI_Metrics(MakeSummaryFixture())
+  expect_setequal(dfMetrics$Abbreviation, c("AST", "ALT"))
+  expect_false(any(is.na(dfMetrics$Abbreviation) |
+                     dfMetrics$Abbreviation == ""))
+
+  dfMetricsFeat <- Make_KRI_Metrics(MakeSummaryFixture(bByFeature = TRUE))
+  expect_true(any(grepl("\\(average\\)", dfMetricsFeat$Abbreviation)))
 })
 
 test_that("Make_KRI_Metrics: Threshold serialises verbatim as comma-sep", {
