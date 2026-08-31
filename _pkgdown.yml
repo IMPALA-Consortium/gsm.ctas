@@ -41,6 +41,7 @@ reference:
   - Filter_Flagged
   - Make_KRI_Metrics
   - Make_KRI_Groups
+  - Drop_Chart
 - title: Package
   contents:
   - gsm.ctas-package

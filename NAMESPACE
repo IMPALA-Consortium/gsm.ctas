@@ -2,6 +2,7 @@
 
 export(Analyze_CTAS)
 export(Bind_Analysis)
+export(Drop_Chart)
 export(FilterVisits)
 export(Filter_Flagged)
 export(Flag_CTAS)

@@ -454,8 +454,8 @@ lModuleWorkflows <- workr::MakeWorkflowList(
 )
 
 # Optional: point the report at a specific directory (must already exist).
-dir.create("pub", showWarnings = FALSE)
-lModuleWorkflows$report_kri_site$meta$strOutputDir <- "pub"
+# dir.create("pub", showWarnings = FALSE)
+# lModuleWorkflows$report_kri_site$meta$strOutputDir <- "pub"
 
 gsm.core::RunWorkflows(
   lWorkflows = lModuleWorkflows,
