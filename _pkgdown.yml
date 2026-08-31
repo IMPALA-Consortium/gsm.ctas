@@ -33,6 +33,14 @@ reference:
   contents:
   - Bind_Analysis
   - Write_ctasapp
+- title: Summary
+  desc: Aggregate CTAS results into gsm KRI-shaped summary + metric + group meta for the standard gsm.kri report.
+  contents:
+  - Summarize_CTAS
+  - Flag_CTAS
+  - Filter_Flagged
+  - Make_KRI_Metrics
+  - Make_KRI_Groups
 - title: Package
   contents:
   - gsm.ctas-package

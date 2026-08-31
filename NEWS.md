@@ -1,5 +1,35 @@
 # gsm.ctas (development)
 
+## Reinstated markdown KRI report on top of the gsm.kri engine
+
+* New `Summarize_CTAS(dfResults, dfSubjects, bIncludeMissingness, bByFeature,
+  strStudyID, dSnapshotDate)` aggregates the long CTAS results frame
+  (`Reporting_Results$results`) into the gsm reporting `dfResults` contract:
+  one row per site x synthetic `MetricID`. `MetricID` is `ctas_<field>` by
+  default; pass `bByFeature = TRUE` for `ctas_<field>_<feature>`.
+  `Score = max(fdr_corrected_pvalue_logp)` per group and sites present in
+  `dfSubjects` but with no scored timeseries are retained with `Score = NA`
+  and `Numerator = Denominator = 0`.
+* New `Flag_CTAS(dfAnalyzed, strColumn, vThreshold, vFlag, vFlagOrder,
+  nAccrualThreshold, strAccrualMetric)` mirrors the `gsm.core::Flag()`
+  seam with unsigned CTAS defaults for the `-log10(p)` scale: two
+  ascending thresholds (`0.842` amber, `2.326` red) and three flag levels
+  (`0`, `1`, `2`). Left-closed intervals; optional accrual filter NAs out
+  Score + Flag when sites don't meet a minimum count.
+* New `Make_KRI_Metrics()` and `Make_KRI_Groups()` shape the minimal
+  `dfMetrics` and `dfGroups` frames the stock `gsm.kri` KRI report
+  consumes (one metric row per `MetricID`; `Enrolled` + placeholder
+  `InvestigatorLastName` per site).
+* New `inst/workflow/3_reporting/Summary.yaml` (Priority 3) chains those
+  four steps into a `Reporting_Summary` list of `summary`, `metrics`, and
+  `groups` frames. Missingness inclusion, by-feature grouping, and flag
+  thresholds are workflow `meta` parameters, so a sponsor can retune them
+  in YAML without editing R.
+* New `inst/workflow/4_modules/report_kri_site.yaml` module renders the
+  standard `gsm.kri::Report_KRI()` site-level HTML report directly from
+  the `Reporting_Summary` package. `gsm.kri` and `gsm.reporting` move to
+  `Suggests:` so the CTAS mapping + analysis stack stays lightweight.
+
 ## ctasapp compatibility fixes for the queries reporting frame
 
 * `Standardize_Queries()` now drops `site`, `country`, and `studyid` from

@@ -1,0 +1,49 @@
+meta:
+  Type: Module
+  ID: report_kri_site
+  Description: Render the standard gsm.kri site-level KRI report from the CTAS summary package.
+  Priority: 1
+  Active: true
+  strOutputDir: "."
+spec:
+  Reporting_Summary:
+    type: list
+steps:
+  - output: Report_Summary
+    name: base::getElement
+    params:
+      object: Reporting_Summary
+      name: "summary"
+  - output: Report_Metrics
+    name: base::getElement
+    params:
+      object: Reporting_Summary
+      name: "metrics"
+  - output: Report_Groups
+    name: base::getElement
+    params:
+      object: Reporting_Summary
+      name: "groups"
+  - output: Report_Charts
+    name: gsm.kri::MakeCharts
+    params:
+      dfResults: Report_Summary
+      dfMetrics: Report_Metrics
+      dfGroups: Report_Groups
+      dfBounds: ~
+  # Absolute path anchored to the R session's wd; gsm.kri passes strOutputDir
+  # through to rmarkdown::render which otherwise resolves relatives against the
+  # template's own directory in the R library.
+  - output: Report_OutputDir
+    name: base::normalizePath
+    params:
+      path: strOutputDir
+      mustWork: false
+  - output: Report_Path
+    name: gsm.kri::Report_KRI
+    params:
+      lCharts: Report_Charts
+      dfResults: Report_Summary
+      dfMetrics: Report_Metrics
+      dfGroups: Report_Groups
+      strOutputDir: Report_OutputDir

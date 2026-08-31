@@ -354,3 +354,113 @@ file.copy(
 ctasapp::run_ctas_app()
 ```
 
+## 4. Reporting: rendering the standard gsm KRI report
+
+The `Summary.yaml` reporting workflow aggregates the long CTAS `results`
+frame into the gsm reporting `dfResults` contract (one row per site x
+synthetic `MetricID`), so the stock `gsm.kri` KRI report can render it
+unchanged. Each `parameter_category_2` (data field, e.g. `"AST"`,
+`"SYSBP"`) becomes its own `MetricID`; per-site `Score` is the maximum
+`fdr_corrected_pvalue_logp` across every contributing (timeseries x
+feature) row. Sites present in `Mapped_Subjects` but with no scored
+timeseries stay in the frame with `Score = NA` so the KRI overview widget
+cannot silently drop them.
+
+### `Summarize_CTAS()` + `Flag_CTAS()` directly
+
+`Summarize_CTAS()` and `Flag_CTAS()` mirror the `gsm.core::Summarize()` /
+`gsm.core::Flag()` seam so thresholds can be retuned without
+re-aggregating. `Flag_CTAS()` uses left-closed intervals appropriate for
+the non-negative `-log10(p)` scale, with defaults `vThreshold = c(0.842,
+2.326)` (80% and 99% one-sided normal z-quantiles) and three flag levels
+(`0` green, `1` amber, `2` red).
+
+```{r summarize_direct, eval = FALSE}
+dfResultsLong <- lReporting$Reporting_Results$results
+
+dfScores <- Summarize_CTAS(
+  dfResults = dfResultsLong,
+  dfSubjects = lMapped$Mapped_Subjects
+)
+
+as_tibble(dfScores)
+
+dfFlagged <- Flag_CTAS(dfScores)
+
+as_tibble(dfFlagged)
+```
+
+Pass `bByFeature = TRUE` to split one `MetricID` per (field x CTAS
+feature) instead of collapsing to one `MetricID` per field, or
+`bIncludeMissingness = FALSE` to drop the `ratio_missing` metric family
+from the aggregation.
+
+### Running the `Summary` workflow
+
+`Summary.yaml` (Priority 3) chains `Summarize_CTAS()` -> `Flag_CTAS()` ->
+`Make_KRI_Metrics()` -> `Make_KRI_Groups()` into a single reporting call
+and packages the three frames the stock `gsm.kri` report needs. Every
+threshold and grouping choice is a workflow `meta` parameter so a
+sponsor can retune the report in YAML without editing R.
+
+Fields that never triggered a flag are dropped after `Flag_CTAS()` by
+`Filter_Flagged()` so the rendered report stays short. The cutoff is the
+`iMinFlag` meta parameter (default `1`, i.e. keep any metric with at
+least one amber or red site); set to `0` to keep every field, or `2` to
+keep only fields with at least one red flag.
+
+```yaml
+meta:
+  ID: Summary
+  IncludeMissingness: true
+  ByFeature: false
+  vThreshold: [0.842, 2.326]
+  vFlag: [0, 1, 2]
+  vFlagOrder: [2, 1, 0]
+  iMinFlag: 1
+```
+
+```{r summary_workflow, eval = FALSE}
+lReportingWorkflows <- workr::MakeWorkflowList(
+  strNames = NULL,
+  strPath = system.file("workflow/3_reporting", package = "gsm.ctas"),
+  strPackage = NULL
+)
+
+lReporting <- gsm.core::RunWorkflows(
+  lWorkflows = lReportingWorkflows[c("Results", "Summary")],
+  lData = c(lMapped, list(lAnalyzed = lAnalysis))
+)
+
+str(lReporting$Reporting_Summary, max.level = 1)
+```
+
+### Rendering the KRI HTML report
+
+`report_kri_site.yaml` in `inst/workflow/4_modules/` calls
+`gsm.kri::MakeCharts()` + `gsm.kri::Report_KRI()` on the packaged summary
+and writes a site-level HTML report with the standard gsm KRI layout: a
+site x metric icon overview and one bar chart per `MetricID`. The output
+file name is auto-generated from `StudyID`, `GroupLevel` and
+`SnapshotDate` (e.g. `kri_report_CDISCPILOT01_Site_20260831.html`); the
+output directory defaults to the current working directory and can be
+overridden by mutating the workflow object.
+
+```{r report_kri, eval = FALSE}
+lModuleWorkflows <- workr::MakeWorkflowList(
+  strNames = NULL,
+  strPath = system.file("workflow/4_modules", package = "gsm.ctas"),
+  strPackage = NULL
+)
+
+# Optional: point the report at a specific directory (must already exist).
+dir.create("pub", showWarnings = FALSE)
+lModuleWorkflows$report_kri_site$meta$strOutputDir <- "pub"
+
+gsm.core::RunWorkflows(
+  lWorkflows = lModuleWorkflows,
+  lData = lReporting
+)
+```
+
+

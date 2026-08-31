@@ -25,7 +25,9 @@ Imports:
 Suggests:
     arrow,
     gsm.core,
+    gsm.kri,
     gsm.mapping,
+    gsm.reporting,
     knitr,
     pharmaversesdtm,
     purrr,

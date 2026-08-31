@@ -320,3 +320,87 @@ test_that("Reporting workflow standardises queries via the Queries YAML", {
   expect_true(all(dfQ$subject_id %in% lMapped$Mapped_Subjects$subject_id))
 })
 
+test_that("Summary workflow packages a gsm KRI-shaped summary + metrics + groups", {
+  skip_if_not(bWorkflowRunnable)
+
+  lReportingWorkflows <- workr::MakeWorkflowList(
+    strNames = NULL,
+    strPath = system.file("workflow/3_reporting", package = "gsm.ctas"),
+    strPackage = NULL
+  )
+
+  lReporting <- suppressWarnings(gsm.core::RunWorkflows(
+    lWorkflows = lReportingWorkflows[c("Results", "Summary")],
+    lData = c(lMapped, list(lAnalyzed = lAnalysis))
+  ))
+
+  lSummary <- lReporting$Reporting_Summary
+  expect_setequal(names(lSummary), c("summary", "metrics", "groups"))
+
+  dfSummary <- lSummary$summary
+  vRequired <- c("MetricID", "GroupID", "GroupLevel", "StudyID",
+                 "SnapshotDate", "Numerator", "Denominator", "Metric",
+                 "Score", "Flag")
+  expect_true(all(vRequired %in% names(dfSummary)))
+  expect_setequal(unique(dfSummary$GroupLevel), "Site")
+  # Every fixture site must appear at least once across the summary
+  expect_true(all(vSites %in% unique(dfSummary$GroupID)))
+
+  dfMetrics <- lSummary$metrics
+  expect_setequal(unique(dfMetrics$MetricID), unique(dfSummary$MetricID))
+  expect_true(all(startsWith(dfMetrics$MetricID, "ctas_")))
+  expect_setequal(unique(dfMetrics$AnalysisType), "CTAS")
+
+  dfGroups <- lSummary$groups
+  expect_setequal(names(dfGroups),
+                  c("GroupID", "GroupLevel", "Param", "Value"))
+  expect_true("Enrolled" %in% dfGroups$Param)
+  # Every stacked-fixture site must have at least one Enrolled row.
+  vEnrolled <- dfGroups$GroupID[dfGroups$Param == "Enrolled"]
+  expect_true(all(vSites %in% vEnrolled))
+})
+
+test_that("report_kri_site module renders a KRI HTML report", {
+  skip_if_not(bWorkflowRunnable)
+  skip_if_not_installed("gsm.kri")
+  skip_if_not_installed("rmarkdown")
+
+  lReportingWorkflows <- workr::MakeWorkflowList(
+    strNames = NULL,
+    strPath = system.file("workflow/3_reporting", package = "gsm.ctas"),
+    strPackage = NULL
+  )
+  lModuleWorkflows <- workr::MakeWorkflowList(
+    strNames = NULL,
+    strPath = system.file("workflow/4_modules", package = "gsm.ctas"),
+    strPackage = NULL
+  )
+
+  # gsm.kri::Report_KRI is single-study; drop the second study block from
+  # the summary before rendering.
+  lReporting <- suppressWarnings(gsm.core::RunWorkflows(
+    lWorkflows = lReportingWorkflows[c("Results", "Summary")],
+    lData = c(lMapped, list(lAnalyzed = lAnalysis))
+  ))
+  strStudyID <- vStudyIDs[1]
+  lSummary <- lReporting$Reporting_Summary
+  lSummary$summary <- lSummary$summary[lSummary$summary$StudyID == strStudyID, , drop = FALSE]
+  lSummary$groups <- lSummary$groups[
+    lSummary$groups$GroupLevel != "Study" |
+      lSummary$groups$GroupID == strStudyID, ,
+    drop = FALSE
+  ]
+  lReporting$Reporting_Summary <- lSummary
+
+  strDir <- withr::local_tempdir()
+  lModuleWorkflows$report_kri_site$meta$strOutputDir <- strDir
+  suppressWarnings(suppressMessages(gsm.core::RunWorkflows(
+    lWorkflows = lModuleWorkflows,
+    lData = lReporting
+  )))
+
+  vHtml <- list.files(strDir, pattern = "\\.html$", full.names = TRUE)
+  expect_gt(length(vHtml), 0)
+})
+
+

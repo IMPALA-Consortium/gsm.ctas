@@ -1,0 +1,65 @@
+meta:
+  Type: Reporting
+  ID: Summary
+  Description: Aggregate CTAS results into a gsm KRI-shaped summary + metric + group meta package for the standard gsm.kri report.
+  Priority: 3
+  Active: true
+  IncludeMissingness: true
+  ByFeature: false
+  vThreshold: [0.842, 2.326]
+  vFlag: [0, 1, 2]
+  vFlagOrder: [2, 1, 0]
+  # Drop MetricIDs whose maximum Flag is below this cutoff so the KRI report
+  # only lists fields with at least one flagged site. Set to 0 to keep every
+  # metric.
+  iMinFlag: 1
+spec:
+  Reporting_Results:
+    type: list
+  Mapped_Subjects:
+    studyid:
+      type: character
+    subject_id:
+      type: character
+    site:
+      type: character
+steps:
+  - output: Reporting_ResultsFrame
+    name: base::getElement
+    params:
+      object: Reporting_Results
+      name: "results"
+  - output: Reporting_SummaryScores
+    name: gsm.ctas::Summarize_CTAS
+    params:
+      dfResults: Reporting_ResultsFrame
+      dfSubjects: Mapped_Subjects
+      bIncludeMissingness: IncludeMissingness
+      bByFeature: ByFeature
+  - output: Reporting_Summary
+    name: gsm.ctas::Flag_CTAS
+    params:
+      dfAnalyzed: Reporting_SummaryScores
+      vThreshold: vThreshold
+      vFlag: vFlag
+      vFlagOrder: vFlagOrder
+  - output: Reporting_Summary
+    name: gsm.ctas::Filter_Flagged
+    params:
+      dfFlagged: Reporting_Summary
+      iMinFlag: iMinFlag
+  - output: Reporting_Metrics
+    name: gsm.ctas::Make_KRI_Metrics
+    params:
+      dfSummary: Reporting_Summary
+      vThreshold: vThreshold
+  - output: Reporting_Groups
+    name: gsm.ctas::Make_KRI_Groups
+    params:
+      dfSubjects: Mapped_Subjects
+  - output: lReportingSummary
+    name: base::list
+    params:
+      summary: Reporting_Summary
+      metrics: Reporting_Metrics
+      groups: Reporting_Groups
