@@ -10,9 +10,9 @@ meta:
   FeatureUniqueValueCountRelative: true
   FeatureOwnSiteSimilScore: false
   FeatureLOF: false
-  MinTimepoints: 3
-  MinSubjects: 3
-  MaxShareMissing: 0.5
+  MinTimepoints: 1
+  MinSubjects: 25
+  MaxShareMissing: 0.3
   ScoringMethod: ks
   PadjustMethod: fdr
   Seed: 20260813

@@ -38,6 +38,10 @@ if (bWorkflowRunnable) {
     pharmaversesdtm::rs_onco$USUBJID %in% dmSmall$USUBJID &
       pharmaversesdtm::rs_onco$RSTESTCD == "OVRLRESP",
   ]
+  egSmall <- pharmaversesdtm::eg[
+    pharmaversesdtm::eg$USUBJID %in% dmSmall$USUBJID &
+      pharmaversesdtm::eg$EGTESTCD %in% c("HR", "QT", "RR"),
+  ]
 
   # Stack a two-study fixture by cloning the slice and re-labelling STUDYID
   # plus suffixing SITEID and USUBJID. Cloning is safer than partitioning:
@@ -62,6 +66,7 @@ if (bWorkflowRunnable) {
   vsSmall <- StackTwoStudies(vsSmall, strSiteCol = NULL)
   lbSmall <- StackTwoStudies(lbSmall, strSiteCol = NULL)
   rsSmall <- StackTwoStudies(rsSmall, strSiteCol = NULL)
+  egSmall <- StackTwoStudies(egSmall, strSiteCol = NULL)
   vSites <- sort(unique(dmSmall$SITEID))
   vStudyIDs <- sort(unique(dmSmall$STUDYID))
 
@@ -81,7 +86,8 @@ if (bWorkflowRunnable) {
     Raw_DM = as.data.frame(dmSmall),
     Raw_VS = as.data.frame(vsSmall),
     Raw_LB = as.data.frame(lbSmall),
-    Raw_RS = as.data.frame(rsSmall)
+    Raw_RS = as.data.frame(rsSmall),
+    Raw_EG = as.data.frame(egSmall)
   )
 
   lIngest <- gsm.mapping::Ingest(lRaw, gsm.mapping::CombineSpecs(lMappingWorkflows))

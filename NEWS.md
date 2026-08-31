@@ -1,5 +1,16 @@
 # gsm.ctas (development)
 
+## Numeric metric now covers VS and EG in one Analysis slot
+
+* `inst/workflow/2_metrics/numeric.yaml` now standardises `Mapped_VS` and
+  `Mapped_EG` separately (each with its own `strCategory` -- `"Vital Signs"`
+  and `"ECG"`) then row-binds them with `dplyr::bind_rows` before a single
+  `Analyze_CTAS` call. `parameter_category_1` is stamped once, at
+  standardisation time, and every downstream step is category-agnostic --
+  so any additional numeric findings domain (LB, VS, EG, ...) can be
+  wired into the same metric as a YAML-only edit.
+* The dedicated `numeric_eg` metric YAML is removed.
+
 ## Categorical rows carry original_category into `untransformed`
 
 * New `Prepare_Untransformed()` helper de-duplicates a metric `input` frame

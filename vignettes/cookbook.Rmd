@@ -44,12 +44,14 @@ dfDM <- pharmaversesdtm::dm
 dfVS <- pharmaversesdtm::vs
 dfLB <- pharmaversesdtm::lb
 dfRS <- pharmaversesdtm::rs_onco
+dfEG <- pharmaversesdtm::eg
 
 lRaw <- list(
   Raw_DM = as.data.frame(dfDM),
   Raw_VS = as.data.frame(dfVS),
   Raw_LB = as.data.frame(dfLB),
-  Raw_RS = as.data.frame(dfRS)
+  Raw_RS = as.data.frame(dfRS),
+  Raw_EG = as.data.frame(dfEG)
 )
 ```
 

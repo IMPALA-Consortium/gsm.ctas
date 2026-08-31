@@ -5,14 +5,15 @@ skip_if_not(
 
 test_that("mapping publishes the standardised transformation-typed frames", {
   expect_true(all(
-    c("Mapped_DM", "Mapped_VS", "Mapped_LB", "Mapped_SITE", "Mapped_STUDY",
-      "Mapped_Subjects") %in% names(lMapped)
+    c("Mapped_DM", "Mapped_VS", "Mapped_LB", "Mapped_EG", "Mapped_SITE",
+      "Mapped_STUDY", "Mapped_Subjects") %in% names(lMapped)
   ))
 })
 
-test_that("mapping filters unscheduled visits from VS and LB", {
+test_that("mapping filters unscheduled visits from VS, LB and EG", {
   expect_false(any(grepl("UNSCH", lMapped$Mapped_VS$VISIT, ignore.case = TRUE)))
   expect_false(any(grepl("UNSCH", lMapped$Mapped_LB$VISIT, ignore.case = TRUE)))
+  expect_false(any(grepl("UNSCH", lMapped$Mapped_EG$VISIT, ignore.case = TRUE)))
 })
 
 test_that("Mapped_Subjects carries the CTAS column vocabulary and every study", {
@@ -22,9 +23,10 @@ test_that("Mapped_Subjects carries the CTAS column vocabulary and every study", 
   expect_setequal(unique(lMapped$Mapped_Subjects$studyid), vStudyIDs)
 })
 
-test_that("Mapped_VS and Mapped_LB carry STUDYID across every stacked study", {
+test_that("Mapped_VS, Mapped_LB and Mapped_EG carry STUDYID across every stacked study", {
   expect_setequal(unique(lMapped$Mapped_VS$STUDYID), vStudyIDs)
   expect_setequal(unique(lMapped$Mapped_LB$STUDYID), vStudyIDs)
+  expect_setequal(unique(lMapped$Mapped_EG$STUDYID), vStudyIDs)
 })
 
 test_that("Mapped_SITE groups by STUDYID and SITEID so cloned sites stay separated", {
@@ -115,6 +117,19 @@ test_that("parameter_category_3 identifies the transformation each metric ran", 
   expect_setequal(
     unique(lAnalysis$Analysis_ratio_missing$results$parameter_category_3),
     "ratio_missing"
+  )
+})
+
+test_that("numeric metric fans VS and EG into one Analysis slot", {
+  # `Standardize_Domain` stamps `parameter_category_1` per row, so the
+  # single downstream `Analyze_CTAS` call sees a mixed-domain frame.
+  expect_setequal(
+    unique(lAnalysis$Analysis_numeric$input$parameter_category_1),
+    c("Vital Signs", "ECG")
+  )
+  expect_setequal(
+    unique(lAnalysis$Analysis_numeric$results$parameter_category_1),
+    c("Vital Signs", "ECG")
   )
 })
 

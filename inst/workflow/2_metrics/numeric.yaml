@@ -8,9 +8,9 @@ meta:
   FeatureUniqueValueCountRelative: true
   FeatureOwnSiteSimilScore: false
   FeatureLOF: false
-  MinTimepoints: 3
-  MinSubjects: 3
-  MaxShareMissing: 0.5
+  MinTimepoints: 1
+  MinSubjects: 25
+  MaxShareMissing: 0.3
   ScoringMethod: ks
   PadjustMethod: fdr
   Seed: 20260813
@@ -39,10 +39,26 @@ spec:
       type: character
     VISITNUM:
       type: numeric
+  Mapped_EG:
+    STUDYID:
+      type: character
+    USUBJID:
+      type: character
+    EGTESTCD:
+      type: character
+    EGTEST:
+      type: character
+    EGSTRESN:
+      type: numeric
+    VISIT:
+      type: character
+    VISITNUM:
+      type: numeric
 steps:
-  # Rename SDTM columns to the CTAS vocabulary and stamp the category. The
-  # visit filter has already run in the mapping layer, so we disable it here.
-  - output: Temp_CTAS_Values
+  # Each source domain gets its own `Standardize_Domain` call so the per-row
+  # `parameter_category_1` traces back to the source. Downstream steps are
+  # category-agnostic.
+  - output: Temp_VS_Values
     name: gsm.ctas::Standardize_Domain
     params:
       dfDomain: Mapped_VS
@@ -52,8 +68,23 @@ steps:
       strValueCol: VSSTRESN
       strCategory: Vital Signs
       strExcludePattern: ~
-  # `Standardize_Domain` already emits the numeric CTAS vocab, so no
-  # separate Input step is needed for this metric.
+  - output: Temp_EG_Values
+    name: gsm.ctas::Standardize_Domain
+    params:
+      dfDomain: Mapped_EG
+      dfSubjects: Mapped_Subjects
+      strTestCDCol: EGTESTCD
+      strTestCol: EGTEST
+      strValueCol: EGSTRESN
+      strCategory: ECG
+      strExcludePattern: ~
+  # VS and EG testcodes are disjoint, so `parameter_id` uniqueness is
+  # preserved after row-binding.
+  - output: Temp_CTAS_Values
+    name: dplyr::bind_rows
+    params:
+      vs: Temp_VS_Values
+      eg: Temp_EG_Values
   - output: Temp_CTAS_Results
     name: gsm.ctas::Analyze_CTAS
     params:
