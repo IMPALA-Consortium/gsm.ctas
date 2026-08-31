@@ -24,7 +24,7 @@ steps:
     name: workr::RunQuery
     params:
       df: Raw_EG
-      strQuery: "SELECT * FROM df WHERE"
+      strQuery: "SELECT * FROM df"
   # Unscheduled visits are dropped in the mapping layer so every downstream
   # standardised frame is filtered the same way without each metric YAML having
   # to remember to do it.

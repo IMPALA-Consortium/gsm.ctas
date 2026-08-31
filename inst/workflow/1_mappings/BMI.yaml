@@ -1,0 +1,65 @@
+meta:
+  Type: Mapped
+  ID: BMI
+  Description: BMI category rows derived from SDTM VS (HEIGHT + WEIGHT) via DuckDB SQL
+  Priority: 2
+spec:
+  Raw_VS:
+    STUDYID:
+      type: character
+    USUBJID:
+      type: character
+    VSTESTCD:
+      type: character
+    VSTEST:
+      type: character
+    VSSTRESN:
+      type: numeric
+    VISIT:
+      type: character
+    VISITNUM:
+      type: numeric
+steps:
+  # HEIGHT and WEIGHT are paired per (subject, visit). Visits missing either
+  # measurement are discarded by the INNER JOIN. `right = FALSE` bucket
+  # semantics: intervals are [lower, upper), so `< 18.5`, `< 25`, `< 30`,
+  # else `Obese`.
+  - output: Mapped_BMI
+    name: workr::RunQuery
+    params:
+      df: Raw_VS
+      strQuery: |
+        WITH filtered AS (
+          SELECT * FROM df
+          WHERE LOWER(VISIT) NOT LIKE '%unsch%'
+        ),
+        height AS (
+          SELECT USUBJID, VISIT,
+                 CAST(VSSTRESN AS DOUBLE) AS HEIGHT_CM
+          FROM filtered
+          WHERE VSTESTCD = 'HEIGHT' AND VSSTRESN IS NOT NULL
+        ),
+        weight AS (
+          SELECT STUDYID, USUBJID, VISIT, VISITNUM,
+                 CAST(VSSTRESN AS DOUBLE) AS WEIGHT_KG
+          FROM filtered
+          WHERE VSTESTCD = 'WEIGHT' AND VSSTRESN IS NOT NULL
+        )
+        SELECT
+          w.STUDYID,
+          w.USUBJID,
+          'BMICAT' AS VSTESTCD,
+          'BMI Category' AS VSTEST,
+          CASE
+            WHEN w.WEIGHT_KG / POWER(h.HEIGHT_CM / 100.0, 2) < 18.5 THEN 'Underweight'
+            WHEN w.WEIGHT_KG / POWER(h.HEIGHT_CM / 100.0, 2) < 25.0 THEN 'Normal'
+            WHEN w.WEIGHT_KG / POWER(h.HEIGHT_CM / 100.0, 2) < 30.0 THEN 'Overweight'
+            ELSE 'Obese'
+          END AS VSSTRESC,
+          w.VISIT,
+          w.VISITNUM
+        FROM weight w
+        JOIN height h
+          ON h.USUBJID = w.USUBJID
+         AND h.VISIT = w.VISIT
+        WHERE h.HEIGHT_CM > 0

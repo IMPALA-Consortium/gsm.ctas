@@ -1,5 +1,20 @@
 # gsm.ctas (development)
 
+## Derived BMI category flows through the categorical metric
+
+* New mapping `inst/workflow/1_mappings/BMI.yaml` derives per-visit BMI
+  category rows entirely in DuckDB SQL via `workr::RunQuery`. HEIGHT is
+  pooled to one value per subject (median across screening rows), each
+  `WEIGHT` row is joined 1:1, and BMI is bucketed into the WHO adult
+  categories (`"Underweight"`, `"Normal"`, `"Overweight"`, `"Obese"`).
+  Output rows carry `VSTESTCD = "BMICAT"` in the standard SDTM shape.
+* `inst/workflow/2_metrics/categorical.yaml` now standardises `Mapped_RS`
+  (as `"Disease Response"`) and `Mapped_BMI` (as `"BMI"`) separately, then
+  row-binds them before `Input_OneHot()`. `parameter_category_1` traces
+  each row back to its source, and the CTAS categorical run scores both
+  disease response and BMI-category site-level rates in a single
+  Analysis slot.
+
 ## Numeric metric now covers VS and EG in one Analysis slot
 
 * `inst/workflow/2_metrics/numeric.yaml` now standardises `Mapped_VS` and

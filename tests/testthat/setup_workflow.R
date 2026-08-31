@@ -26,9 +26,12 @@ dmSmall <- NULL
 if (bWorkflowRunnable) {
   vSites <- sort(unique(pharmaversesdtm::dm$SITEID))[1:6]
   dmSmall <- pharmaversesdtm::dm[pharmaversesdtm::dm$SITEID %in% vSites, ]
+  # HEIGHT + WEIGHT feed the BMI mapping (SQL-derived) even though the
+  # numeric metric scores them too.
   vsSmall <- pharmaversesdtm::vs[
     pharmaversesdtm::vs$USUBJID %in% dmSmall$USUBJID &
-      pharmaversesdtm::vs$VSTESTCD %in% c("SYSBP", "DIABP", "PULSE"),
+      pharmaversesdtm::vs$VSTESTCD %in%
+        c("SYSBP", "DIABP", "PULSE", "HEIGHT", "WEIGHT"),
   ]
   lbSmall <- pharmaversesdtm::lb[
     pharmaversesdtm::lb$USUBJID %in% dmSmall$USUBJID &

@@ -5,9 +5,25 @@ skip_if_not(
 
 test_that("mapping publishes the standardised transformation-typed frames", {
   expect_true(all(
-    c("Mapped_DM", "Mapped_VS", "Mapped_LB", "Mapped_EG", "Mapped_SITE",
-      "Mapped_STUDY", "Mapped_Subjects") %in% names(lMapped)
+    c("Mapped_DM", "Mapped_VS", "Mapped_LB", "Mapped_EG", "Mapped_BMI",
+      "Mapped_SITE", "Mapped_STUDY", "Mapped_Subjects") %in% names(lMapped)
   ))
+})
+
+test_that("Mapped_BMI derives WHO categories from VS HEIGHT and WEIGHT", {
+  dfBMI <- lMapped$Mapped_BMI
+
+  expect_true(all(
+    c("STUDYID", "USUBJID", "VSTESTCD", "VSTEST", "VSSTRESC",
+      "VISIT", "VISITNUM") %in% names(dfBMI)
+  ))
+  expect_setequal(unique(dfBMI$VSTESTCD), "BMICAT")
+  expect_true(all(
+    unique(dfBMI$VSSTRESC) %in%
+      c("Underweight", "Normal", "Overweight", "Obese")
+  ))
+  expect_gt(nrow(dfBMI), 0)
+  expect_setequal(unique(dfBMI$STUDYID), vStudyIDs)
 })
 
 test_that("mapping filters unscheduled visits from VS, LB and EG", {
@@ -131,6 +147,27 @@ test_that("numeric metric fans VS and EG into one Analysis slot", {
     unique(lAnalysis$Analysis_numeric$results$parameter_category_1),
     c("Vital Signs", "ECG")
   )
+})
+
+test_that("categorical metric fans RS and BMI into one Analysis slot", {
+  expect_setequal(
+    unique(lAnalysis$Analysis_categorical$input$parameter_category_1),
+    c("Disease Response", "BMI")
+  )
+  expect_setequal(
+    unique(lAnalysis$Analysis_categorical$results$parameter_category_1),
+    c("Disease Response", "BMI")
+  )
+  # BMI level labels flow through as `original_category` on the OneHot input.
+  vBMIOriginal <- unique(
+    lAnalysis$Analysis_categorical$input$original_category[
+      lAnalysis$Analysis_categorical$input$parameter_category_2 == "BMICAT"
+    ]
+  )
+  expect_true(all(
+    vBMIOriginal %in% c("Underweight", "Normal", "Overweight", "Obese")
+  ))
+  expect_gt(length(vBMIOriginal), 0)
 })
 
 test_that("Write_Results binds all metric shards and writes readable files", {

@@ -42,8 +42,26 @@ spec:
       type: character
     VISITNUM:
       type: numeric
+  Mapped_BMI:
+    STUDYID:
+      type: character
+    USUBJID:
+      type: character
+    VSTESTCD:
+      type: character
+    VSTEST:
+      type: character
+    VSSTRESC:
+      type: character
+    VISIT:
+      type: character
+    VISITNUM:
+      type: numeric
 steps:
-  - output: Temp_CTAS_Long
+  # Each source domain gets its own `Standardize_Domain` call so the per-row
+  # `parameter_category_1` traces back to the source. Downstream steps are
+  # category-agnostic.
+  - output: Temp_RS_Long
     name: gsm.ctas::Standardize_Domain
     params:
       dfDomain: Mapped_RS
@@ -53,6 +71,23 @@ steps:
       strValueCol: RSSTRESC
       strCategory: Disease Response
       strExcludePattern: ~
+  - output: Temp_BMI_Long
+    name: gsm.ctas::Standardize_Domain
+    params:
+      dfDomain: Mapped_BMI
+      dfSubjects: Mapped_Subjects
+      strTestCDCol: VSTESTCD
+      strTestCol: VSTEST
+      strValueCol: VSSTRESC
+      strCategory: BMI
+      strExcludePattern: ~
+  # RS and BMI testcodes are disjoint (`OVRLRESP` vs `BMICAT`), so
+  # `parameter_id` uniqueness is preserved after row-binding.
+  - output: Temp_CTAS_Long
+    name: dplyr::bind_rows
+    params:
+      rs: Temp_RS_Long
+      bmi: Temp_BMI_Long
   # `Input_OneHot` expands each row into one row per observed level of the
   # same test; `result` becomes the 0/1 indicator scored by CTAS.
   - output: Temp_CTAS_Values
@@ -77,9 +112,9 @@ steps:
       strPadjustMethod: PadjustMethod
       nSeed: Seed
   # `original_category` on `Temp_CTAS_Values` carries the raw label
-  # (e.g. `"CR"`, `"PD"`). We de-duplicate to one row per
+  # (e.g. `"CR"`, `"Obese"`). We de-duplicate to one row per
   # (subject x cat2 x visit) so it can flow through the `untransformed`
-  # shard without repeating each observation once per level.
+  # output without repeating each observation once per level.
   - output: Temp_CTAS_Untransformed
     name: gsm.ctas::Prepare_Untransformed
     params:
