@@ -18,6 +18,7 @@ reference:
   contents:
   - FilterVisits
   - Standardize_Domain
+  - Standardize_Queries
   - starts_with("Input_")
 - title: Preparation
   desc: Make values comparable across parameters.
@@ -31,7 +32,16 @@ reference:
   desc: Bind ctasapp shards and write them to disk for the ctasapp dashboard.
   contents:
   - Bind_Analysis
-  - Write_Results
+  - Write_ctasapp
 - title: Package
   contents:
   - gsm.ctas-package
+- title: Datasets
+  desc: Illustrative SDTM domains and EDC query records shipped with the package.
+  contents:
+  - dm
+  - lb
+  - vs
+  - eg
+  - rs
+  - queries

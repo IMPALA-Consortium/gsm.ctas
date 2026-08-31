@@ -51,12 +51,13 @@ if (bWorkflowRunnable) {
   # each study retains 6 sites and the full three-parameter families, so the
   # CTAS run for either study on its own is well-conditioned.
   StackTwoStudies <- function(df, strSubjectCol = "USUBJID",
-                              strSiteCol = "SITEID") {
+                              strSiteCol = "SITEID",
+                              strStudyCol = "STUDYID") {
     dfA <- df
-    dfA$STUDYID <- "STUDY_A"
+    dfA[[strStudyCol]] <- "STUDY_A"
 
     dfB <- df
-    dfB$STUDYID <- "STUDY_B"
+    dfB[[strStudyCol]] <- "STUDY_B"
     dfB[[strSubjectCol]] <- paste0("B_", dfB[[strSubjectCol]])
     if (length(strSiteCol) > 0 && strSiteCol %in% names(dfB)) {
       dfB[[strSiteCol]] <- paste0("B_", dfB[[strSiteCol]])
@@ -69,6 +70,16 @@ if (bWorkflowRunnable) {
   vsSmall <- StackTwoStudies(vsSmall, strSiteCol = NULL)
   lbSmall <- StackTwoStudies(lbSmall, strSiteCol = NULL)
   rsSmall <- StackTwoStudies(rsSmall, strSiteCol = NULL)
+  qSmall <- gsm.ctas::queries[
+    gsm.ctas::queries$subject_id %in%
+      unique(sub("^B_", "", dmSmall$USUBJID)),
+  ]
+  qSmall <- StackTwoStudies(
+    qSmall,
+    strSubjectCol = "subject_id",
+    strSiteCol = NULL,
+    strStudyCol = "study"
+  )
   egSmall <- StackTwoStudies(egSmall, strSiteCol = NULL)
   vSites <- sort(unique(dmSmall$SITEID))
   vStudyIDs <- sort(unique(dmSmall$STUDYID))
@@ -90,7 +101,8 @@ if (bWorkflowRunnable) {
     Raw_VS = as.data.frame(vsSmall),
     Raw_LB = as.data.frame(lbSmall),
     Raw_RS = as.data.frame(rsSmall),
-    Raw_EG = as.data.frame(egSmall)
+    Raw_EG = as.data.frame(egSmall),
+    Raw_Queries = as.data.frame(qSmall)
   )
 
   lIngest <- gsm.mapping::Ingest(lRaw, gsm.mapping::CombineSpecs(lMappingWorkflows))

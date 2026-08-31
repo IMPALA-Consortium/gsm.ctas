@@ -80,7 +80,18 @@ lMetricWorkflows <- workr::MakeWorkflowList(
 
 lAnalysis <- gsm.core::RunWorkflows(lMetricWorkflows, lMapped)
 
-Write_Results(lAnalysis, strDir = "ctas_shards", strFormat = "parquet")
+lReportingWorkflows <- workr::MakeWorkflowList(
+  strNames = NULL,
+  strPath = system.file("workflow/3_reporting", package = "gsm.ctas"),
+  strPackage = NULL
+)
+
+lReporting <- gsm.core::RunWorkflows(
+  lReportingWorkflows,
+  c(lMapped, list(lAnalyzed = lAnalysis))
+)
+
+Write_ctasapp(lReporting, strDir = "ctas_shards", strFormat = "parquet")
 ```
 
 The last line writes `results.parquet`, `input.parquet` and (when non-empty)
@@ -98,7 +109,7 @@ lRaw --Ingest--> lIngest --1_mappings--> lMapped --2_metrics--> lAnalysis
 |---|---|
 | `1_mappings` | SDTM readers (`DM`, `VS`, `LB`), site/study group tables, plus the transformation-typed frames `Subjects`, `Numeric`, `Range` |
 | `2_metrics` | One YAML per data-type transformation (`numeric`, `range_normalized`, `ratio_missing`), each running CTAS once |
-| `3_reporting` | `Write_Results`: bind ctasapp shards across metrics and write them to disk |
+| `3_reporting` | `Write_ctasapp`: bind ctasapp shards across metrics and write them to disk |
 
 Each metric emits three flat frames -- `results`, `input`, `untransformed` --
 in the shape ctasapp uploads consume. Multi-study inputs are honoured
@@ -124,7 +135,7 @@ Both common customisations are config-only and are documented in the vignette:
 | [`gsm.core`](https://github.com/Gilead-Public/gsm.core) | Workflow execution |
 | [`ctasapp`](https://github.com/IMPALA-Consortium/ctasapp) | Dashboard for drilling into a flagged site |
 
-`gsm.ctas` detects signals; `ctasapp` investigates them. `Write_Results()`
+`gsm.ctas` detects signals; `ctasapp` investigates them. `Write_ctasapp()`
 retains the timeseries-level detail that aggregation would discard, in the
 layout ctasapp reads.
 

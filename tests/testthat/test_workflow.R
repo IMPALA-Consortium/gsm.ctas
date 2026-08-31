@@ -64,7 +64,7 @@ test_that("every metric workflow emits the ctasapp-shaped list", {
         names(lResult$results)
     ))
     # `input` is the raw `Input_*()` output, so it carries `studyid`;
-    # `Write_Results()` renames it to `study` on the way to parquet.
+    # `Write_ctasapp()` renames it to `study` on the way to parquet.
     expect_true(all(
       c("subject_id", "parameter_id", "timepoint_1_name", "result",
         "site", "studyid", "parameter_name",
@@ -170,11 +170,22 @@ test_that("categorical metric fans RS and BMI into one Analysis slot", {
   expect_gt(length(vBMIOriginal), 0)
 })
 
-test_that("Write_Results binds all metric shards and writes readable files", {
+test_that("Write_ctasapp binds all metric shards and writes readable files", {
   skip_if_not_installed("arrow")
+  skip_if_not(bWorkflowRunnable)
+
+  lReportingWorkflows <- workr::MakeWorkflowList(
+    strNames = NULL,
+    strPath = system.file("workflow/3_reporting", package = "gsm.ctas"),
+    strPackage = NULL
+  )
+  lReporting <- suppressWarnings(gsm.core::RunWorkflows(
+    lWorkflows = lReportingWorkflows["Results"],
+    lData = list(lAnalyzed = lAnalysis)
+  ))
 
   strDir <- withr::local_tempdir()
-  vPaths <- Write_Results(lAnalysis, strDir, strFormat = "parquet")
+  vPaths <- Write_ctasapp(lReporting, strDir, strFormat = "parquet")
 
   expect_true(all(file.exists(vPaths)))
   expect_setequal(
@@ -202,29 +213,49 @@ test_that("Write_Results binds all metric shards and writes readable files", {
   expect_false(any(is.na(vOVRLRESP)))
 })
 
-test_that("Write_Results skips untransformed when no metric produced any", {
+test_that("Write_ctasapp skips empty frames", {
   skip_if_not_installed("arrow")
 
-  lNumericOnly <- lAnalysis["Analysis_numeric"]
-
+  lReporting <- list(
+    Reporting_Results = list(
+      results = data.frame(x = 1),
+      input = data.frame(x = 1),
+      untransformed = data.frame()
+    )
+  )
   strDir <- withr::local_tempdir()
-  vPaths <- Write_Results(lNumericOnly, strDir, strFormat = "parquet")
+  vPaths <- Write_ctasapp(lReporting, strDir, strFormat = "parquet")
 
   expect_false("untransformed.parquet" %in% basename(vPaths))
+  expect_setequal(basename(vPaths), c("results.parquet", "input.parquet"))
 })
 
-test_that("Write_Results writes a queries file when supplied", {
+test_that("Write_ctasapp writes queries alongside the metric shards", {
   skip_if_not_installed("arrow")
 
-  dfQueries <- data.frame(
-    study = "STUDY_A", subject_id = "S1", query = "check DBP"
+  lReporting <- list(
+    Reporting_Results = list(
+      results = data.frame(x = 1),
+      input = data.frame(x = 1),
+      untransformed = data.frame()
+    ),
+    Reporting_Queries = list(
+      queries = data.frame(
+        study = "STUDY_A", subject_id = "S1", query = "check DBP"
+      )
+    )
   )
   strDir <- withr::local_tempdir()
-  vPaths <- Write_Results(
-    lAnalysis, strDir, strFormat = "parquet", dfQueries = dfQueries
-  )
+  vPaths <- Write_ctasapp(lReporting, strDir, strFormat = "parquet")
 
   expect_true("queries.parquet" %in% basename(vPaths))
+})
+
+test_that("Write_ctasapp errors when there are no writable frames", {
+  expect_error(
+    Write_ctasapp(list(), tempfile()),
+    "no writable data frames"
+  )
 })
 
 test_that("Reporting workflow binds shards into a common list of frames", {
@@ -250,3 +281,42 @@ test_that("Reporting workflow binds shards into a common list of frames", {
   expect_setequal(unique(lFrames$results$study), vStudyIDs)
   expect_setequal(unique(lFrames$input$study), vStudyIDs)
 })
+
+test_that("Reporting workflow standardises queries via the Queries YAML", {
+  skip_if_not(bWorkflowRunnable)
+
+  lReportingWorkflows <- workr::MakeWorkflowList(
+    strNames = NULL,
+    strPath = system.file("workflow/3_reporting", package = "gsm.ctas"),
+    strPackage = NULL
+  )
+
+  lReporting <- suppressWarnings(gsm.core::RunWorkflows(
+    lWorkflows = lReportingWorkflows[c("Results", "Queries")],
+    lData = c(lMapped, list(lAnalyzed = lAnalysis))
+  ))
+
+  dfQ <- lReporting$Reporting_Queries$queries
+  expect_s3_class(dfQ, "data.frame")
+  expect_gt(nrow(dfQ), 0)
+  expect_true(all(
+    c("subject_id",
+      "parameter_id", "parameter_category_1", "parameter_category_2",
+      "timepoint_1_name") %in% names(dfQ)
+  ))
+  # `site` must NOT be present -- ctasapp re-joins it from measures.
+  expect_false("site" %in% names(dfQ))
+  expect_true(all(
+    dfQ$parameter_category_1 %in%
+      c("Labs", "Vital Signs", "ECG", "Disease Response")
+  ))
+  # parameter_id must be a transformed CTAS id present in Reporting_Input
+  # (fanned out via the parameter_category_2 join). ctasapp joins queries
+  # onto measures by parameter_id, so raw field codes wouldn't match.
+  dfInput <- lReporting$Reporting_Results$input
+  expect_true(all(dfQ$parameter_id %in% dfInput$parameter_id))
+  # Standardize_Queries inner-joins subjects, so every query subject_id must
+  # trace back to Mapped_Subjects.
+  expect_true(all(dfQ$subject_id %in% lMapped$Mapped_Subjects$subject_id))
+})
+

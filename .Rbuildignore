@@ -6,3 +6,4 @@
 ^pkgdown$
 ^\.github$
 ^\.Renviron$
+^data-raw$

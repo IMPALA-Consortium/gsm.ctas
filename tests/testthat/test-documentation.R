@@ -27,7 +27,7 @@ test_that("the vignette walks every workflow layer", {
   }
 
   # The two documented customisation paths, per PLAN.md WP9.
-  expect_true(grepl("Write_Results", strText, fixed = TRUE))
+  expect_true(grepl("Write_ctasapp", strText, fixed = TRUE))
   expect_true(grepl("Adding a metric", strText, fixed = TRUE))
 })
 

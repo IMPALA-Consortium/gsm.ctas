@@ -1,5 +1,54 @@
 # gsm.ctas (development)
 
+## ctasapp compatibility fixes for the queries reporting frame
+
+* `Standardize_Queries()` now drops `site`, `country`, and `studyid` from
+  the emitted queries frame. ctasapp re-joins `site` onto queries with
+  `dplyr::left_join(by = "subject_id")`, and a duplicate column silently
+  produced `site.x`/`site.y` and broke the downstream `site` filter, so the
+  ctasapp query table stayed empty.
+* `Standardize_Queries(dfQueries, dfSubjects, dfInput)` now accepts the
+  bound `Reporting_Input` frame and fans each raw `parameter_id` (a
+  field-level test code such as `"AST"`) out onto every transformed CTAS
+  parameter id sharing the same `parameter_category_2`
+  (e.g. `"RANGE_AST"`, `"MISS_AST"`, `"CAT_OVRLRESP=CR"`). ctasapp joins
+  queries onto measures by the transformed id, so raw codes never matched
+  and the query table and timeseries overlay were empty.
+* `inst/workflow/3_reporting/Queries.yaml` now depends on the
+  `Reporting_Results` list produced by the `Results` reporting workflow
+  (Priority 1) and pulls `input` out of it via `base::getElement` before
+  handing it to `Standardize_Queries()`.
+
+## `Write_Results()` renamed to `Write_ctasapp()`
+
+* Same signature and behaviour, but the name now reflects that the target
+  layout is the ctasapp dashboard. The `dfQueries` argument accepts the
+  standardised queries frame produced by the `Queries` reporting workflow
+  (typically `lReportingQueries$Reporting_Queries$queries`) and writes it
+  alongside the metric shards as `queries.<format>`.
+
+## Queries standardisation and reporting
+
+* New `Standardize_Queries()` maps the ctasapp query-upload contract into
+  the CTAS long vocabulary: `study`/`subject_id`/`visit`/`field`
+  become `studyid`/`subject_id`/`timepoint_1_name`/`parameter_category_2`,
+  and `domain` is translated to `parameter_category_1` (`LB` -> `"Labs"`,
+  `VS` -> `"Vital Signs"`, `EG` -> `"ECG"`, `RS` -> `"Disease Response"`;
+  unknown domains pass through). Rows are inner-joined to
+  `Mapped_Subjects` on `(studyid, subject_id)`.
+* New `inst/workflow/1_mappings/Queries.yaml` produces `Mapped_Queries`
+  as a pass-through of `Raw_Queries`, and new
+  `inst/workflow/3_reporting/Queries.yaml` calls `Standardize_Queries()`
+  to emit `lReportingQueries$queries`. `Results.yaml` is untouched.
+
+## Bundled SDTM sample data
+
+* Ships verbatim copies of the `pharmaversesdtm` domains needed by the
+  workflow (`dm`, `lb`, `vs`, `eg`, `rs`) as bundled datasets, plus a
+  synthetic `queries` frame matching the ctasapp upload contract. The
+  regeneration scripts live under `data-raw/` (not installed) and run
+  deterministically from a fixed seed.
+
 ## Derived BMI category flows through the categorical metric
 
 * New mapping `inst/workflow/1_mappings/BMI.yaml` derives per-visit BMI

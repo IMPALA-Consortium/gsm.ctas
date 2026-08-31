@@ -10,7 +10,7 @@ spec:
 steps:
   # Stack each named shard across every metric workflow output. Bound frames
   # match the ctasapp column contract (studyid -> study) and can be written
-  # to parquet with `Write_Results()` or handed to ctasapp validators.
+  # to parquet with `Write_ctasapp()` or handed to ctasapp validators.
   - output: Reporting_Results
     name: gsm.ctas::Bind_Analysis
     params:

@@ -4,7 +4,7 @@
 #' from every entry of `lAnalysis` into a single data frame. Used by the
 #' reporting workflow to concatenate metric shards into the frames
 #' [ctasapp](https://github.com/IMPALA-Consortium/ctasapp) reads, and reused
-#' internally by [Write_Results()].
+#' internally by [Write_ctasapp()].
 #'
 #' `studyid` is renamed to `study` when present so the bound frames match
 #' the ctasapp column convention. For `"untransformed"`, rows are dropped

@@ -21,7 +21,7 @@ Stacks the \code{strName} element (\code{"results"}, \code{"input"} or \code{"un
 from every entry of \code{lAnalysis} into a single data frame. Used by the
 reporting workflow to concatenate metric shards into the frames
 \href{https://github.com/IMPALA-Consortium/ctasapp}{ctasapp} reads, and reused
-internally by \code{\link[=Write_Results]{Write_Results()}}.
+internally by \code{\link[=Write_ctasapp]{Write_ctasapp()}}.
 }
 \details{
 \code{studyid} is renamed to \code{study} when present so the bound frames match

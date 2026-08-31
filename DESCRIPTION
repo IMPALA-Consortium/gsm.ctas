@@ -12,6 +12,7 @@ Description: Integrates the 'ctas' clinical trial anomaly detection statistics
     dashboard consumes, together with declarative workflow YAML.
 License: MIT + file LICENSE
 Encoding: UTF-8
+LazyData: true
 Roxygen: list(markdown = TRUE)
 Depends:
     R (>= 4.1.0)

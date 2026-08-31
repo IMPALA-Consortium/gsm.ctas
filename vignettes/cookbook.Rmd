@@ -35,23 +35,27 @@ library(dplyr)
 
 ## Input data
 
-`pharmaversesdtm` provides the SDTM domains. The example is cut down to six
-sites and a handful of tests to keep the engine fast.
+`gsm.ctas` ships verbatim copies of the SDTM domains needed by the workflow
+(`dm`, `lb`, `vs`, `eg`, `rs`) alongside a synthetic `queries` frame matching
+the ctasapp upload contract, so the walkthrough runs without any external
+data dependency.
 
 ```{r data}
 
-dfDM <- pharmaversesdtm::dm
-dfVS <- pharmaversesdtm::vs
-dfLB <- pharmaversesdtm::lb
-dfRS <- pharmaversesdtm::rs_onco
-dfEG <- pharmaversesdtm::eg
+dfDM <- gsm.ctas::dm
+dfVS <- gsm.ctas::vs
+dfLB <- gsm.ctas::lb
+dfRS <- gsm.ctas::rs
+dfEG <- gsm.ctas::eg
+dfQueries <- gsm.ctas::queries
 
 lRaw <- list(
   Raw_DM = as.data.frame(dfDM),
   Raw_VS = as.data.frame(dfVS),
   Raw_LB = as.data.frame(dfLB),
   Raw_RS = as.data.frame(dfRS),
-  Raw_EG = as.data.frame(dfEG)
+  Raw_EG = as.data.frame(dfEG),
+  Raw_Queries = as.data.frame(dfQueries)
 )
 ```
 
@@ -178,7 +182,7 @@ into one binary CTAS timeseries per observed level, so `Analyze_CTAS()` can
 flag sites whose per-level rates drift from their peers.
 
 ```{r categorical}
-dfRS <- pharmaversesdtm::rs_onco
+dfRS <- gsm.ctas::rs
 dfRS <- dfRS[dfRS$RSTESTCD == "OVRLRESP", ]
 
 dfStandard <- Standardize_Domain(
@@ -230,6 +234,26 @@ intersect(
   unique(Input_Range(dfLB)$parameter_category_2),
   unique(Input_Missing(dfLB)$parameter_category_2)
 ) |> head()
+```
+
+### EDC queries
+
+`Standardize_Queries()` mirrors `Standardize_Domain()` for EDC query records:
+it translates the ctasapp query upload schema (`study`, `domain`, `field`,
+`subject_id`, `visit`, `parameter_id`) into the CTAS long vocabulary and
+inner-joins `Mapped_Subjects` on `(studyid, subject_id)`. `domain` becomes
+`parameter_category_1` via a fixed map (`LB` -> `"Labs"`, `VS` ->
+`"Vital Signs"`, `EG` -> `"ECG"`, `RS` -> `"Disease Response"`; unknown
+values pass through verbatim), `field` becomes `parameter_category_2`, and
+the original 15 upload columns are preserved for downstream joins.
+
+```{r queries_standardize}
+dfQ <- Standardize_Queries(
+  dfQueries = lMapped$Mapped_Queries,
+  dfSubjects = lMapped$Mapped_Subjects
+)
+
+as_tibble(dfQ)
 ```
 
 
@@ -286,18 +310,21 @@ lReportingWorkflows <- workr::MakeWorkflowList(
 )
 
 lReporting <- gsm.core::RunWorkflows(
-  lWorkflows = lReportingWorkflows["Results"],
-  lData = list(lAnalyzed = lAnalysis)
+  lWorkflows = lReportingWorkflows,
+  lData = c(lMapped, list(lAnalyzed = lAnalysis))
 )
 
-str(lReporting$Reporting_Results)
+str(lReporting)
 ```
 
-`Write_Results()` is the one-shot alternative that binds and writes to
-disk. Parquet is the default because `input` grows quickly.
+`Write_ctasapp()` walks the reporting output and writes every frame it
+finds -- `results`, `input`, `untransformed` from the `Results` workflow
+and `queries` from the `Queries` workflow -- as parquet (or csv) in one
+call. Empty frames are skipped; a mis-shaped input errors rather than
+producing an empty directory.
 
 ```{r reporting, eval = FALSE}
-Write_Results(lReporting, strDir = "pub", strFormat = "parquet")
+Write_ctasapp(lReporting, strDir = "pub", strFormat = "parquet")
 ```
 
 Point [ctasapp](https://github.com/IMPALA-Consortium/ctasapp) at the same

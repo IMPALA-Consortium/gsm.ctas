@@ -66,7 +66,7 @@ Input_OneHot <- function(df, strPrefix = "CAT") {
       timepoint_2_name = NA_character_,
       timepoint_rank = as.numeric(.data$visitnum),
       result = as.numeric(.data$Encoded),
-      # `value` is coerced to the 0/1 CTAS signal so `Write_Results` can
+      # `value` is coerced to the 0/1 CTAS signal so `Write_ctasapp` can
       # bind_rows with numeric-`value` shards; the raw label is kept as
       # `original_category`.
       value = as.numeric(.data$Encoded),
