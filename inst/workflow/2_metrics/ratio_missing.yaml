@@ -7,7 +7,7 @@ meta:
   FeatureAverage: true
   FeatureSD: true
   FeatureRange: false
-  FeatureUniqueValueCountRelative: true
+  FeatureUniqueValueCountRelative: false
   FeatureOwnSiteSimilScore: false
   FeatureLOF: false
   MinTimepoints: 1
@@ -41,8 +41,41 @@ spec:
       type: character
     VISITNUM:
       type: numeric
+  Mapped_VS:
+    STUDYID:
+      type: character
+    USUBJID:
+      type: character
+    VSTESTCD:
+      type: character
+    VSTEST:
+      type: character
+    VSSTRESN:
+      type: numeric
+    VISIT:
+      type: character
+    VISITNUM:
+      type: numeric
+  Mapped_EG:
+    STUDYID:
+      type: character
+    USUBJID:
+      type: character
+    EGTESTCD:
+      type: character
+    EGTEST:
+      type: character
+    EGSTRESN:
+      type: numeric
+    VISIT:
+      type: character
+    VISITNUM:
+      type: numeric
 steps:
-  - output: Temp_CTAS_Long
+  # Each numeric source domain gets its own `Standardize_Domain` call so the
+  # per-row `parameter_category_1` traces back to the source. Downstream
+  # steps are category-agnostic.
+  - output: Temp_LB_Long
     name: gsm.ctas::Standardize_Domain
     params:
       dfDomain: Mapped_LB
@@ -52,7 +85,36 @@ steps:
       strValueCol: LBSTRESN
       strCategory: Labs
       strExcludePattern: ~
-  # NA values in LBSTRESN are the missingness signal `Input_Missing` picks up.
+  - output: Temp_VS_Long
+    name: gsm.ctas::Standardize_Domain
+    params:
+      dfDomain: Mapped_VS
+      dfSubjects: Mapped_Subjects
+      strTestCDCol: VSTESTCD
+      strTestCol: VSTEST
+      strValueCol: VSSTRESN
+      strCategory: Vital Signs
+      strExcludePattern: ~
+  - output: Temp_EG_Long
+    name: gsm.ctas::Standardize_Domain
+    params:
+      dfDomain: Mapped_EG
+      dfSubjects: Mapped_Subjects
+      strTestCDCol: EGTESTCD
+      strTestCol: EGTEST
+      strValueCol: EGSTRESN
+      strCategory: ECG
+      strExcludePattern: ~
+  # LB / VS / EG testcodes are disjoint, so `parameter_id` uniqueness is
+  # preserved after row-binding.
+  - output: Temp_CTAS_Long
+    name: dplyr::bind_rows
+    params:
+      lb: Temp_LB_Long
+      vs: Temp_VS_Long
+      eg: Temp_EG_Long
+  # NA values in the source *STRESN columns are the missingness signal
+  # `Input_Missing` picks up.
   - output: Temp_CTAS_Values
     name: gsm.ctas::Input_Missing
     params:

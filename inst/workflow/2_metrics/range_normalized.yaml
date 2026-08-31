@@ -4,7 +4,7 @@ meta:
   FeatureAutocorr: true
   FeatureAverage: true
   FeatureSD: true
-  FeatureRange: false
+  FeatureRange: true
   FeatureUniqueValueCountRelative: true
   FeatureOwnSiteSimilScore: false
   FeatureLOF: false
