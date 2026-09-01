@@ -2,11 +2,10 @@
 #'
 #' One row per unique `(parameter_category_2, parameter_category_3)` pair
 #' in the unfiltered stacked CTAS results, so every field the pipeline
-#' scored appears in the table even if [Filter_Flagged()] later drops it
-#' from the summary. Carries the labels the `gsm.kri` overview widget and
-#' per-metric bar chart consume, plus one column per CTAS parameter
-#' (Feature toggles, sample-size gates, scoring / padjust methods, seed)
-#' harvested from each metric workflow's `meta:` block.
+#' scored appears in the table. Carries the labels the `gsm.kri` overview
+#' widget and per-metric bar chart consume, plus one column per CTAS
+#' parameter (Feature toggles, sample-size gates, scoring / padjust
+#' methods, seed) harvested from each metric workflow's `meta:` block.
 #'
 #' `MetricID` is `ctas_<parameter_category_3>_<parameter_category_2>` --
 #' family-granular so each `(field, metric family)` pair carries its own
@@ -79,7 +78,7 @@ MakeMetric_CTAS <- function(dfResults,
   vType <- dfKeys$parameter_category_3
   vParamId <- if ("parameter_id" %in% names(dfKeys)) dfKeys$parameter_id else NA_character_
   vCat1 <- if ("parameter_category_1" %in% names(dfKeys)) dfKeys$parameter_category_1 else NA_character_
-  vParamName <- .LookupParameterName(vParamId, dfInput)
+  vParamName <- LookupParameterName(vParamId, dfInput)
 
   dfBase <- data.frame(
     MetricID = paste0("ctas_", vType, "_", vField),
@@ -99,65 +98,9 @@ MakeMetric_CTAS <- function(dfResults,
     row.names = NULL
   )
 
-  dfParams <- .MetricParamsFrame(vType, lMetricWorkflows)
+  dfParams <- MetricParamsFrame(vType, lMetricWorkflows)
 
   cbind(dfBase, dfParams)
-}
-
-.LookupParameterName <- function(vParamId, dfInput) {
-  if (is.null(dfInput) ||
-      !all(c("parameter_id", "parameter_name") %in% names(dfInput))) {
-    return(rep(NA_character_, length(vParamId)))
-  }
-  dfLookup <- dplyr::distinct(
-    dfInput[, c("parameter_id", "parameter_name"), drop = FALSE]
-  )
-  dfLookup <- dfLookup[!duplicated(dfLookup$parameter_id), , drop = FALSE]
-  as.character(
-    dfLookup$parameter_name[match(vParamId, dfLookup$parameter_id)]
-  )
-}
-
-# Columns follow the metric YAML meta block order so the audit table scans
-# left-to-right the same way sponsors read the YAMLs.
-.vMetricParamCols <- c(
-  "FeatureAutocorr", "FeatureAverage", "FeatureSD", "FeatureRange",
-  "FeatureUniqueValueCountRelative", "FeatureOwnSiteSimilScore",
-  "FeatureLOF",
-  "MinTimepoints", "MinSubjects", "MaxShareMissing",
-  "ScoringMethod", "PadjustMethod", "Seed"
-)
-
-.MetricParamsFrame <- function(vType, lMetricWorkflows) {
-  lRows <- lapply(vType, function(strType) {
-    lMeta <- .FindMetricMeta(strType, lMetricWorkflows)
-    vapply(
-      .vMetricParamCols,
-      function(strCol) {
-        val <- lMeta[[strCol]]
-        if (is.null(val)) NA_character_ else as.character(val)
-      },
-      character(1)
-    )
-  })
-  dfParams <- as.data.frame(
-    do.call(rbind, lRows),
-    stringsAsFactors = FALSE
-  )
-  names(dfParams) <- .vMetricParamCols
-  dfParams
-}
-
-.FindMetricMeta <- function(strType, lMetricWorkflows) {
-  if (is.null(lMetricWorkflows) || length(lMetricWorkflows) == 0L) {
-    return(list())
-  }
-  for (lWorkflow in lMetricWorkflows) {
-    if (identical(as.character(lWorkflow$meta$ID), strType)) {
-      return(lWorkflow$meta)
-    }
-  }
-  list()
 }
 
 #' Collapse the CTAS metrics audit table to a `gsm.kri`-ready `dfMetrics`
@@ -177,8 +120,8 @@ MakeMetric_CTAS <- function(dfResults,
 #'
 #' @param dfMetrics `data.frame` Output of [MakeMetric_CTAS()]. Must carry
 #'   `parameter_category_2`.
-#' @param dfSummary `data.frame` Filtered CTAS summary (post
-#'   [Filter_Flagged()]). Must contain `MetricID`.
+#' @param dfSummary `data.frame` Filtered CTAS summary. Must contain
+#'   `MetricID`.
 #'
 #' @return `data.frame` One row per `MetricID` present in
 #'   `dfSummary$MetricID`, preserving column order of `dfMetrics`.

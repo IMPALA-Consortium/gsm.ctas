@@ -351,7 +351,7 @@ test_that("Summary workflow packages a gsm KRI-shaped summary + metrics + groups
 
   dfMetrics <- lSummary$metrics
   # Metrics table is the full audit — every field the pipeline scored
-  # appears, including any that Filter_Flagged drops from the summary.
+  # appears, including any the summary SQL filter drops.
   expect_identical(dfMetrics, lReporting$Reporting_Metrics)
   expect_true(all(startsWith(dfMetrics$MetricID, "ctas_")))
   expect_setequal(unique(dfMetrics$AnalysisType), "CTAS")
@@ -368,7 +368,7 @@ test_that("Summary workflow packages a gsm KRI-shaped summary + metrics + groups
   expect_true(all(
     paste0("ctas_", unique(dfMetrics$parameter_category_2)) %in%
       c(unique(dfSummary$MetricID),
-        # audit may include fields Filter_Flagged dropped
+        # audit may include fields the summary filter dropped
         setdiff(paste0("ctas_", unique(dfMetrics$parameter_category_2)),
                 unique(dfSummary$MetricID)))
   ))

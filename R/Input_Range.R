@@ -7,7 +7,7 @@
 #' `original_category`) so [Analyze_CTAS()] can emit the ctasapp-shaped
 #' `untransformed` frame without extra bookkeeping.
 #'
-#' @param df `data.frame` Long-format output of [Standardize_Domain()] with
+#' @param dfInput `data.frame` Long-format output of [Standardize_Domain()] with
 #'   the reference range columns `low`/`high`.
 #' @param strPrefix `character` Prefix for the generated `parameter_id`.
 #'
@@ -18,17 +18,17 @@
 #'   sibling metrics on the same field.
 #'
 #' @export
-Input_Range <- function(df, strPrefix = "RANGE") {
+Input_Range <- function(dfInput, strPrefix = "RANGE") {
   AssertColumns(
-    df,
+    dfInput,
     c("subject_id", "parameter_id", "parameter_name",
       "parameter_category_1", "parameter_category_2",
       "visit", "visitnum",
       "value", "low", "high"),
-    "df"
+    "dfInput"
   )
 
-  df |>
+  dfInput |>
     dplyr::filter(!is.na(.data$value)) |>
     dplyr::mutate(
       original_value = as.numeric(.data$value),

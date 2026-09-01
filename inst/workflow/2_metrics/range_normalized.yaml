@@ -55,15 +55,14 @@ steps:
       strLowCol: LBSTNRLO
       strHighCol: LBSTNRHI
       strCategory: Labs
-      strExcludePattern: ~
   - output: Temp_CTAS_Values
     name: gsm.ctas::Input_Range
     params:
-      df: Temp_CTAS_Long
+      dfInput: Temp_CTAS_Long
   - output: Temp_CTAS_Results
     name: gsm.ctas::Analyze_CTAS
     params:
-      df: Temp_CTAS_Values
+      dfInput: Temp_CTAS_Values
       bAutocorr: FeatureAutocorr
       bAverage: FeatureAverage
       bSD: FeatureSD

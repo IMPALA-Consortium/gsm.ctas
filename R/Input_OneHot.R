@@ -7,7 +7,7 @@
 #' each `parameter_category_2` so tests with different level sets stay
 #' separated.
 #'
-#' @param df `data.frame` Long-format output of [Standardize_Domain()], with
+#' @param dfInput `data.frame` Long-format output of [Standardize_Domain()], with
 #'   at minimum `subject_id`, `parameter_id`, `parameter_name`,
 #'   `parameter_category_1`, `parameter_category_2`, `visit`, `visitnum`,
 #'   `value`. `value` is treated as a character categorical.
@@ -21,16 +21,16 @@
 #'   used by [Analyze_CTAS()].
 #'
 #' @export
-Input_OneHot <- function(df, strPrefix = "CAT") {
+Input_OneHot <- function(dfInput, strPrefix = "CAT") {
   AssertColumns(
-    df,
+    dfInput,
     c("subject_id", "parameter_id", "parameter_name",
       "parameter_category_1", "parameter_category_2",
       "visit", "visitnum", "value"),
-    "df"
+    "dfInput"
   )
 
-  dfClean <- df |>
+  dfClean <- dfInput |>
     dplyr::filter(!is.na(.data$value), nzchar(as.character(.data$value))) |>
     dplyr::mutate(original_category = as.character(.data$value)) |>
     dplyr::group_by(.data$parameter_category_2) |>

@@ -20,17 +20,8 @@ spec:
     VISITNUM:
       type: numeric
 steps:
-  - output: Temp_EG_Raw
+  - output: Mapped_EG
     name: workr::RunQuery
     params:
       df: Raw_EG
-      strQuery: "SELECT * FROM df"
-  # Unscheduled visits are dropped in the mapping layer so every downstream
-  # standardised frame is filtered the same way without each metric YAML having
-  # to remember to do it.
-  - output: Mapped_EG
-    name: gsm.ctas::FilterVisits
-    params:
-      dfInput: Temp_EG_Raw
-      strVisitCol: VISIT
-      strExcludePattern: unsch
+      strQuery: "SELECT * FROM df WHERE LOWER(VISIT) NOT LIKE '%unsch%'"

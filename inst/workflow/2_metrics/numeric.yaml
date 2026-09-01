@@ -67,7 +67,6 @@ steps:
       strTestCol: VSTEST
       strValueCol: VSSTRESN
       strCategory: Vital Signs
-      strExcludePattern: ~
   - output: Temp_EG_Values
     name: gsm.ctas::Standardize_Domain
     params:
@@ -77,7 +76,6 @@ steps:
       strTestCol: EGTEST
       strValueCol: EGSTRESN
       strCategory: ECG
-      strExcludePattern: ~
   # VS and EG testcodes are disjoint, so `parameter_id` uniqueness is
   # preserved after row-binding.
   - output: Temp_CTAS_Values
@@ -88,7 +86,7 @@ steps:
   - output: Temp_CTAS_Results
     name: gsm.ctas::Analyze_CTAS
     params:
-      df: Temp_CTAS_Values
+      dfInput: Temp_CTAS_Values
       bAutocorr: FeatureAutocorr
       bAverage: FeatureAverage
       bSD: FeatureSD

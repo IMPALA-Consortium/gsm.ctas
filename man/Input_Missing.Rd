@@ -4,10 +4,10 @@
 \alias{Input_Missing}
 \title{Convert findings to a running missing-ratio timeseries for CTAS}
 \usage{
-Input_Missing(df, strPrefix = "MISS")
+Input_Missing(dfInput, strPrefix = "MISS")
 }
 \arguments{
-\item{df}{\code{data.frame} Long-format output of \code{\link[=Standardize_Domain]{Standardize_Domain()}}.}
+\item{dfInput}{\code{data.frame} Long-format output of \code{\link[=Standardize_Domain]{Standardize_Domain()}}.}
 
 \item{strPrefix}{\code{character} Prefix for the generated \code{parameter_id}.}
 }

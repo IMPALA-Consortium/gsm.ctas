@@ -16,20 +16,15 @@ reference:
 - title: Mapping
   desc: Map SDTM domains into the CTAS long-format vocabulary.
   contents:
-  - FilterVisits
   - Standardize_Domain
   - Standardize_Queries
   - starts_with("Input_")
-- title: Preparation
-  desc: Make values comparable across parameters.
-  contents:
-  - starts_with("Prepare_")
 - title: Analysis
-  desc: Run CTAS and emit ctasapp-shaped shards.
+  desc: Run CTAS and emit the ctasapp-shaped output frames.
   contents:
   - Analyze_CTAS
 - title: Reporting
-  desc: Bind ctasapp shards and write them to disk for the ctasapp dashboard.
+  desc: Bind the ctasapp output frames and write them to disk for the ctasapp dashboard.
   contents:
   - Bind_Analysis
   - Write_ctasapp
@@ -38,7 +33,6 @@ reference:
   contents:
   - Summarize_CTAS
   - Flag_CTAS
-  - Filter_Flagged
   - MakeMetric_CTAS
   - Prune_Metrics
   - Drop_Chart

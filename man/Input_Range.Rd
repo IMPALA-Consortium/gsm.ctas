@@ -4,10 +4,10 @@
 \alias{Input_Range}
 \title{Normalise reference-bounded numeric findings for CTAS}
 \usage{
-Input_Range(df, strPrefix = "RANGE")
+Input_Range(dfInput, strPrefix = "RANGE")
 }
 \arguments{
-\item{df}{\code{data.frame} Long-format output of \code{\link[=Standardize_Domain]{Standardize_Domain()}} with
+\item{dfInput}{\code{data.frame} Long-format output of \code{\link[=Standardize_Domain]{Standardize_Domain()}} with
 the reference range columns \code{low}/\code{high}.}
 
 \item{strPrefix}{\code{character} Prefix for the generated \code{parameter_id}.}

@@ -10,8 +10,8 @@ Prune_Metrics(dfMetrics, dfSummary)
 \item{dfMetrics}{\code{data.frame} Output of \code{\link[=MakeMetric_CTAS]{MakeMetric_CTAS()}}. Must carry
 \code{parameter_category_2}.}
 
-\item{dfSummary}{\code{data.frame} Filtered CTAS summary (post
-\code{\link[=Filter_Flagged]{Filter_Flagged()}}). Must contain \code{MetricID}.}
+\item{dfSummary}{\code{data.frame} Filtered CTAS summary. Must contain
+\code{MetricID}.}
 }
 \value{
 \code{data.frame} One row per \code{MetricID} present in

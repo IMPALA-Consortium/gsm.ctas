@@ -24,14 +24,8 @@ spec:
     VISITNUM:
       type: numeric
 steps:
-  - output: Temp_LB_Raw
+  - output: Mapped_LB
     name: workr::RunQuery
     params:
       df: Raw_LB
-      strQuery: "SELECT * FROM df"
-  - output: Mapped_LB
-    name: gsm.ctas::FilterVisits
-    params:
-      dfInput: Temp_LB_Raw
-      strVisitCol: VISIT
-      strExcludePattern: unsch
+      strQuery: "SELECT * FROM df WHERE LOWER(VISIT) NOT LIKE '%unsch%'"

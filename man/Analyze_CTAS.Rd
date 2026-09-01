@@ -5,7 +5,7 @@
 \title{Score sites with CTAS}
 \usage{
 Analyze_CTAS(
-  df,
+  dfInput,
   bAutocorr = TRUE,
   bAverage = TRUE,
   bSD = TRUE,
@@ -28,11 +28,11 @@ Analyze_CTAS(
 )
 }
 \arguments{
-\item{df}{\code{data.frame} Long-format CTAS input with at minimum \code{subject_id},
-\code{site}, \code{parameter_id}, \code{parameter_name}, \code{parameter_category_1/2/3},
-\code{timepoint_1_name}, \code{timepoint_2_name}, \code{timepoint_rank}, \code{result},
-\code{baseline}. Additional CTAS subject columns (\code{country}, \code{region}) are
-carried through when present.}
+\item{dfInput}{\code{data.frame} Long-format CTAS input with at minimum
+\code{subject_id}, \code{site}, \code{parameter_id}, \code{parameter_name},
+\code{parameter_category_1/2/3}, \code{timepoint_1_name}, \code{timepoint_2_name},
+\code{timepoint_rank}, \code{result}, \code{baseline}. Additional CTAS subject columns
+(\code{country}, \code{region}) are carried through when present.}
 
 \item{bAutocorr}{\code{logical} Score the \code{autocorr} feature.}
 
@@ -74,7 +74,7 @@ forwarded to \code{\link[ctas:process_a_study]{ctas::process_a_study()}}. Defaul
 
 \item{nSeed}{\code{numeric} Optional seed for reproducibility.}
 
-\item{strStudyCol}{\code{character} Column on \code{df} identifying the study.
+\item{strStudyCol}{\code{character} Column on \code{dfInput} identifying the study.
 \code{NULL} disables the split and drops the \code{study} output column.}
 
 \item{...}{Further arguments passed to \code{\link[ctas:process_a_study]{ctas::process_a_study()}}.}
@@ -92,17 +92,38 @@ study when the multi-study contract is active, runs \code{process_a_study()}
 per study, and returns the flat \code{results} frame ctasapp displays.
 }
 \details{
-Only \code{results} is returned; the \code{input} and \code{untransformed} shards ctasapp
-also consumes are pure projections of the input \code{df}, so the metric YAML
-assembles the ctasapp payload in a separate \code{base::list} step (see
+Only \code{results} is returned; the \code{input} and \code{untransformed} frames ctasapp
+also consumes are pure projections of the input \code{dfInput}, so the metric
+YAML assembles the ctasapp payload in a separate \code{base::list} step (see
 \verb{inst/workflow/2_metrics/*.yaml}).
 
 The single-df pattern follows
 \href{https://github.com/IMPALA-Consortium/ctasval}{ctasval}: \code{subjects} and
-\code{parameters} are re-derived from \code{df} via \code{distinct()} inside the function
-so callers only have to keep one frame consistent.
+\code{parameters} are re-derived from \code{dfInput} via \code{distinct()} inside the
+function so callers only have to keep one frame consistent.
 
 Feature selection is a boolean-per-feature contract instead of the
 semicolon-delimited string CTAS accepts, so metric YAMLs can toggle
 features individually from \verb{meta:}.
+}
+\examples{
+\donttest{
+dfSubjects <- data.frame(
+  studyid = pharmaversesdtm::dm$STUDYID,
+  subject_id = pharmaversesdtm::dm$USUBJID,
+  site = pharmaversesdtm::dm$SITEID,
+  country = pharmaversesdtm::dm$COUNTRY
+)
+dfValues <- Standardize_Domain(
+  dfDomain = pharmaversesdtm::vs,
+  dfSubjects = dfSubjects,
+  strTestCDCol = "VSTESTCD", strTestCol = "VSTEST",
+  strValueCol = "VSSTRESN",
+  strCategory = "Vital Signs"
+)
+dfResults <- Analyze_CTAS(dfValues, nSeed = 1)
+lAnalysis <- list(ID = "numeric", results = dfResults,
+                  input = dfValues, untransformed = dfValues)
+}
+
 }

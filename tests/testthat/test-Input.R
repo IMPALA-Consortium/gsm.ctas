@@ -23,8 +23,7 @@ MakeVSLong <- function() {
     dfSubjects = MakeSubjects(),
     strTestCDCol = "VSTESTCD", strTestCol = "VSTEST",
     strValueCol = "VSSTRESN",
-    strCategory = "Vital Signs",
-    strExcludePattern = NULL
+    strCategory = "Vital Signs"
   )
 }
 
@@ -35,8 +34,7 @@ MakeLBLong <- function() {
     strTestCDCol = "LBTESTCD", strTestCol = "LBTEST",
     strValueCol = "LBSTRESN",
     strLowCol = "LBSTNRLO", strHighCol = "LBSTNRHI",
-    strCategory = "Labs",
-    strExcludePattern = NULL
+    strCategory = "Labs"
   )
 }
 
@@ -48,8 +46,7 @@ MakeRSLong <- function() {
     dfSubjects = MakeSubjects(),
     strTestCDCol = "RSTESTCD", strTestCol = "RSTEST",
     strValueCol = "RSSTRESC",
-    strCategory = "Disease Response",
-    strExcludePattern = NULL
+    strCategory = "Disease Response"
   )
 }
 
@@ -114,26 +111,6 @@ test_that("Standardize_Domain joins studyid/site/country from dfSubjects", {
   expect_equal(dfLong$studyid, "A")
   expect_equal(dfLong$site, "701")
   expect_equal(dfLong$country, "USA")
-})
-
-test_that("Standardize_Domain filters unscheduled visits by default", {
-  dfSubjects <- data.frame(subject_id = "S1", site = "701")
-  dfDomain <- data.frame(
-    USUBJID = c("S1", "S1"),
-    VSTESTCD = "SYSBP", VSTEST = "Systolic Blood Pressure",
-    VSSTRESN = c(120, 122),
-    VISIT = c("WEEK 2", "UNSCHEDULED 1"),
-    VISITNUM = c(3, 3.5)
-  )
-
-  dfLong <- Standardize_Domain(
-    dfDomain, dfSubjects,
-    strTestCDCol = "VSTESTCD", strTestCol = "VSTEST",
-    strValueCol = "VSSTRESN",
-    strCategory = "Vital Signs"
-  )
-
-  expect_setequal(dfLong$visit, "WEEK 2")
 })
 
 test_that("Standardize_Domain carries low/high when the columns are supplied", {

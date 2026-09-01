@@ -50,11 +50,10 @@ uses as each metric column's header (see \code{gsm.viz}
 \description{
 One row per unique \verb{(parameter_category_2, parameter_category_3)} pair
 in the unfiltered stacked CTAS results, so every field the pipeline
-scored appears in the table even if \code{\link[=Filter_Flagged]{Filter_Flagged()}} later drops it
-from the summary. Carries the labels the \code{gsm.kri} overview widget and
-per-metric bar chart consume, plus one column per CTAS parameter
-(Feature toggles, sample-size gates, scoring / padjust methods, seed)
-harvested from each metric workflow's \verb{meta:} block.
+scored appears in the table. Carries the labels the \code{gsm.kri} overview
+widget and per-metric bar chart consume, plus one column per CTAS
+parameter (Feature toggles, sample-size gates, scoring / padjust
+methods, seed) harvested from each metric workflow's \verb{meta:} block.
 }
 \details{
 \code{MetricID} is \verb{ctas_<parameter_category_3>_<parameter_category_2>} --

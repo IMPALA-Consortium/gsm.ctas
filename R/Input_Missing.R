@@ -5,7 +5,7 @@
 #' visit) so CTAS can score sites on data-completeness patterns. Rows with
 #' `NA` values are kept because they carry the signal.
 #'
-#' @param df `data.frame` Long-format output of [Standardize_Domain()].
+#' @param dfInput `data.frame` Long-format output of [Standardize_Domain()].
 #' @param strPrefix `character` Prefix for the generated `parameter_id`.
 #'
 #' @return `data.frame` in the CTAS long-format vocabulary. `parameter_id`
@@ -14,16 +14,16 @@
 #'   metrics on the same field.
 #'
 #' @export
-Input_Missing <- function(df, strPrefix = "MISS") {
+Input_Missing <- function(dfInput, strPrefix = "MISS") {
   AssertColumns(
-    df,
+    dfInput,
     c("subject_id", "parameter_id", "parameter_name",
       "parameter_category_1", "parameter_category_2",
       "visit", "visitnum", "value"),
-    "df"
+    "dfInput"
   )
 
-  df |>
+  dfInput |>
     dplyr::arrange(.data$subject_id, .data$parameter_id,
                    .data$visitnum, .data$visit) |>
     dplyr::mutate(

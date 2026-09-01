@@ -88,22 +88,6 @@ dfVS <- Standardize_Domain(
 dfVS
 ```
 
-## `FilterVisits()`
-
-Drop unscheduled visits and screen/screen-failure records; called internally
-by `Standardize_Domain()`.
-
-```{r filter_visits}
-dfPreFilter <- lMapped$Mapped_VS
-dfPreFilter$visitnum <- as.numeric(dfPreFilter$VISITNUM)
-dfPreFilter$timepoint_1_name <- dfPreFilter$VISIT
-dfPreFilter$subject_id <- dfPreFilter$USUBJID
-dfPreFilter$parameter_id <- dfPreFilter$VSTESTCD
-
-nrow(dfPreFilter)
-nrow(FilterVisits(dfPreFilter))
-```
-
 ## `Input_Range()`
 
 Rescale each result into its reference range (`(x - low) / (high - low)`).
@@ -154,36 +138,6 @@ dfOneHot <- Input_OneHot(dfRSraw)
 
 unique(dfOneHot$parameter_id)
 dfOneHot
-```
-
-## `Prepare_*` helpers
-
-Primitives used by the `Input_*` wrappers.
-
-```{r prepare_helpers}
-Prepare_Normalize(c(5, 10, 15), vLow = c(5, 5, 5), vHigh = c(10, 10, 10))
-
-Prepare_MissingRatio(
-  vValue = c(1, NA, 3, NA),
-  vSubjectID = c("S1", "S1", "S2", "S2"),
-  vParameterID = rep("SYSBP", 4)
-)
-
-Prepare_Categorical(c("CR", "PR", NA), strPrefix = "OVRLRESP")
-
-Prepare_TimepointRank(data.frame(
-  subject_id = c("S1", "S1"),
-  parameter_id = c("SYSBP", "SYSBP"),
-  timepoint_1_name = c("WEEK 2", "WEEK 12"),
-  timepoint_rank = c(3, 7)
-))
-```
-
-`Prepare_Untransformed()` reduces a metric input frame to the ctasapp
-untransformed-shard shape (one row per subject × field × visit).
-
-```{r prepare_untransformed}
-Prepare_Untransformed(dfOneHot)
 ```
 
 ## `Standardize_Queries()`
@@ -246,10 +200,10 @@ dfResultsLong <- Bind_Analysis(lAnalysis, "results")
 dfResultsLong
 ```
 
-## `Summarize_CTAS()` + `Flag_CTAS()` + `Filter_Flagged()`
+## `Summarize_CTAS()` + `Flag_CTAS()`
 
-Aggregate to the gsm `dfResults` contract, flag with left-closed intervals
-on `-log10(p)`, then drop unflagged fields.
+Aggregate to the gsm `dfResults` contract, then flag with left-closed
+intervals on `-log10(p)`.
 
 ```{r summarize}
 dfSummary <- Summarize_CTAS(
@@ -263,10 +217,7 @@ dfFlagged <- Flag_CTAS(dfSummary)
 
 dfFlagged
 
-dfKept <- Filter_Flagged(dfFlagged, iMinFlag = 1)
-
 length(unique(dfFlagged$MetricID))
-length(unique(dfKept$MetricID))
 ```
 
 ## `MakeMetric_CTAS()`

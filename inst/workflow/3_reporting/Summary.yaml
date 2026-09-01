@@ -50,10 +50,10 @@ steps:
       vFlag: vFlag
       vFlagOrder: vFlagOrder
   - output: Reporting_Summary
-    name: gsm.ctas::Filter_Flagged
+    name: workr::RunQuery
     params:
-      dfFlagged: Reporting_Summary
-      iMinFlag: iMinFlag
+      df: Reporting_Summary
+      strQuery: "SELECT * FROM df WHERE MetricID IN (SELECT MetricID FROM df GROUP BY MetricID HAVING MAX(Flag) >= 1)"
   - output: lReportingSummary
     name: base::list
     params:

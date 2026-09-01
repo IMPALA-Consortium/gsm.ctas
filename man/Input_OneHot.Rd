@@ -4,10 +4,10 @@
 \alias{Input_OneHot}
 \title{One-hot encode a categorical findings frame for CTAS}
 \usage{
-Input_OneHot(df, strPrefix = "CAT")
+Input_OneHot(dfInput, strPrefix = "CAT")
 }
 \arguments{
-\item{df}{\code{data.frame} Long-format output of \code{\link[=Standardize_Domain]{Standardize_Domain()}}, with
+\item{dfInput}{\code{data.frame} Long-format output of \code{\link[=Standardize_Domain]{Standardize_Domain()}}, with
 at minimum \code{subject_id}, \code{parameter_id}, \code{parameter_name},
 \code{parameter_category_1}, \code{parameter_category_2}, \code{visit}, \code{visitnum},
 \code{value}. \code{value} is treated as a character categorical.}

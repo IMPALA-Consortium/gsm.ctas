@@ -16,9 +16,7 @@ Standardize_Domain(
   strLowCol = NULL,
   strHighCol = NULL,
   strCategory,
-  strPrefix = "",
-  strVisitPattern = NULL,
-  strExcludePattern = "unsch"
+  strPrefix = ""
 )
 }
 \arguments{
@@ -37,9 +35,6 @@ when the source has no ranges.}
 \item{strPrefix}{\code{character} Optional prefix applied to \code{parameter_id}
 (e.g. \code{"NUM"} -> \code{"NUM_SYSBP"}). Empty by default; \code{parameter_category_2}
 always keeps the raw test code so ctasapp can stitch sibling metrics.}
-
-\item{strVisitPattern, strExcludePattern}{\code{character} Passed to
-\code{\link[=FilterVisits]{FilterVisits()}}.}
 }
 \value{
 \code{data.frame} in the CTAS long-format vocabulary. Includes the raw

@@ -20,8 +20,6 @@
 #' @param strPrefix `character` Optional prefix applied to `parameter_id`
 #'   (e.g. `"NUM"` -> `"NUM_SYSBP"`). Empty by default; `parameter_category_2`
 #'   always keeps the raw test code so ctasapp can stitch sibling metrics.
-#' @param strVisitPattern,strExcludePattern `character` Passed to
-#'   [FilterVisits()].
 #'
 #' @return `data.frame` in the CTAS long-format vocabulary. Includes the raw
 #'   SDTM-derived columns (`visit`, `visitnum`, `value`, and `low`/`high` when
@@ -60,9 +58,7 @@ Standardize_Domain <- function(dfDomain,
                                strLowCol = NULL,
                                strHighCol = NULL,
                                strCategory,
-                               strPrefix = "",
-                               strVisitPattern = NULL,
-                               strExcludePattern = "unsch") {
+                               strPrefix = "") {
   AssertColumns(
     dfDomain,
     c(strSubjectCol, strTestCDCol, strTestCol, strValueCol,
@@ -71,29 +67,22 @@ Standardize_Domain <- function(dfDomain,
   )
   AssertColumns(dfSubjects, c("subject_id", "site"), "dfSubjects")
 
-  dfFiltered <- FilterVisits(
-    dfDomain,
-    strVisitCol = strVisitCol,
-    strVisitPattern = strVisitPattern,
-    strExcludePattern = strExcludePattern
-  )
-
-  vValue <- dfFiltered[[strValueCol]]
+  vValue <- dfDomain[[strValueCol]]
   # Character sources (e.g. RSSTRESC) leave `result` for Input_OneHot to fill.
   vResult <- if (is.numeric(vValue)) as.numeric(vValue) else rep(NA_real_, length(vValue))
 
   dfLong <- dplyr::tibble(
-    subject_id = as.character(dfFiltered[[strSubjectCol]]),
-    parameter_id = as.character(dfFiltered[[strTestCDCol]]),
-    parameter_name = as.character(dfFiltered[[strTestCol]]),
+    subject_id = as.character(dfDomain[[strSubjectCol]]),
+    parameter_id = as.character(dfDomain[[strTestCDCol]]),
+    parameter_name = as.character(dfDomain[[strTestCol]]),
     parameter_category_1 = strCategory,
-    parameter_category_2 = as.character(dfFiltered[[strTestCDCol]]),
+    parameter_category_2 = as.character(dfDomain[[strTestCDCol]]),
     parameter_category_3 = "numeric",
-    visit = as.character(dfFiltered[[strVisitCol]]),
-    visitnum = as.numeric(dfFiltered[[strVisitNumCol]]),
-    timepoint_1_name = as.character(dfFiltered[[strVisitCol]]),
+    visit = as.character(dfDomain[[strVisitCol]]),
+    visitnum = as.numeric(dfDomain[[strVisitNumCol]]),
+    timepoint_1_name = as.character(dfDomain[[strVisitCol]]),
     timepoint_2_name = NA_character_,
-    timepoint_rank = as.numeric(dfFiltered[[strVisitNumCol]]),
+    timepoint_rank = as.numeric(dfDomain[[strVisitNumCol]]),
     value = vValue,
     result = vResult,
     baseline = NA_real_
@@ -109,10 +98,10 @@ Standardize_Domain <- function(dfDomain,
   }
 
   if (!is.null(strLowCol)) {
-    dfLong$low <- as.numeric(dfFiltered[[strLowCol]])
+    dfLong$low <- as.numeric(dfDomain[[strLowCol]])
   }
   if (!is.null(strHighCol)) {
-    dfLong$high <- as.numeric(dfFiltered[[strHighCol]])
+    dfLong$high <- as.numeric(dfDomain[[strHighCol]])
   }
 
   vSubjectCols <- intersect(

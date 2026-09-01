@@ -14,10 +14,7 @@
 #'
 #' @return `numeric` vector of the same length as `vValue`.
 #'
-#' @examples
-#' Prepare_Normalize(c(5, 10, 15), vLow = c(5, 5, 5), vHigh = c(10, 10, 10))
-#'
-#' @export
+#' @keywords internal
 Prepare_Normalize <- function(vValue, vLow, vHigh) {
   vWidth <- vHigh - vLow
   bInvalid <- is.na(vWidth) | vWidth <= 0
@@ -42,14 +39,7 @@ Prepare_Normalize <- function(vValue, vLow, vHigh) {
 #'
 #' @return `numeric` vector of the same length as `vValue`.
 #'
-#' @examples
-#' Prepare_MissingRatio(
-#'   vValue = c(1, NA, 3, NA),
-#'   vSubjectID = c("S1", "S1", "S2", "S2"),
-#'   vParameterID = rep("SYSBP", 4)
-#' )
-#'
-#' @export
+#' @keywords internal
 Prepare_MissingRatio <- function(vValue, vSubjectID, vParameterID) {
   dfWork <- data.frame(
     Missing = as.numeric(is.na(vValue)),
@@ -84,10 +74,7 @@ Prepare_MissingRatio <- function(vValue, vSubjectID, vParameterID) {
 #'   `"{strPrefix}={value}"`) and `Encoded` (`integer`, 1 if the observation
 #'   matches the level, else 0).
 #'
-#' @examples
-#' Prepare_Categorical(c("CR", "PR", NA), strPrefix = "OVRLRESP")
-#'
-#' @export
+#' @keywords internal
 Prepare_Categorical <- function(vValue, strPrefix = "var") {
   vIndex <- which(!is.na(vValue))
 
@@ -128,15 +115,7 @@ Prepare_Categorical <- function(vValue, strPrefix = "var") {
 #' @return `data.frame` with `timepoint_rank` recalculated, sorted by group and
 #'   rank.
 #'
-#' @examples
-#' Prepare_TimepointRank(data.frame(
-#'   subject_id = c("S1", "S1"),
-#'   parameter_id = c("SYSBP", "SYSBP"),
-#'   timepoint_1_name = c("WEEK 2", "WEEK 12"),
-#'   timepoint_rank = c(3, 7)
-#' ))
-#'
-#' @export
+#' @keywords internal
 Prepare_TimepointRank <- function(dfInput) {
   vRequired <- c(
     "subject_id", "parameter_id", "timepoint_1_name", "timepoint_rank"
@@ -159,46 +138,3 @@ Prepare_TimepointRank <- function(dfInput) {
       .by = c("subject_id", "parameter_id")
     )
 }
-
-#' Reduce a metric's `input` frame to the untransformed shard shape
-#'
-#' Keeps one row per `(subject_id, parameter_category_2, timepoint_1_name)`
-#' so [Input_OneHot()] outputs (multiplied by level) can be handed to the
-#' reporting workflow as an `untransformed` shard without duplicating the
-#' source observation across levels. Used by the categorical metric YAML;
-#' numeric and range metrics already emit one row per source observation
-#' and pass through unchanged.
-#'
-#' @param dfInput `data.frame` A metric `input` frame with at minimum
-#'   `subject_id`, `parameter_category_2` and `timepoint_1_name`.
-#'
-#' @return `data.frame` De-duplicated on
-#'   `(subject_id, parameter_category_2, timepoint_1_name)`, keeping the
-#'   first occurrence of every other column.
-#'
-#' @examples
-#' Prepare_Untransformed(data.frame(
-#'   subject_id = c("S1", "S1"),
-#'   parameter_category_2 = c("OVRLRESP", "OVRLRESP"),
-#'   timepoint_1_name = c("WEEK 2", "WEEK 2"),
-#'   original_category = c("CR", "CR")
-#' ))
-#'
-#' @export
-Prepare_Untransformed <- function(dfInput) {
-  vRequired <- c("subject_id", "parameter_category_2", "timepoint_1_name")
-  vMissing <- setdiff(vRequired, names(dfInput))
-
-  if (length(vMissing) > 0) {
-    cli::cli_abort(
-      "{.arg dfInput} is missing required column{?s}: {.val {vMissing}}."
-    )
-  }
-
-  dfInput |>
-    dplyr::distinct(
-      .data$subject_id, .data$parameter_category_2, .data$timepoint_1_name,
-      .keep_all = TRUE
-    )
-}
-
