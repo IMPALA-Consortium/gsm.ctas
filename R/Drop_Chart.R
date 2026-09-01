@@ -2,7 +2,7 @@
 #'
 #' `lCharts` is nested: the outer key is `MetricID`, the inner keys are chart
 #' names (`scatterPlot`, `barChart`, `metricTable`, `timeSeries`). The stock
-#' `gsm.kri::Report_KRI.Rmd` renders one tab per inner key, so removing an
+#' `Report_CTAS.Rmd` renders one tab per inner key, so removing an
 #' entry here suppresses that tab from the HTML report without editing the
 #' template.
 #'

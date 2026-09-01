@@ -19,6 +19,9 @@ spec:
   Reporting_Groups:
     _all:
       required: true
+  Reporting_Metrics:
+    _all:
+      required: true
   Mapped_Subjects:
     studyid:
       type: character
@@ -51,11 +54,6 @@ steps:
     params:
       dfFlagged: Reporting_Summary
       iMinFlag: iMinFlag
-  - output: Reporting_Metrics
-    name: gsm.ctas::Make_KRI_Metrics
-    params:
-      dfSummary: Reporting_Summary
-      vThreshold: vThreshold
   - output: lReportingSummary
     name: base::list
     params:

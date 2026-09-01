@@ -330,8 +330,11 @@ test_that("Summary workflow packages a gsm KRI-shaped summary + metrics + groups
   )
 
   lReporting <- suppressWarnings(gsm.core::RunWorkflows(
-    lWorkflows = lReportingWorkflows[c("Results", "Groups", "Summary")],
-    lData = c(lMapped, list(lAnalyzed = lAnalysis))
+    lWorkflows = lReportingWorkflows[c("Results", "Groups", "Metrics", "Summary")],
+    lData = c(lMapped, list(
+      lAnalyzed = lAnalysis,
+      lMetricWorkflows = lMetricWorkflows
+    ))
   ))
 
   lSummary <- lReporting$Reporting_Summary
@@ -347,9 +350,44 @@ test_that("Summary workflow packages a gsm KRI-shaped summary + metrics + groups
   expect_true(all(vSites %in% unique(dfSummary$GroupID)))
 
   dfMetrics <- lSummary$metrics
-  expect_setequal(unique(dfMetrics$MetricID), unique(dfSummary$MetricID))
+  # Metrics table is the full audit — every field the pipeline scored
+  # appears, including any that Filter_Flagged drops from the summary.
+  expect_identical(dfMetrics, lReporting$Reporting_Metrics)
   expect_true(all(startsWith(dfMetrics$MetricID, "ctas_")))
   expect_setequal(unique(dfMetrics$AnalysisType), "CTAS")
+  # Audit MetricID scheme is family-granular; the KRI summary keeps its
+  # field-level scheme (`ctas_<field>`) so downstream `gsm.kri` output
+  # collapses families with `max(Score)`.
+  expect_equal(anyDuplicated(dfMetrics$MetricID), 0L)
+  dfExpected <- unique(paste0(
+    "ctas_",
+    lReporting$Reporting_Results$results$parameter_category_3, "_",
+    lReporting$Reporting_Results$results$parameter_category_2
+  ))
+  expect_setequal(dfExpected, unique(dfMetrics$MetricID))
+  expect_true(all(
+    paste0("ctas_", unique(dfMetrics$parameter_category_2)) %in%
+      c(unique(dfSummary$MetricID),
+        # audit may include fields Filter_Flagged dropped
+        setdiff(paste0("ctas_", unique(dfMetrics$parameter_category_2)),
+                unique(dfSummary$MetricID)))
+  ))
+  vIdCols <- c("parameter_id", "parameter_name",
+               "parameter_category_1", "parameter_category_2",
+               "parameter_category_3")
+  expect_true(all(vIdCols %in% names(dfMetrics)))
+  expect_false(any(c("Numerator", "Denominator", "MetricType") %in% names(dfMetrics)))
+  # parameter_name is looked up from Reporting_Results$input; at least
+  # one row must resolve.
+  expect_false(all(is.na(dfMetrics$parameter_name)))
+  # CTAS parameters harvested from the metric YAMLs land as columns.
+  vParamCols <- c(
+    "FeatureAutocorr", "FeatureAverage", "FeatureSD",
+    "MinTimepoints", "MinSubjects", "ScoringMethod", "Seed"
+  )
+  expect_true(all(vParamCols %in% names(dfMetrics)))
+  # Every audit row must resolve to a metric YAML (no NA parameter columns).
+  expect_false(any(is.na(dfMetrics$FeatureAverage)))
 
   dfGroups <- lSummary$groups
   expect_setequal(names(dfGroups),
@@ -388,8 +426,11 @@ test_that("report_kri_site module renders a KRI HTML report", {
   # gsm.kri::Report_KRI is single-study; drop the second study block from
   # the summary before rendering.
   lReporting <- suppressWarnings(gsm.core::RunWorkflows(
-    lWorkflows = lReportingWorkflows[c("Results", "Groups", "Summary")],
-    lData = c(lMapped, list(lAnalyzed = lAnalysis))
+    lWorkflows = lReportingWorkflows[c("Results", "Groups", "Metrics", "Summary")],
+    lData = c(lMapped, list(
+      lAnalyzed = lAnalysis,
+      lMetricWorkflows = lMetricWorkflows
+    ))
   ))
   strStudyID <- vStudyIDs[1]
   lSummary <- lReporting$Reporting_Summary

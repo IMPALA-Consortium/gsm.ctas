@@ -39,9 +39,10 @@ reference:
   - Summarize_CTAS
   - Flag_CTAS
   - Filter_Flagged
-  - Make_KRI_Metrics
-  - Make_KRI_Groups
+  - MakeMetric_CTAS
+  - Prune_Metrics
   - Drop_Chart
+  - Report_CTAS_Path
 - title: Package
   contents:
   - gsm.ctas-package

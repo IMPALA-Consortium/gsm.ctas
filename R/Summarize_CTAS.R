@@ -4,8 +4,11 @@
 #' feature) into the gsm reporting `dfResults` contract (one row per site x
 #' synthetic `MetricID`) so the stock `gsm.kri` KRI report can render it
 #' unchanged. Each `parameter_category_2` (data field, e.g. `"AST"`,
-#' `"SYSBP"`) becomes its own `MetricID`; when `bByFeature = TRUE`, one
-#' `MetricID` per (field x CTAS feature) is emitted instead.
+#' `"SYSBP"`) becomes its own `MetricID` (`ctas_<field>`); metric families
+#' are collapsed with `max(Score)` so a field scored by both
+#' `range_normalized` and `ratio_missing` shows as one KRI row. When
+#' `bByFeature = TRUE`, one `MetricID` per (field x CTAS feature) is
+#' emitted instead.
 #'
 #' The `Score` is the max `fdr_corrected_pvalue_logp` across every
 #' contributing (timeseries x feature) row in the group. Sites present in

@@ -20,7 +20,7 @@ silently ignored. Default \code{character(0)} (no-op).}
 \description{
 \code{lCharts} is nested: the outer key is \code{MetricID}, the inner keys are chart
 names (\code{scatterPlot}, \code{barChart}, \code{metricTable}, \code{timeSeries}). The stock
-\code{gsm.kri::Report_KRI.Rmd} renders one tab per inner key, so removing an
+\code{Report_CTAS.Rmd} renders one tab per inner key, so removing an
 entry here suppresses that tab from the HTML report without editing the
 template.
 }

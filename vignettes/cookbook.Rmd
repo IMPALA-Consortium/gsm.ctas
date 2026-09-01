@@ -14,9 +14,7 @@ knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>"
 )
-
 ```
-
 
 ## Installation
 
@@ -25,200 +23,93 @@ install.packages("pak")
 pak::pak("IMPALA-Consortium/gsm.ctas")
 ```
 
+## Load
+
 ```{r load, message = FALSE}
+suppressPackageStartupMessages(library(dplyr))
+library(gsm.core)
+library(gsm.mapping)
+library(gsm.kri)
+library(workr)
 library(gsm.ctas)
-library(dplyr)
 ```
 
-## The shape of the pipeline
+## Raw data
 
+`gsm.ctas` ships SDTM domains (`dm`, `lb`, `vs`, `eg`, `rs`) and a synthetic
+ctasapp `queries` frame.
 
-## Input data
-
-`gsm.ctas` ships verbatim copies of the SDTM domains needed by the workflow
-(`dm`, `lb`, `vs`, `eg`, `rs`) alongside a synthetic `queries` frame matching
-the ctasapp upload contract, so the walkthrough runs without any external
-data dependency.
-
-```{r data}
-
-dfDM <- gsm.ctas::dm
-dfVS <- gsm.ctas::vs
-dfLB <- gsm.ctas::lb
-dfRS <- gsm.ctas::rs
-dfEG <- gsm.ctas::eg
-dfQueries <- gsm.ctas::queries
-
+```{r raw}
 lRaw <- list(
-  Raw_DM = as.data.frame(dfDM),
-  Raw_VS = as.data.frame(dfVS),
-  Raw_LB = as.data.frame(dfLB),
-  Raw_RS = as.data.frame(dfRS),
-  Raw_EG = as.data.frame(dfEG),
-  Raw_Queries = as.data.frame(dfQueries)
+  Raw_DM = as.data.frame(gsm.ctas::dm),
+  Raw_LB = as.data.frame(gsm.ctas::lb),
+  Raw_VS = as.data.frame(gsm.ctas::vs),
+  Raw_EG = as.data.frame(gsm.ctas::eg),
+  Raw_RS = as.data.frame(gsm.ctas::rs),
+  Raw_Queries = as.data.frame(gsm.ctas::queries)
 )
+
+str(lRaw, max.level = 1)
 ```
 
-## 1. Mapping
+## Mapping
 
-```{r mappings}
+```{r mapping}
 lMappingWorkflows <- workr::MakeWorkflowList(
   strNames = NULL,
   strPath = system.file("workflow/1_mappings", package = "gsm.ctas"),
   strPackage = NULL
 )
 
-lIngest <- gsm.mapping::Ingest(
-  lRaw, gsm.mapping::CombineSpecs(lMappingWorkflows)
-)
+lIngest <- gsm.mapping::Ingest(lRaw, gsm.mapping::CombineSpecs(lMappingWorkflows))
 
-lMapped <- suppressWarnings(
+lMapped <- suppressWarnings(suppressMessages(
   gsm.core::RunWorkflows(lWorkflows = lMappingWorkflows, lData = lIngest)
-)
+))
 
-str(lMapped)
+names(lMapped)
 ```
 
+## `Standardize_Domain()`
 
-## 2.1 Data Types / Metrics
+Rename an SDTM domain into the CTAS long vocabulary. Default output is
+numeric-ready (`parameter_category_3 = "numeric"`).
 
-`Standardize_Domain()` renames an SDTM domain into the CTAS vocabulary and,
-by default, emits a numeric-ready frame that can flow straight into
-`Analyze_CTAS()`. It also normalizes `visitnum` and `timepoint_rank` to a
-contiguous `1..N` per `(subject_id, parameter_id)` -- matching ctasapp's
-`recalculate_timepoint_rank()` convention -- so downstream shards read
-cleanly regardless of how the source `VISITNUM` values were spaced.
-Range, missing-ratio and categorical metrics chain an `Input_*()`
-transform in between to overwrite `result` and `parameter_category_3`.
-
-### Range-normalized labs
-
-`Input_Range()` rescales each result into its reference range; values with
-missing bounds are dropped.
-
-```{r range}
-as_tibble(lMapped$Mapped_LB)
-
-dfStandard <- Standardize_Domain(
-  dfDomain = lMapped$Mapped_LB,
-  dfSubjects = lMapped$Mapped_Subjects,
-  strTestCDCol = "LBTESTCD",
-  strTestCol = "LBTEST",
-  strValueCol = "LBSTRESN",
-  strLowCol = "LBSTNRLO",
-  strHighCol = "LBSTNRHI",
-  strCategory = "Labs",
-  strExcludePattern = NULL
-)
-
-as_tibble(dfStandard)
-
-dfRange <- Input_Range(dfStandard)
-
-as_tibble(dfRange)
-
-dfAna <- Analyze_CTAS(dfRange)
-
-as_tibble(dfAna)
-```
-
-### Numeric vital signs
-
-`Standardize_Domain()` stamps `parameter_category_3 = "numeric"` and
-`result = as.numeric(value)`, so no separate transform step is needed.
-
-```{r numeric}
-as_tibble(lMapped$Mapped_VS)
-
-dfStandard <- Standardize_Domain(
+```{r standardize_domain}
+dfVS <- Standardize_Domain(
   dfDomain = lMapped$Mapped_VS,
   dfSubjects = lMapped$Mapped_Subjects,
   strTestCDCol = "VSTESTCD",
   strTestCol = "VSTEST",
   strValueCol = "VSSTRESN",
-  strCategory = "Vital Signs",
-  strExcludePattern = NULL
+  strCategory = "Vital Signs"
 )
 
-as_tibble(dfStandard)
-
-dfAna <- Analyze_CTAS(dfStandard)
-
-as_tibble(dfAna)
+as_tibble(dfVS)
 ```
 
-### Ratio-missing labs
+## `FilterVisits()`
 
-`Input_Missing()` converts each observation into a 0/1 indicator of whether
-the value is missing, so the resulting CTAS signal is per-site missingness
-over time.
+Drop unscheduled visits and screen/screen-failure records; called internally
+by `Standardize_Domain()`.
 
-```{r ratio_missing}
-dfStandard <- Standardize_Domain(
-  dfDomain = lMapped$Mapped_LB,
-  dfSubjects = lMapped$Mapped_Subjects,
-  strTestCDCol = "LBTESTCD",
-  strTestCol = "LBTEST",
-  strValueCol = "LBSTRESN",
-  strCategory = "Labs",
-  strExcludePattern = NULL
-)
+```{r filter_visits}
+dfPreFilter <- lMapped$Mapped_VS
+dfPreFilter$visitnum <- as.numeric(dfPreFilter$VISITNUM)
+dfPreFilter$timepoint_1_name <- dfPreFilter$VISIT
+dfPreFilter$subject_id <- dfPreFilter$USUBJID
+dfPreFilter$parameter_id <- dfPreFilter$VSTESTCD
 
-as_tibble(dfStandard)
-
-dfMissing <- Input_Missing(dfStandard)
-
-as_tibble(dfMissing)
-
-dfAna <- Analyze_CTAS(dfMissing)
-
-as_tibble(dfAna)
+nrow(dfPreFilter)
+nrow(FilterVisits(dfPreFilter))
 ```
 
-### Categorical response
+## `Input_Range()`
 
-`Input_OneHot()` expands a categorical variable such as SDTM RS `RSSTRESC`
-into one binary CTAS timeseries per observed level, so `Analyze_CTAS()` can
-flag sites whose per-level rates drift from their peers.
+Rescale each result into its reference range (`(x - low) / (high - low)`).
 
-```{r categorical}
-dfRS <- gsm.ctas::rs
-dfRS <- dfRS[dfRS$RSTESTCD == "OVRLRESP", ]
-
-dfStandard <- Standardize_Domain(
-  dfDomain = dfRS,
-  dfSubjects = lMapped$Mapped_Subjects,
-  strTestCDCol = "RSTESTCD",
-  strTestCol = "RSTEST",
-  strValueCol = "RSSTRESC",
-  strCategory = "Disease Response",
-  strExcludePattern = NULL
-)
-
-as_tibble(dfStandard)
-
-dfOneHot <- Input_OneHot(dfStandard)
-
-as_tibble(dfOneHot)
-
-unique(dfOneHot$parameter_id)
-
-dfAna <- Analyze_CTAS(dfOneHot)
-
-as_tibble(dfAna)
-```
-
-### Stitching metrics on the same field
-
-ctasapp groups sidebar entries by `parameter_category_2`, so when the same
-LB test flows through both `Input_Range()` and `Input_Missing()` the two
-metrics collapse into a single field entry with a faceted plot.
-`Standardize_Domain()` sets `parameter_category_2` to the raw test code
-(e.g. `"ALT"`); the `Input_*()` wrappers only prefix `parameter_id` itself
-(`RANGE_ALT`, `MISS_ALT`) so the score tables stay unique.
-
-```{r stitching}
-dfLB <- Standardize_Domain(
+```{r input_range}
+dfLBraw <- Standardize_Domain(
   dfDomain = lMapped$Mapped_LB,
   dfSubjects = lMapped$Mapped_Subjects,
   strTestCDCol = "LBTESTCD",
@@ -226,39 +117,109 @@ dfLB <- Standardize_Domain(
   strValueCol = "LBSTRESN",
   strLowCol = "LBSTNRLO",
   strHighCol = "LBSTNRHI",
-  strCategory = "Labs",
-  strExcludePattern = NULL
+  strCategory = "Labs"
 )
 
-intersect(
-  unique(Input_Range(dfLB)$parameter_category_2),
-  unique(Input_Missing(dfLB)$parameter_category_2)
-) |> head()
+dfRange <- Input_Range(dfLBraw)
+
+as_tibble(dfRange)
 ```
 
-### EDC queries
+## `Input_Missing()`
 
-`Standardize_Queries()` mirrors `Standardize_Domain()` for EDC query records:
-it translates the ctasapp query upload schema (`study`, `domain`, `field`,
-`subject_id`, `visit`, `parameter_id`) into the CTAS long vocabulary and
-inner-joins `Mapped_Subjects` on `(studyid, subject_id)`. `domain` becomes
-`parameter_category_1` via a fixed map (`LB` -> `"Labs"`, `VS` ->
-`"Vital Signs"`, `EG` -> `"ECG"`, `RS` -> `"Disease Response"`; unknown
-values pass through verbatim), `field` becomes `parameter_category_2`, and
-the original 15 upload columns are preserved for downstream joins.
+Recode each observation as a 0/1 indicator of missingness for
+missingness-over-time monitoring.
 
-```{r queries_standardize}
+```{r input_missing}
+dfMissing <- Input_Missing(dfLBraw)
+
+as_tibble(dfMissing)
+```
+
+## `Input_OneHot()`
+
+Expand a categorical variable into one binary CTAS timeseries per level.
+
+```{r input_onehot}
+dfRSraw <- Standardize_Domain(
+  dfDomain = gsm.ctas::rs %>% filter(RSTESTCD == "OVRLRESP"),
+  dfSubjects = lMapped$Mapped_Subjects,
+  strTestCDCol = "RSTESTCD",
+  strTestCol = "RSTEST",
+  strValueCol = "RSSTRESC",
+  strCategory = "Disease Response"
+)
+
+dfOneHot <- Input_OneHot(dfRSraw)
+
+unique(dfOneHot$parameter_id)
+as_tibble(dfOneHot)
+```
+
+## `Prepare_*` helpers
+
+Primitives used by the `Input_*` wrappers.
+
+```{r prepare_helpers}
+Prepare_Normalize(c(5, 10, 15), vLow = c(5, 5, 5), vHigh = c(10, 10, 10))
+
+Prepare_MissingRatio(
+  vValue = c(1, NA, 3, NA),
+  vSubjectID = c("S1", "S1", "S2", "S2"),
+  vParameterID = rep("SYSBP", 4)
+)
+
+Prepare_Categorical(c("CR", "PR", NA), strPrefix = "OVRLRESP")
+
+Prepare_TimepointRank(data.frame(
+  subject_id = c("S1", "S1"),
+  parameter_id = c("SYSBP", "SYSBP"),
+  timepoint_1_name = c("WEEK 2", "WEEK 12"),
+  timepoint_rank = c(3, 7)
+))
+```
+
+`Prepare_Untransformed()` reduces a metric input frame to the ctasapp
+untransformed-shard shape (one row per subject × field × visit).
+
+```{r prepare_untransformed}
+as_tibble(Prepare_Untransformed(dfOneHot))
+```
+
+## `Standardize_Queries()`
+
+Translate the ctasapp query upload schema into the CTAS long vocabulary and
+fan raw field ids out onto every transformed CTAS parameter id.
+
+```{r standardize_queries}
+dfInputSample <- Input_Range(dfLBraw)
+
 dfQ <- Standardize_Queries(
   dfQueries = lMapped$Mapped_Queries,
-  dfSubjects = lMapped$Mapped_Subjects
+  dfSubjects = lMapped$Mapped_Subjects,
+  dfInput = dfInputSample
 )
 
 as_tibble(dfQ)
 ```
 
+## `Analyze_CTAS()`
 
+Score one long-format CTAS frame. Returns one row per site × timeseries ×
+feature.
 
-## 2. Metrics
+```{r analyze_ctas}
+dfScored <- suppressWarnings(suppressMessages(
+  Analyze_CTAS(dfVS)
+))
+
+as_tibble(dfScored)
+```
+
+Multi-study is honoured automatically when `Mapped_Subjects` carries several
+`studyid` values; results are stacked with a `study` column.
+
+## Metrics workflow
 
 ```{r metrics}
 lMetricWorkflows <- workr::MakeWorkflowList(
@@ -267,209 +228,175 @@ lMetricWorkflows <- workr::MakeWorkflowList(
   strPackage = NULL
 )
 
-lAnalysis <- suppressWarnings(
+lAnalysis <- suppressWarnings(suppressMessages(
   gsm.core::RunWorkflows(lWorkflows = lMetricWorkflows, lData = lMapped)
-)
+))
 
-str(lAnalysis)
+names(lAnalysis)
 ```
 
-Feature selection is one boolean per CTAS feature in `meta:`, so any metric
-can toggle features individually:
+## `Bind_Analysis()`
 
-```yaml
-meta:
-  ID: numeric
-  FeatureAutocorr: true
-  FeatureAverage: true
-  FeatureSD: true
-  FeatureRange: false
-  FeatureUniqueValueCountRelative: true
-  FeatureOwnSiteSimilScore: false
-  FeatureLOF: false
+Concatenate one named frame (`"results"`, `"input"`, `"untransformed"`)
+across every metric workflow output.
+
+```{r bind_analysis}
+dfResultsLong <- Bind_Analysis(lAnalysis, "results")
+
+as_tibble(dfResultsLong)
 ```
 
-Multi-study is honoured automatically: when `Mapped_Subjects` contains several
-values in `studyid`, `Analyze_CTAS()` splits the input by study, runs CTAS on
-each, and stacks the results with a `study` column tagged onto every row.
+## `Summarize_CTAS()` + `Flag_CTAS()` + `Filter_Flagged()`
 
-## 3. Reporting: writing ctasapp shards
+Aggregate to the gsm `dfResults` contract, flag with left-closed intervals
+on `-log10(p)`, then drop unflagged fields.
 
-`Bind_Analysis()` concatenates one named shard (`"results"`, `"input"` or
-`"untransformed"`) across every metric workflow output; `Results.yaml`
-wraps three of those steps into a single reporting call and packages the
-three bound frames as a list ready to be handed to
-[ctasapp](https://github.com/IMPALA-Consortium/ctasapp) validators or
-written to parquet.
-
-```{r reporting_results, eval = FALSE}
-lReportingWorkflows <- workr::MakeWorkflowList(
-  strNames = NULL,
-  strPath = system.file("workflow/3_reporting", package = "gsm.ctas"),
-  strPackage = NULL
-)
-
-lReporting <- gsm.core::RunWorkflows(
-  lWorkflows = lReportingWorkflows,
-  lData = c(lMapped, list(lAnalyzed = lAnalysis))
-)
-
-str(lReporting)
-```
-
-`Write_ctasapp()` walks the reporting output and writes every frame it
-finds -- `results`, `input`, `untransformed` from the `Results` workflow
-and `queries` from the `Queries` workflow -- as parquet (or csv) in one
-call. Empty frames are skipped; a mis-shaped input errors rather than
-producing an empty directory.
-
-```{r reporting, eval = FALSE}
-Write_ctasapp(lReporting, strDir = "pub", strFormat = "parquet")
-```
-
-Point [ctasapp](https://github.com/IMPALA-Consortium/ctasapp) at the same
-`pub/` folder by copying the shipped `ctasapp.yml` next to `app.R` and
-setting its `embedded:` block to the parquet files written above.
-`run_ctas_app()` discovers the config in the current working directory and
-loads the embedded dataset through the same validation pipeline it uses
-for uploads.
-
-```{r ctasapp, eval = FALSE}
-# install.packages("remotes")
-remotes::install_github("IMPALA-Consortium/ctasapp")
-
-file.copy(
-  system.file("ctasapp.yml", package = "ctasapp"),
-  "ctasapp.yml",
-  overwrite = TRUE
-)
-
-# Edit ctasapp.yml so the embedded block points at pub/:
-#
-# embedded:
-#   results: pub/results.parquet
-#   input: pub/input.parquet
-#   untransformed: pub/untransformed.parquet  # optional
-
-ctasapp::run_ctas_app()
-```
-
-## 4. Reporting: rendering the standard gsm KRI report
-
-The `Summary.yaml` reporting workflow aggregates the long CTAS `results`
-frame into the gsm reporting `dfResults` contract (one row per site x
-synthetic `MetricID`), so the stock `gsm.kri` KRI report can render it
-unchanged. Each `parameter_category_2` (data field, e.g. `"AST"`,
-`"SYSBP"`) becomes its own `MetricID`; per-site `Score` is the maximum
-`fdr_corrected_pvalue_logp` across every contributing (timeseries x
-feature) row. Sites present in `Mapped_Subjects` but with no scored
-timeseries stay in the frame with `Score = NA` so the KRI overview widget
-cannot silently drop them.
-
-### `Summarize_CTAS()` + `Flag_CTAS()` directly
-
-`Summarize_CTAS()` and `Flag_CTAS()` mirror the `gsm.core::Summarize()` /
-`gsm.core::Flag()` seam so thresholds can be retuned without
-re-aggregating. `Flag_CTAS()` uses left-closed intervals appropriate for
-the non-negative `-log10(p)` scale, with defaults `vThreshold = c(0.842,
-2.326)` (80% and 99% one-sided normal z-quantiles) and three flag levels
-(`0` green, `1` amber, `2` red).
-
-```{r summarize_direct, eval = FALSE}
-dfResultsLong <- lReporting$Reporting_Results$results
-
-dfScores <- Summarize_CTAS(
+```{r summarize}
+dfSummary <- Summarize_CTAS(
   dfResults = dfResultsLong,
   dfSubjects = lMapped$Mapped_Subjects
 )
 
-as_tibble(dfScores)
+as_tibble(dfSummary)
 
-dfFlagged <- Flag_CTAS(dfScores)
+dfFlagged <- Flag_CTAS(dfSummary)
 
 as_tibble(dfFlagged)
+
+dfKept <- Filter_Flagged(dfFlagged, iMinFlag = 1)
+
+length(unique(dfFlagged$MetricID))
+length(unique(dfKept$MetricID))
 ```
 
-Pass `bByFeature = TRUE` to split one `MetricID` per (field x CTAS
-feature) instead of collapsing to one `MetricID` per field, or
-`bIncludeMissingness = FALSE` to drop the `ratio_missing` metric family
-from the aggregation.
+## `MakeMetric_CTAS()`
 
-### Running the `Summary` workflow
+Emit the family-granular audit table (`ctas_<pc3>_<pc2>`), one row per
+field × metric family, with every CTAS parameter column from the metric
+YAMLs.
 
-`Groups.yaml` (Priority 1) `bind_rows`-stacks `Mapped_STUDY` and
-`Mapped_SITE` from the mapping layer into a long-format `Reporting_Groups`
-frame (`GroupID`, `GroupLevel`, `Param`, `Value`) that carries the site
-meta the KRI template renders (country, investigator, participant count).
-Enriching the report is therefore a mapping-layer edit -- add columns to
-[`SITE.yaml`](https://github.com/IMPALA-Consortium/gsm.ctas/blob/main/inst/workflow/1_mappings/SITE.yaml)
-and they flow through unchanged.
+```{r make_metric_ctas}
+dfInputBound <- Bind_Analysis(lAnalysis, "input")
 
-`Summary.yaml` (Priority 3) then chains `Summarize_CTAS()` ->
-`Flag_CTAS()` -> `Filter_Flagged()` -> `Make_KRI_Metrics()` and packages
-the three frames the stock `gsm.kri` report needs (`summary`, `metrics`,
-`groups`) into a single list. Every threshold and grouping choice is a
-workflow `meta` parameter so a sponsor can retune the report in YAML
-without editing R.
+dfMetricsAudit <- MakeMetric_CTAS(
+  dfResults = dfResultsLong,
+  lMetricWorkflows = lMetricWorkflows,
+  dfInput = dfInputBound
+)
 
-Fields that never triggered a flag are dropped after `Flag_CTAS()` by
-`Filter_Flagged()` so the rendered report stays short. The cutoff is the
-`iMinFlag` meta parameter (default `1`, i.e. keep any metric with at
-least one amber or red site); set to `0` to keep every field, or `2` to
-keep only fields with at least one red flag.
-
-```yaml
-meta:
-  ID: Summary
-  IncludeMissingness: true
-  ByFeature: false
-  vThreshold: [0.842, 2.326]
-  vFlag: [0, 1, 2]
-  vFlagOrder: [2, 1, 0]
-  iMinFlag: 1
+as_tibble(dfMetricsAudit)
 ```
 
-```{r summary_workflow, eval = FALSE}
+## `Prune_Metrics()`
+
+Collapse the audit to the field-level `MetricID` scheme
+(`ctas_<parameter_category_2>`) `gsm.kri::MakeCharts()` expects. Used by
+the module workflow to bridge the audit and the join keyspace.
+
+```{r prune_metrics}
+dfMetricsField <- Prune_Metrics(dfMetricsAudit, dfKept)
+
+as_tibble(dfMetricsField)
+```
+
+## `Drop_Chart()`
+
+Remove inner tabs from a `gsm.kri::MakeCharts()` output before rendering.
+
+```{r drop_chart}
+lStub <- list(
+  ctas_AST = list(barChart = "keep", scatterPlot = "drop"),
+  ctas_SYSBP = list(barChart = "keep")
+)
+
+str(Drop_Chart(lStub, vDropCharts = "scatterPlot"))
+```
+
+## `Report_CTAS_Path()`
+
+Absolute path to the vendored `Report_CTAS.Rmd` template; passed to
+`gsm.kri::Report_KRI()` via `strInputPath` from the module workflow.
+
+```{r report_ctas_path}
+Report_CTAS_Path()
+```
+
+## `Write_ctasapp()`
+
+Walk a reporting output and write every non-empty frame as parquet (or
+csv) for [ctasapp](https://github.com/IMPALA-Consortium/ctasapp).
+
+```{r write_ctasapp, eval = FALSE}
+Write_ctasapp(lReporting, strDir = "pub", strFormat = "parquet")
+```
+
+Point ctasapp at the parquet folder by editing its `embedded:` block:
+
+```{r ctasapp, eval = FALSE}
+remotes::install_github("IMPALA-Consortium/ctasapp")
+file.copy(system.file("ctasapp.yml", package = "ctasapp"), "ctasapp.yml")
+# embedded:
+#   results: pub/results.parquet
+#   input: pub/input.parquet
+#   untransformed: pub/untransformed.parquet
+ctasapp::run_ctas_app()
+```
+
+## Full workflow
+
+The four packaged workflow layers -- mapping, metrics, reporting, modules
+-- chain end-to-end.
+
+```{r workflow}
+lRaw <- list(
+  Raw_DM = as.data.frame(gsm.ctas::dm),
+  Raw_LB = as.data.frame(gsm.ctas::lb),
+  Raw_VS = as.data.frame(gsm.ctas::vs),
+  Raw_EG = as.data.frame(gsm.ctas::eg),
+  Raw_RS = as.data.frame(gsm.ctas::rs),
+  Raw_Queries = as.data.frame(gsm.ctas::queries)
+)
+
+lMappingWorkflows <- workr::MakeWorkflowList(
+  strPath = system.file("workflow/1_mappings", package = "gsm.ctas")
+)
+lMetricWorkflows <- workr::MakeWorkflowList(
+  strPath = system.file("workflow/2_metrics", package = "gsm.ctas")
+)
 lReportingWorkflows <- workr::MakeWorkflowList(
-  strNames = NULL,
-  strPath = system.file("workflow/3_reporting", package = "gsm.ctas"),
-  strPackage = NULL
+  strPath = system.file("workflow/3_reporting", package = "gsm.ctas")
 )
-
-lReporting <- gsm.core::RunWorkflows(
-  lWorkflows = lReportingWorkflows,
-  lData = c(lMapped, list(lAnalyzed = lAnalysis))
-)
-
-str(lReporting$Reporting_Summary, max.level = 1)
-```
-
-### Rendering the KRI HTML report
-
-`report_kri_site.yaml` in `inst/workflow/4_modules/` calls
-`gsm.kri::MakeCharts()` + `gsm.kri::Report_KRI()` on the packaged summary
-and writes a site-level HTML report with the standard gsm KRI layout: a
-site x metric icon overview and one bar chart per `MetricID`. The output
-file name is auto-generated from `StudyID`, `GroupLevel` and
-`SnapshotDate` (e.g. `kri_report_CDISCPILOT01_Site_20260831.html`); the
-output directory defaults to the current working directory and can be
-overridden by mutating the workflow object.
-
-```{r report_kri, eval = FALSE}
 lModuleWorkflows <- workr::MakeWorkflowList(
-  strNames = NULL,
-  strPath = system.file("workflow/4_modules", package = "gsm.ctas"),
-  strPackage = NULL
+  strPath = system.file("workflow/4_modules", package = "gsm.ctas")
 )
 
-# Optional: point the report at a specific directory (must already exist).
-# dir.create("pub", showWarnings = FALSE)
-# lModuleWorkflows$report_kri_site$meta$strOutputDir <- "pub"
+lMapped <- suppressWarnings(suppressMessages(gsm.core::RunWorkflows(
+  lWorkflows = lMappingWorkflows,
+  lData = gsm.mapping::Ingest(lRaw, gsm.mapping::CombineSpecs(lMappingWorkflows))
+)))
+
+lAnalysis <- suppressWarnings(suppressMessages(gsm.core::RunWorkflows(
+  lWorkflows = lMetricWorkflows,
+  lData = lMapped
+)))
+
+lReporting <- suppressWarnings(suppressMessages(gsm.core::RunWorkflows(
+  lWorkflows = lReportingWorkflows,
+  lData = c(lMapped, list(
+    lAnalyzed = lAnalysis,
+    lMetricWorkflows = lMetricWorkflows
+  ))
+)))
+
+names(lReporting)
+str(lReporting$Reporting_Summary, max.level = 1)
+
+# The module workflow renders the site-level KRI HTML report. It writes into
+# the current working directory unless you point it elsewhere by mutating
+# `lModuleWorkflows$report_kri_site$meta$strOutputDir`.
 
 gsm.core::RunWorkflows(
   lWorkflows = lModuleWorkflows,
   lData = lReporting
 )
 ```
-
-

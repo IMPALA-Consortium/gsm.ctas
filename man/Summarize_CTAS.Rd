@@ -48,8 +48,11 @@ Pivots the long CTAS results frame (one row per site x timeseries x
 feature) into the gsm reporting \code{dfResults} contract (one row per site x
 synthetic \code{MetricID}) so the stock \code{gsm.kri} KRI report can render it
 unchanged. Each \code{parameter_category_2} (data field, e.g. \code{"AST"},
-\code{"SYSBP"}) becomes its own \code{MetricID}; when \code{bByFeature = TRUE}, one
-\code{MetricID} per (field x CTAS feature) is emitted instead.
+\code{"SYSBP"}) becomes its own \code{MetricID} (\verb{ctas_<field>}); metric families
+are collapsed with \code{max(Score)} so a field scored by both
+\code{range_normalized} and \code{ratio_missing} shows as one KRI row. When
+\code{bByFeature = TRUE}, one \code{MetricID} per (field x CTAS feature) is
+emitted instead.
 }
 \details{
 The \code{Score} is the max \code{fdr_corrected_pvalue_logp} across every

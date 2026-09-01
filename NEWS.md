@@ -26,9 +26,13 @@
   thresholds are workflow `meta` parameters, so a sponsor can retune them
   in YAML without editing R.
 * New `inst/workflow/4_modules/report_kri_site.yaml` module renders the
-  standard `gsm.kri::Report_KRI()` site-level HTML report directly from
-  the `Reporting_Summary` package. `gsm.kri` and `gsm.reporting` move to
-  `Suggests:` so the CTAS mapping + analysis stack stays lightweight.
+  site-level HTML report by piping the vendored
+  `inst/report/Report_CTAS.Rmd` template into `gsm.kri::Report_KRI()` via
+  `strInputPath`. The template collapses the family-granular audit
+  (`Reporting_Summary$metrics`) inline for every join and renders the
+  full frame as the "Metric Details" `gt` table. `gsm.kri` and
+  `gsm.reporting` move to `Suggests:` so the CTAS mapping + analysis
+  stack stays lightweight.
 
 ## ctasapp compatibility fixes for the queries reporting frame
 
