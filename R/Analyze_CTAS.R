@@ -232,8 +232,7 @@ BuildCTASInput <- function(df, strStudyCol, dfCustomTimeseries,
       generate_change_from_baseline = NA,
       timeseries_features_to_calculate = NA_character_,
       use_only_custom_timeseries = FALSE
-    ) |>
-    as.data.frame()
+    )
 
   dfData <- df |>
     dplyr::select(dplyr::all_of(c(
@@ -242,11 +241,10 @@ BuildCTASInput <- function(df, strStudyCol, dfCustomTimeseries,
       "result", "baseline"
     ))) |>
     Prepare_TimepointRank() |>
-    dplyr::mutate(timepoint_rank = as.numeric(.data$timepoint_rank)) |>
-    as.data.frame()
+    dplyr::mutate(timepoint_rank = as.numeric(.data$timepoint_rank))
 
   list(
-    subjects = as.data.frame(dfSubjects),
+    subjects = dfSubjects,
     parameters = dfParameters,
     data = dfData,
     custom_timeseries = dfCustomTimeseries,
@@ -294,7 +292,7 @@ BuildResults <- function(lCTAS, df, strStudyCol) {
     dfResults <- dplyr::rename(dfResults, study = dplyr::all_of(strStudyCol))
   }
 
-  as.data.frame(dfResults)
+  dfResults
 }
 
 #' Tag every result frame with a studyid column

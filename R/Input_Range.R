@@ -44,6 +44,5 @@ Input_Range <- function(df, strPrefix = "RANGE") {
       result = Prepare_Normalize(.data$original_value, .data$lower, .data$upper),
       baseline = NA_real_
     ) |>
-    dplyr::filter(!is.na(.data$result)) |>
-    as.data.frame()
+    dplyr::filter(!is.na(.data$result))
 }

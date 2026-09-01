@@ -111,5 +111,5 @@ Standardize_Queries <- function(dfQueries, dfSubjects, dfInput = NULL) {
   # Drop keys that collide with ctasapp's downstream joins on measures.
   dfOut[["studyid"]] <- NULL
 
-  as.data.frame(dfOut)
+  dfOut
 }

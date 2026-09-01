@@ -140,5 +140,5 @@ Summarize_CTAS <- function(dfResults,
     "Numerator", "Denominator", "Metric", "Score",
     vMetricKeys
   )
-  as.data.frame(dfComplete[, vOutCols, drop = FALSE])
+  dfComplete[, vOutCols, drop = FALSE]
 }

@@ -41,12 +41,12 @@ ctasapp `queries` frame.
 
 ```{r raw}
 lRaw <- list(
-  Raw_DM = as.data.frame(gsm.ctas::dm),
-  Raw_LB = as.data.frame(gsm.ctas::lb),
-  Raw_VS = as.data.frame(gsm.ctas::vs),
-  Raw_EG = as.data.frame(gsm.ctas::eg),
-  Raw_RS = as.data.frame(gsm.ctas::rs),
-  Raw_Queries = as.data.frame(gsm.ctas::queries)
+  Raw_DM = gsm.ctas::dm,
+  Raw_LB = gsm.ctas::lb,
+  Raw_VS = gsm.ctas::vs,
+  Raw_EG = gsm.ctas::eg,
+  Raw_RS = gsm.ctas::rs,
+  Raw_Queries = gsm.ctas::queries
 )
 
 str(lRaw, max.level = 1)
@@ -85,7 +85,7 @@ dfVS <- Standardize_Domain(
   strCategory = "Vital Signs"
 )
 
-as_tibble(dfVS)
+dfVS
 ```
 
 ## `FilterVisits()`
@@ -122,7 +122,7 @@ dfLBraw <- Standardize_Domain(
 
 dfRange <- Input_Range(dfLBraw)
 
-as_tibble(dfRange)
+dfRange
 ```
 
 ## `Input_Missing()`
@@ -133,7 +133,7 @@ missingness-over-time monitoring.
 ```{r input_missing}
 dfMissing <- Input_Missing(dfLBraw)
 
-as_tibble(dfMissing)
+dfMissing
 ```
 
 ## `Input_OneHot()`
@@ -153,7 +153,7 @@ dfRSraw <- Standardize_Domain(
 dfOneHot <- Input_OneHot(dfRSraw)
 
 unique(dfOneHot$parameter_id)
-as_tibble(dfOneHot)
+dfOneHot
 ```
 
 ## `Prepare_*` helpers
@@ -183,7 +183,7 @@ Prepare_TimepointRank(data.frame(
 untransformed-shard shape (one row per subject × field × visit).
 
 ```{r prepare_untransformed}
-as_tibble(Prepare_Untransformed(dfOneHot))
+Prepare_Untransformed(dfOneHot)
 ```
 
 ## `Standardize_Queries()`
@@ -200,7 +200,7 @@ dfQ <- Standardize_Queries(
   dfInput = dfInputSample
 )
 
-as_tibble(dfQ)
+dfQ
 ```
 
 ## `Analyze_CTAS()`
@@ -213,7 +213,7 @@ dfScored <- suppressWarnings(suppressMessages(
   Analyze_CTAS(dfVS)
 ))
 
-as_tibble(dfScored)
+dfScored
 ```
 
 Multi-study is honoured automatically when `Mapped_Subjects` carries several
@@ -243,7 +243,7 @@ across every metric workflow output.
 ```{r bind_analysis}
 dfResultsLong <- Bind_Analysis(lAnalysis, "results")
 
-as_tibble(dfResultsLong)
+dfResultsLong
 ```
 
 ## `Summarize_CTAS()` + `Flag_CTAS()` + `Filter_Flagged()`
@@ -257,11 +257,11 @@ dfSummary <- Summarize_CTAS(
   dfSubjects = lMapped$Mapped_Subjects
 )
 
-as_tibble(dfSummary)
+dfSummary
 
 dfFlagged <- Flag_CTAS(dfSummary)
 
-as_tibble(dfFlagged)
+dfFlagged
 
 dfKept <- Filter_Flagged(dfFlagged, iMinFlag = 1)
 
@@ -284,7 +284,7 @@ dfMetricsAudit <- MakeMetric_CTAS(
   dfInput = dfInputBound
 )
 
-as_tibble(dfMetricsAudit)
+dfMetricsAudit
 ```
 
 ## `Prune_Metrics()`
@@ -296,7 +296,7 @@ the module workflow to bridge the audit and the join keyspace.
 ```{r prune_metrics}
 dfMetricsField <- Prune_Metrics(dfMetricsAudit, dfKept)
 
-as_tibble(dfMetricsField)
+dfMetricsField
 ```
 
 ## `Drop_Chart()`
@@ -349,12 +349,12 @@ The four packaged workflow layers -- mapping, metrics, reporting, modules
 
 ```{r workflow}
 lRaw <- list(
-  Raw_DM = as.data.frame(gsm.ctas::dm),
-  Raw_LB = as.data.frame(gsm.ctas::lb),
-  Raw_VS = as.data.frame(gsm.ctas::vs),
-  Raw_EG = as.data.frame(gsm.ctas::eg),
-  Raw_RS = as.data.frame(gsm.ctas::rs),
-  Raw_Queries = as.data.frame(gsm.ctas::queries)
+  Raw_DM = gsm.ctas::dm,
+  Raw_LB = gsm.ctas::lb,
+  Raw_VS = gsm.ctas::vs,
+  Raw_EG = gsm.ctas::eg,
+  Raw_RS = gsm.ctas::rs,
+  Raw_Queries = gsm.ctas::queries
 )
 
 lMappingWorkflows <- workr::MakeWorkflowList(

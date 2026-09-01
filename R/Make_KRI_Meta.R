@@ -101,7 +101,7 @@ MakeMetric_CTAS <- function(dfResults,
 
   dfParams <- .MetricParamsFrame(vType, lMetricWorkflows)
 
-  as.data.frame(cbind(dfBase, dfParams), stringsAsFactors = FALSE)
+  cbind(dfBase, dfParams)
 }
 
 .LookupParameterName <- function(vParamId, dfInput) {

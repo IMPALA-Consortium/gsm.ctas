@@ -123,6 +123,5 @@ Standardize_Domain <- function(dfDomain,
     dfSubjects, dplyr::all_of(c("subject_id", vSubjectCols))
   ))
 
-  dfOut <- dplyr::inner_join(dfLong, dfSlim, by = "subject_id")
-  as.data.frame(dfOut)
+  dplyr::inner_join(dfLong, dfSlim, by = "subject_id")
 }

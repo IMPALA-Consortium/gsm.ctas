@@ -199,7 +199,6 @@ Prepare_Untransformed <- function(dfInput) {
     dplyr::distinct(
       .data$subject_id, .data$parameter_category_2, .data$timepoint_1_name,
       .keep_all = TRUE
-    ) |>
-    as.data.frame()
+    )
 }
 

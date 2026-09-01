@@ -38,7 +38,7 @@ Input_OneHot <- function(df, strPrefix = "CAT") {
     dplyr::ungroup()
 
   if (nrow(dfClean) == 0) {
-    return(as.data.frame(dfClean))
+    return(dfClean)
   }
 
   dfEncoded <- dfClean |>
@@ -72,6 +72,5 @@ Input_OneHot <- function(df, strPrefix = "CAT") {
       value = as.numeric(.data$Encoded),
       baseline = NA_real_
     ) |>
-    dplyr::select(-dplyr::all_of(c("RowIndex", "Level", "Encoded"))) |>
-    as.data.frame()
+    dplyr::select(-dplyr::all_of(c("RowIndex", "Level", "Encoded")))
 }

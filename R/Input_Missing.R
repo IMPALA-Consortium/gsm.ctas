@@ -39,6 +39,5 @@ Input_Missing <- function(df, strPrefix = "MISS") {
         vParameterID = .data$parameter_id
       ),
       baseline = NA_real_
-    ) |>
-    as.data.frame()
+    )
 }

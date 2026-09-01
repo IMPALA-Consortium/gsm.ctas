@@ -127,5 +127,5 @@ Flag_CTAS <- function(dfAnalyzed,
     rownames(dfFlagged) <- NULL
   }
 
-  as.data.frame(dfFlagged)
+  dfFlagged
 }
