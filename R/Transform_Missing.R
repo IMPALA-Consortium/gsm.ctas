@@ -8,13 +8,23 @@
 #' @param dfInput `data.frame` Long-format output of [Standardize_Domain()].
 #' @param strPrefix `character` Prefix for the generated `parameter_id`.
 #'
+#' @section Data Specification:
+#' `dfInput` must include:
+#' - `subject_id` - Subject identifier.
+#' - `parameter_id` - Raw test code (e.g. `LBTESTCD`).
+#' - `parameter_name` - Human-readable test label.
+#' - `parameter_category_1` - Domain label (e.g. `"Labs"`).
+#' - `parameter_category_2` - Field anchor; retained as the grouping key.
+#' - `visit`, `visitnum` - Visit label and numeric ordering.
+#' - `value` - Numeric result; `NA` carries the missingness signal.
+#'
 #' @return `data.frame` in the CTAS long-format vocabulary. `parameter_id`
 #'   is prefixed with `strPrefix`; `parameter_category_2` keeps the raw
 #'   input `parameter_id` so ctasapp can stitch this metric with sibling
 #'   metrics on the same field.
 #'
 #' @export
-Input_Missing <- function(dfInput, strPrefix = "MISS") {
+Transform_Missing <- function(dfInput, strPrefix = "MISS") {
   AssertColumns(
     dfInput,
     c("subject_id", "parameter_id", "parameter_name",

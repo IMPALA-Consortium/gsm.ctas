@@ -1,9 +1,9 @@
-# Tests for Standardize_Domain, Input_Range, Input_Missing and Input_OneHot.
+# Tests for Standardize_Domain, Transform_Range, Transform_Missing and Transform_OneHot.
 # The single-df pattern (ctasval convention) means each function takes a
 # long-format frame and returns the same shape with the required CTAS
 # columns added. `Standardize_Domain` translates SDTM to the CTAS vocabulary
-# and emits the numeric-ready frame directly, so a separate `Input_Numeric`
-# step is no longer needed.
+# and emits the numeric-ready frame directly, so no extra numeric transform
+# is needed.
 
 # --- helpers -----------------------------------------------------------------
 
@@ -197,9 +197,9 @@ test_that("Standardize_Domain breaks visitnum ties on the VISIT name", {
   expect_equal(dfLong$timepoint_rank, c(1, 2))
 })
 
-# --- Input_Range -------------------------------------------------------------
+# --- Transform_Range -------------------------------------------------------------
 
-test_that("Input_Range normalises values by their reference range", {
+test_that("Transform_Range normalises values by their reference range", {
   dfLong <- data.frame(
     studyid = "A", subject_id = "S1", site = "701",
     parameter_id = "ALT", parameter_name = "Alanine Aminotransferase",
@@ -208,14 +208,14 @@ test_that("Input_Range normalises values by their reference range", {
     value = c(10, 40), low = c(10, 10), high = c(40, 40)
   )
 
-  df <- Input_Range(dfLong)
+  df <- Transform_Range(dfLong)
 
   expect_equal(df$result, c(0, 1))
   expect_setequal(df$parameter_category_3, "range_normalized")
   expect_equal(df$original_value, c(10, 40))
 })
 
-test_that("Input_Range drops rows with an unusable reference range", {
+test_that("Transform_Range drops rows with an unusable reference range", {
   dfLong <- data.frame(
     studyid = "A", subject_id = "S1", site = "701",
     parameter_id = "ALT", parameter_name = "ALT",
@@ -224,22 +224,25 @@ test_that("Input_Range drops rows with an unusable reference range", {
     value = c(10, 40), low = c(10, NA), high = c(40, 40)
   )
 
-  df <- Input_Range(dfLong)
+  expect_warning(
+    df <- Transform_Range(dfLong),
+    "unusable reference range"
+  )
 
   expect_equal(nrow(df), 1)
 })
 
-test_that("Input_Range carries the untransformed detail columns", {
+test_that("Transform_Range carries the untransformed detail columns", {
   dfLong <- MakeLBLong()
 
-  df <- Input_Range(dfLong)
+  df <- suppressWarnings(Transform_Range(dfLong))
 
   expect_true(all(c("original_value", "lower", "upper", "original_category") %in% names(df)))
 })
 
-# --- Input_Missing -----------------------------------------------------------
+# --- Transform_Missing -----------------------------------------------------------
 
-test_that("Input_Missing retains missing rows and encodes the running ratio", {
+test_that("Transform_Missing retains missing rows and encodes the running ratio", {
   dfLong <- data.frame(
     studyid = "A", subject_id = "S1", site = "701",
     parameter_id = "ALT", parameter_name = "ALT",
@@ -248,16 +251,16 @@ test_that("Input_Missing retains missing rows and encodes the running ratio", {
     value = c(10, NA)
   )
 
-  df <- Input_Missing(dfLong)
+  df <- Transform_Missing(dfLong)
 
   expect_equal(nrow(df), 2)
   expect_equal(df$result, c(0, 0.5))
   expect_setequal(df$parameter_category_3, "ratio_missing")
 })
 
-# --- Input_OneHot -----------------------------------------------------------
+# --- Transform_OneHot -----------------------------------------------------------
 
-test_that("Input_OneHot expands to one row per observed level per input row", {
+test_that("Transform_OneHot expands to one row per observed level per input row", {
   dfLong <- data.frame(
     studyid = "A", subject_id = c("S1", "S1", "S1", "S1"),
     site = "701",
@@ -270,7 +273,7 @@ test_that("Input_OneHot expands to one row per observed level per input row", {
     stringsAsFactors = FALSE
   )
 
-  df <- Input_OneHot(dfLong)
+  df <- Transform_OneHot(dfLong)
 
   expect_equal(nrow(df), 4 * 4)
   expect_setequal(
@@ -286,7 +289,7 @@ test_that("Input_OneHot expands to one row per observed level per input row", {
   expect_equal(df$result, as.numeric(df$original_category == vLevelFromID))
 })
 
-test_that("Input_OneHot supports a custom prefix", {
+test_that("Transform_OneHot supports a custom prefix", {
   dfLong <- data.frame(
     studyid = "A", subject_id = "S1", site = "701",
     parameter_id = "OVRLRESP", parameter_name = "Overall Response",
@@ -297,12 +300,12 @@ test_that("Input_OneHot supports a custom prefix", {
     stringsAsFactors = FALSE
   )
 
-  df <- Input_OneHot(dfLong, strPrefix = "OH")
+  df <- Transform_OneHot(dfLong, strPrefix = "OH")
 
   expect_equal(df$parameter_id, "OH_OVRLRESP=CR")
 })
 
-test_that("Input_OneHot drops rows with NA or empty value", {
+test_that("Transform_OneHot drops rows with NA or empty value", {
   dfLong <- data.frame(
     studyid = "A", subject_id = c("S1", "S1", "S1"),
     site = "701",
@@ -315,13 +318,13 @@ test_that("Input_OneHot drops rows with NA or empty value", {
     stringsAsFactors = FALSE
   )
 
-  df <- Input_OneHot(dfLong)
+  df <- Transform_OneHot(dfLong)
 
   expect_equal(nrow(df), 1)
   expect_equal(df$parameter_id, "CAT_OVRLRESP=CR")
 })
 
-test_that("Input_OneHot enumerates levels per parameter_category_2", {
+test_that("Transform_OneHot enumerates levels per parameter_category_2", {
   dfLong <- data.frame(
     studyid = "A", subject_id = "S1", site = "701",
     parameter_id = c("OVRLRESP", "OVRLRESP", "TRGRESP", "TRGRESP"),
@@ -335,7 +338,7 @@ test_that("Input_OneHot enumerates levels per parameter_category_2", {
     stringsAsFactors = FALSE
   )
 
-  df <- Input_OneHot(dfLong)
+  df <- Transform_OneHot(dfLong)
 
   expect_setequal(
     df$parameter_id[df$parameter_category_2 == "OVRLRESP"],
@@ -349,11 +352,11 @@ test_that("Input_OneHot enumerates levels per parameter_category_2", {
 
 # --- cross-metric stitching --------------------------------------------------
 
-test_that("Input_Range and Input_Missing share parameter_category_2 on the same field", {
+test_that("Transform_Range and Transform_Missing share parameter_category_2 on the same field", {
   dfLong <- MakeLBLong()
 
-  dfRange <- Input_Range(dfLong)
-  dfMissing <- Input_Missing(dfLong)
+  dfRange <- suppressWarnings(Transform_Range(dfLong))
+  dfMissing <- Transform_Missing(dfLong)
 
   vShared <- intersect(unique(dfRange$parameter_category_2),
                        unique(dfMissing$parameter_category_2))

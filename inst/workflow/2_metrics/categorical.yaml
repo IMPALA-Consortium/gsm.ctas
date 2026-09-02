@@ -86,10 +86,10 @@ steps:
     params:
       rs: Temp_RS_Long
       bmi: Temp_BMI_Long
-  # `Input_OneHot` expands each row into one row per observed level of the
+  # `Transform_OneHot` expands each row into one row per observed level of the
   # same test; `result` becomes the 0/1 indicator scored by CTAS.
   - output: Temp_CTAS_Values
-    name: gsm.ctas::Input_OneHot
+    name: gsm.ctas::Transform_OneHot
     params:
       dfInput: Temp_CTAS_Long
   - output: Temp_CTAS_Results

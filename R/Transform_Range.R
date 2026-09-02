@@ -11,6 +11,16 @@
 #'   the reference range columns `low`/`high`.
 #' @param strPrefix `character` Prefix for the generated `parameter_id`.
 #'
+#' @section Data Specification:
+#' `dfInput` must include:
+#' - `subject_id` - Subject identifier.
+#' - `parameter_id` - Raw test code (e.g. `LBTESTCD`).
+#' - `parameter_name` - Human-readable test label.
+#' - `parameter_category_1` - Domain label (e.g. `"Labs"`).
+#' - `parameter_category_2` - Field anchor; retained as the grouping key.
+#' - `visit`, `visitnum` - Visit label and numeric ordering.
+#' - `value`, `low`, `high` - Numeric result and reference bounds.
+#'
 #' @return `data.frame` in the CTAS long-format vocabulary carrying the extra
 #'   `original_value`/`lower`/`upper`/`original_category` columns.
 #'   `parameter_id` is prefixed with `strPrefix`; `parameter_category_2` keeps
@@ -18,7 +28,7 @@
 #'   sibling metrics on the same field.
 #'
 #' @export
-Input_Range <- function(dfInput, strPrefix = "RANGE") {
+Transform_Range <- function(dfInput, strPrefix = "RANGE") {
   AssertColumns(
     dfInput,
     c("subject_id", "parameter_id", "parameter_name",
@@ -28,7 +38,9 @@ Input_Range <- function(dfInput, strPrefix = "RANGE") {
     "dfInput"
   )
 
-  dfInput |>
+  nDroppedValue <- sum(is.na(dfInput$value))
+
+  dfNormalised <- dfInput |>
     dplyr::filter(!is.na(.data$value)) |>
     dplyr::mutate(
       original_value = as.numeric(.data$value),
@@ -43,6 +55,15 @@ Input_Range <- function(dfInput, strPrefix = "RANGE") {
       timepoint_rank = as.numeric(.data$visitnum),
       result = Prepare_Normalize(.data$original_value, .data$lower, .data$upper),
       baseline = NA_real_
-    ) |>
-    dplyr::filter(!is.na(.data$result))
+    )
+
+  nDroppedRange <- sum(is.na(dfNormalised$result))
+
+  if (nDroppedValue + nDroppedRange > 0) {
+    cli::cli_warn(
+      "{.fn Transform_Range} dropped {nDroppedValue} row{?s} with NA {.field value} and {nDroppedRange} row{?s} with an unusable reference range."
+    )
+  }
+
+  dplyr::filter(dfNormalised, !is.na(.data$result))
 }

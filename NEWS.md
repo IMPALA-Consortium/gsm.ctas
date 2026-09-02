@@ -1,5 +1,13 @@
 # gsm.ctas (development)
 
+* **Breaking:** `Input_Range()`, `Input_Missing()` and `Input_OneHot()`
+  are renamed to `Transform_Range()`, `Transform_Missing()` and
+  `Transform_OneHot()` to match the `gsm.core::Transform_*` naming
+  convention. Workflow YAML step names, the vignette and the test file
+  are updated in step. `Transform_Range()` now emits a `cli::cli_warn()`
+  reporting how many rows were dropped for `NA` `value` or an unusable
+  reference range.
+
 ## Reinstated markdown KRI report on top of the gsm.kri engine
 
 * New `Summarize_CTAS(dfResults, dfSubjects, bIncludeMissingness, bByFeature,

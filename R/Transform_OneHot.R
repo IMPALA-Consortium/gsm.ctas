@@ -13,6 +13,16 @@
 #'   `value`. `value` is treated as a character categorical.
 #' @param strPrefix `character` Prefix for the generated `parameter_id`.
 #'
+#' @section Data Specification:
+#' `dfInput` must include:
+#' - `subject_id` - Subject identifier.
+#' - `parameter_id` - Raw test code (e.g. `RSTESTCD`).
+#' - `parameter_name` - Human-readable test label.
+#' - `parameter_category_1` - Domain label (e.g. `"Disease Response"`).
+#' - `parameter_category_2` - Field anchor; levels are enumerated within it.
+#' - `visit`, `visitnum` - Visit label and numeric ordering.
+#' - `value` - Character categorical result.
+#'
 #' @return `data.frame` in the CTAS long-format vocabulary carrying the extra
 #'   `original_category` column. `parameter_id` is prefixed with `strPrefix`
 #'   and includes the level (`CAT_OVRLRESP=CR`); `parameter_category_2` keeps
@@ -21,7 +31,7 @@
 #'   used by [Analyze_CTAS()].
 #'
 #' @export
-Input_OneHot <- function(dfInput, strPrefix = "CAT") {
+Transform_OneHot <- function(dfInput, strPrefix = "CAT") {
   AssertColumns(
     dfInput,
     c("subject_id", "parameter_id", "parameter_name",

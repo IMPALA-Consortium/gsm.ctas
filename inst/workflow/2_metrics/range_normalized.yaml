@@ -56,7 +56,7 @@ steps:
       strHighCol: LBSTNRHI
       strCategory: Labs
   - output: Temp_CTAS_Values
-    name: gsm.ctas::Input_Range
+    name: gsm.ctas::Transform_Range
     params:
       dfInput: Temp_CTAS_Long
   - output: Temp_CTAS_Results
@@ -76,7 +76,7 @@ steps:
       strScoringMethod: ScoringMethod
       strPadjustMethod: PadjustMethod
       nSeed: Seed
-  # `Input_Range` stamps `original_value`/`lower`/`upper` onto `Temp_CTAS_Values`,
+  # `Transform_Range` stamps `original_value`/`lower`/`upper` onto `Temp_CTAS_Values`,
   # which flows through as the `untransformed` shard.
   - output: lAnalysis
     name: base::list

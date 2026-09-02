@@ -45,7 +45,7 @@ supplied) alongside the CTAS-ready columns (\code{parameter_category_2},
 as a contiguous \verb{1..N} \code{row_number()} within each \verb{(subject_id, parameter_id)} group, ordered by the source \code{VISITNUM} with \code{VISIT} as
 a tiebreaker -- matching ctasapp's \code{recalculate_timepoint_rank()}.
 The default output is ready to feed straight into
-\code{\link[=Analyze_CTAS]{Analyze_CTAS()}}; use \code{\link[=Input_Range]{Input_Range()}} or \code{\link[=Input_Missing]{Input_Missing()}} to overwrite
+\code{\link[=Analyze_CTAS]{Analyze_CTAS()}}; use \code{\link[=Transform_Range]{Transform_Range()}} or \code{\link[=Transform_Missing]{Transform_Missing()}} to overwrite
 \code{result}/\code{parameter_category_3}/\code{parameter_id} for those transforms.
 }
 \description{

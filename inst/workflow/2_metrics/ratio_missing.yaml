@@ -111,9 +111,9 @@ steps:
       vs: Temp_VS_Long
       eg: Temp_EG_Long
   # NA values in the source *STRESN columns are the missingness signal
-  # `Input_Missing` picks up.
+  # `Transform_Missing` picks up.
   - output: Temp_CTAS_Values
-    name: gsm.ctas::Input_Missing
+    name: gsm.ctas::Transform_Missing
     params:
       dfInput: Temp_CTAS_Long
   - output: Temp_CTAS_Results

@@ -30,7 +30,7 @@
 #'   parameter_id)` group, ordered by the source `VISITNUM` with `VISIT` as
 #'   a tiebreaker -- matching ctasapp's `recalculate_timepoint_rank()`.
 #'   The default output is ready to feed straight into
-#'   [Analyze_CTAS()]; use [Input_Range()] or [Input_Missing()] to overwrite
+#'   [Analyze_CTAS()]; use [Transform_Range()] or [Transform_Missing()] to overwrite
 #'   `result`/`parameter_category_3`/`parameter_id` for those transforms.
 #'
 #' @examples
@@ -68,7 +68,7 @@ Standardize_Domain <- function(dfDomain,
   AssertColumns(dfSubjects, c("subject_id", "site"), "dfSubjects")
 
   vValue <- dfDomain[[strValueCol]]
-  # Character sources (e.g. RSSTRESC) leave `result` for Input_OneHot to fill.
+  # Character sources (e.g. RSSTRESC) leave `result` for Transform_OneHot to fill.
   vResult <- if (is.numeric(vValue)) as.numeric(vValue) else rep(NA_real_, length(vValue))
 
   dfLong <- dplyr::tibble(

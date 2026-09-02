@@ -88,11 +88,11 @@ dfVS <- Standardize_Domain(
 dfVS
 ```
 
-## `Input_Range()`
+## `Transform_Range()`
 
 Rescale each result into its reference range (`(x - low) / (high - low)`).
 
-```{r input_range}
+```{r transform_range}
 dfLBraw <- Standardize_Domain(
   dfDomain = lMapped$Mapped_LB,
   dfSubjects = lMapped$Mapped_Subjects,
@@ -104,27 +104,27 @@ dfLBraw <- Standardize_Domain(
   strCategory = "Labs"
 )
 
-dfRange <- Input_Range(dfLBraw)
+dfRange <- Transform_Range(dfLBraw)
 
 dfRange
 ```
 
-## `Input_Missing()`
+## `Transform_Missing()`
 
 Recode each observation as a 0/1 indicator of missingness for
 missingness-over-time monitoring.
 
-```{r input_missing}
-dfMissing <- Input_Missing(dfLBraw)
+```{r transform_missing}
+dfMissing <- Transform_Missing(dfLBraw)
 
 dfMissing
 ```
 
-## `Input_OneHot()`
+## `Transform_OneHot()`
 
 Expand a categorical variable into one binary CTAS timeseries per level.
 
-```{r input_onehot}
+```{r transform_onehot}
 dfRSraw <- Standardize_Domain(
   dfDomain = gsm.ctas::rs %>% filter(RSTESTCD == "OVRLRESP"),
   dfSubjects = lMapped$Mapped_Subjects,
@@ -134,7 +134,7 @@ dfRSraw <- Standardize_Domain(
   strCategory = "Disease Response"
 )
 
-dfOneHot <- Input_OneHot(dfRSraw)
+dfOneHot <- Transform_OneHot(dfRSraw)
 
 unique(dfOneHot$parameter_id)
 dfOneHot
@@ -146,7 +146,7 @@ Translate the ctasapp query upload schema into the CTAS long vocabulary and
 fan raw field ids out onto every transformed CTAS parameter id.
 
 ```{r standardize_queries}
-dfInputSample <- Input_Range(dfLBraw)
+dfInputSample <- Transform_Range(dfLBraw)
 
 dfQ <- Standardize_Queries(
   dfQueries = lMapped$Mapped_Queries,

@@ -18,7 +18,7 @@ reference:
   contents:
   - Standardize_Domain
   - Standardize_Queries
-  - starts_with("Input_")
+  - starts_with("Transform_")
 - title: Analysis
   desc: Run CTAS and emit the ctasapp-shaped output frames.
   contents:
