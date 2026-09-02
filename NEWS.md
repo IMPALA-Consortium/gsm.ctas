@@ -1,5 +1,10 @@
 # gsm.ctas (development)
 
+* **Breaking:** `Bind_Analysis()` is renamed to `BindResults_CTAS()` to
+  echo `gsm.reporting::BindResults()` while keeping the ctasapp
+  column-contract shaping (`studyid` -> `study` rename and the
+  `untransformed` `original_value`/`original_category` filter).
+
 * **Breaking:** `Input_Range()`, `Input_Missing()` and `Input_OneHot()`
   are renamed to `Transform_Range()`, `Transform_Missing()` and
   `Transform_OneHot()` to match the `gsm.core::Transform_*` naming

@@ -21,11 +21,11 @@
 #'
 #' @examples
 #' \dontrun{
-#' Bind_Analysis(lAnalysis, "results")
+#' BindResults_CTAS(lAnalysis, "results")
 #' }
 #'
 #' @export
-Bind_Analysis <- function(lAnalysis, strName) {
+BindResults_CTAS <- function(lAnalysis, strName) {
   if (!is.list(lAnalysis) || is.data.frame(lAnalysis)) {
     cli::cli_abort(
       "{.arg lAnalysis} must be a list of metric workflow outputs."

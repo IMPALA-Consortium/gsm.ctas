@@ -1,7 +1,7 @@
 # Unit tests for Summarize_CTAS().
 #
 # Uses a small hand-rolled `dfResults` shaped like the frame emitted by
-# `Bind_Analysis()` so we don't pay the CTAS runtime cost. Column vocabulary
+# `BindResults_CTAS()` so we don't pay the CTAS runtime cost. Column vocabulary
 # mirrors the workflow-produced Reporting_Results$results contract.
 
 MakeResultsFixture <- function() {

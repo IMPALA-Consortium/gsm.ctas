@@ -26,7 +26,7 @@ reference:
 - title: Reporting
   desc: Bind the ctasapp output frames and write them to disk for the ctasapp dashboard.
   contents:
-  - Bind_Analysis
+  - BindResults_CTAS
   - Write_ctasapp
 - title: Summary
   desc: Aggregate CTAS results into gsm KRI-shaped summary + metric + group meta for the standard gsm.kri report.

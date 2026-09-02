@@ -189,13 +189,13 @@ lAnalysis <- suppressWarnings(suppressMessages(
 names(lAnalysis)
 ```
 
-## `Bind_Analysis()`
+## `BindResults_CTAS()`
 
 Concatenate one named frame (`"results"`, `"input"`, `"untransformed"`)
 across every metric workflow output.
 
-```{r bind_analysis}
-dfResultsLong <- Bind_Analysis(lAnalysis, "results")
+```{r bind_results_ctas}
+dfResultsLong <- BindResults_CTAS(lAnalysis, "results")
 
 dfResultsLong
 ```
@@ -227,7 +227,7 @@ field × metric family, with every CTAS parameter column from the metric
 YAMLs.
 
 ```{r make_metric_ctas}
-dfInputBound <- Bind_Analysis(lAnalysis, "input")
+dfInputBound <- BindResults_CTAS(lAnalysis, "input")
 
 dfMetricsAudit <- MakeMetric_CTAS(
   dfResults = dfResultsLong,

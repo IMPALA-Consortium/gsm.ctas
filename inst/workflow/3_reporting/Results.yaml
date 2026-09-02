@@ -12,17 +12,17 @@ steps:
   # match the ctasapp column contract (studyid -> study) and can be written
   # to parquet with `Write_ctasapp()` or handed to ctasapp validators.
   - output: Reporting_Results
-    name: gsm.ctas::Bind_Analysis
+    name: gsm.ctas::BindResults_CTAS
     params:
       lAnalysis: lAnalyzed
       strName: "results"
   - output: Reporting_Input
-    name: gsm.ctas::Bind_Analysis
+    name: gsm.ctas::BindResults_CTAS
     params:
       lAnalysis: lAnalyzed
       strName: "input"
   - output: Reporting_Untransformed
-    name: gsm.ctas::Bind_Analysis
+    name: gsm.ctas::BindResults_CTAS
     params:
       lAnalysis: lAnalyzed
       strName: "untransformed"
