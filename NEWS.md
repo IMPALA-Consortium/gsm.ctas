@@ -1,5 +1,11 @@
 # gsm.ctas (development)
 
+* **Internal:** workflow execution now calls `workr::RunWorkflows()`
+  (the lightweight runtime extracted from `gsm.core`) instead of
+  `gsm.core::RunWorkflows()`. `gsm.core` stays in `Suggests` because
+  `gsm.mapping::MakeLongMeta()` (used by `SITE.yaml` / `STUDY.yaml`)
+  pulls it transitively.
+
 * **Breaking:** `Bind_Analysis()` is renamed to `BindResults_CTAS()` to
   echo `gsm.reporting::BindResults()` while keeping the ctasapp
   column-contract shaping (`studyid` -> `study` rename and the

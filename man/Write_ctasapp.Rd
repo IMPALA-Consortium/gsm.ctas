@@ -7,7 +7,7 @@
 Write_ctasapp(lReporting, strDir, strFormat = "parquet")
 }
 \arguments{
-\item{lReporting}{\code{list} Output of \code{gsm.core::RunWorkflows()} on the
+\item{lReporting}{\code{list} Output of \code{workr::RunWorkflows()} on the
 reporting workflows -- a named list whose elements are themselves named
 lists of data frames.}
 

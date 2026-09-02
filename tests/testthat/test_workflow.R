@@ -179,7 +179,7 @@ test_that("Write_ctasapp binds all metric shards and writes readable files", {
     strPath = system.file("workflow/3_reporting", package = "gsm.ctas"),
     strPackage = NULL
   )
-  lReporting <- suppressWarnings(gsm.core::RunWorkflows(
+  lReporting <- suppressWarnings(workr::RunWorkflows(
     lWorkflows = lReportingWorkflows["Results"],
     lData = list(lAnalyzed = lAnalysis)
   ))
@@ -267,7 +267,7 @@ test_that("Reporting workflow binds shards into a common list of frames", {
     strPackage = NULL
   )
 
-  lReporting <- suppressWarnings(gsm.core::RunWorkflows(
+  lReporting <- suppressWarnings(workr::RunWorkflows(
     lWorkflows = lReportingWorkflows["Results"],
     lData = list(lAnalyzed = lAnalysis)
   ))
@@ -291,7 +291,7 @@ test_that("Reporting workflow standardises queries via the Queries YAML", {
     strPackage = NULL
   )
 
-  lReporting <- suppressWarnings(gsm.core::RunWorkflows(
+  lReporting <- suppressWarnings(workr::RunWorkflows(
     lWorkflows = lReportingWorkflows[c("Results", "Queries")],
     lData = c(lMapped, list(lAnalyzed = lAnalysis))
   ))
@@ -329,7 +329,7 @@ test_that("Summary workflow packages a gsm KRI-shaped summary + metrics + groups
     strPackage = NULL
   )
 
-  lReporting <- suppressWarnings(gsm.core::RunWorkflows(
+  lReporting <- suppressWarnings(workr::RunWorkflows(
     lWorkflows = lReportingWorkflows[c("Results", "Groups", "Metrics", "Summary")],
     lData = c(lMapped, list(
       lAnalyzed = lAnalysis,
@@ -425,7 +425,7 @@ test_that("report_kri_site module renders a KRI HTML report", {
 
   # gsm.kri::Report_KRI is single-study; drop the second study block from
   # the summary before rendering.
-  lReporting <- suppressWarnings(gsm.core::RunWorkflows(
+  lReporting <- suppressWarnings(workr::RunWorkflows(
     lWorkflows = lReportingWorkflows[c("Results", "Groups", "Metrics", "Summary")],
     lData = c(lMapped, list(
       lAnalyzed = lAnalysis,
@@ -444,7 +444,7 @@ test_that("report_kri_site module renders a KRI HTML report", {
 
   strDir <- withr::local_tempdir()
   lModuleWorkflows$report_kri_site$meta$strOutputDir <- strDir
-  suppressWarnings(suppressMessages(gsm.core::RunWorkflows(
+  suppressWarnings(suppressMessages(workr::RunWorkflows(
     lWorkflows = lModuleWorkflows,
     lData = lReporting
   )))

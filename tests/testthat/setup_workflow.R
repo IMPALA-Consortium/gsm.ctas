@@ -110,11 +110,11 @@ if (bWorkflowRunnable) {
   # CTAS emits `cor()` "standard deviation is zero" warnings for flat series.
   # Expected on real data, so suppressed in tests only.
   lMapped <- suppressWarnings(
-    gsm.core::RunWorkflows(lWorkflows = lMappingWorkflows, lData = lIngest)
+    workr::RunWorkflows(lWorkflows = lMappingWorkflows, lData = lIngest)
   )
 
   lAnalysis <- suppressWarnings(
-    gsm.core::RunWorkflows(lWorkflows = lMetricWorkflows, lData = lMapped)
+    workr::RunWorkflows(lWorkflows = lMetricWorkflows, lData = lMapped)
   )
 }
 

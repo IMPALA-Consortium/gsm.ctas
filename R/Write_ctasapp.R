@@ -19,7 +19,7 @@
 #' `lReporting` contains no writable frames, so a mis-shaped input never
 #' silently produces an empty output directory.
 #'
-#' @param lReporting `list` Output of `gsm.core::RunWorkflows()` on the
+#' @param lReporting `list` Output of `workr::RunWorkflows()` on the
 #'   reporting workflows -- a named list whose elements are themselves named
 #'   lists of data frames.
 #' @param strDir `character` Directory to write into. Created if absent.

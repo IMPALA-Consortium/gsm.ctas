@@ -27,10 +27,9 @@ pak::pak("IMPALA-Consortium/gsm.ctas")
 
 ```{r load, message = FALSE}
 suppressPackageStartupMessages(library(dplyr))
-library(gsm.core)
+library(workr)
 library(gsm.mapping)
 library(gsm.kri)
-library(workr)
 library(gsm.ctas)
 ```
 
@@ -64,7 +63,7 @@ lMappingWorkflows <- workr::MakeWorkflowList(
 lIngest <- gsm.mapping::Ingest(lRaw, gsm.mapping::CombineSpecs(lMappingWorkflows))
 
 lMapped <- suppressWarnings(suppressMessages(
-  gsm.core::RunWorkflows(lWorkflows = lMappingWorkflows, lData = lIngest)
+  workr::RunWorkflows(lWorkflows = lMappingWorkflows, lData = lIngest)
 ))
 
 names(lMapped)
@@ -183,7 +182,7 @@ lMetricWorkflows <- workr::MakeWorkflowList(
 )
 
 lAnalysis <- suppressWarnings(suppressMessages(
-  gsm.core::RunWorkflows(lWorkflows = lMetricWorkflows, lData = lMapped)
+  workr::RunWorkflows(lWorkflows = lMetricWorkflows, lData = lMapped)
 ))
 
 names(lAnalysis)
@@ -266,17 +265,17 @@ lModuleWorkflows <- workr::MakeWorkflowList(
   strPath = system.file("workflow/4_modules", package = "gsm.ctas")
 )
 
-lMapped <- suppressWarnings(suppressMessages(gsm.core::RunWorkflows(
+lMapped <- suppressWarnings(suppressMessages(workr::RunWorkflows(
   lWorkflows = lMappingWorkflows,
   lData = gsm.mapping::Ingest(lRaw, gsm.mapping::CombineSpecs(lMappingWorkflows))
 )))
 
-lAnalysis <- suppressWarnings(suppressMessages(gsm.core::RunWorkflows(
+lAnalysis <- suppressWarnings(suppressMessages(workr::RunWorkflows(
   lWorkflows = lMetricWorkflows,
   lData = lMapped
 )))
 
-lReporting <- suppressWarnings(suppressMessages(gsm.core::RunWorkflows(
+lReporting <- suppressWarnings(suppressMessages(workr::RunWorkflows(
   lWorkflows = lReportingWorkflows,
   lData = c(lMapped, list(
     lAnalyzed = lAnalysis,
@@ -284,7 +283,7 @@ lReporting <- suppressWarnings(suppressMessages(gsm.core::RunWorkflows(
   ))
 )))
 
-gsm.core::RunWorkflows(
+workr::RunWorkflows(
   lWorkflows = lModuleWorkflows,
   lData = lReporting
 )
@@ -320,17 +319,17 @@ lReportingWorkflows <- workr::MakeWorkflowList(
   strPath = system.file("workflow/3_reporting", package = "gsm.ctas")
 )
 
-lMapped <- gsm.core::RunWorkflows(
+lMapped <- workr::RunWorkflows(
   lWorkflows = lMappingWorkflows,
   lData = gsm.mapping::Ingest(lRaw, gsm.mapping::CombineSpecs(lMappingWorkflows))
 )
 
-lAnalysis <- gsm.core::RunWorkflows(
+lAnalysis <- workr::RunWorkflows(
   lWorkflows = lMetricWorkflows,
   lData = lMapped
 )
 
-lReporting <- gsm.core::RunWorkflows(
+lReporting <- workr::RunWorkflows(
   lWorkflows = lReportingWorkflows,
   lData = c(lMapped, list(
     lAnalyzed = lAnalysis,

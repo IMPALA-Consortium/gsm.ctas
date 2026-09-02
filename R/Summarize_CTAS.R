@@ -48,7 +48,7 @@
 #'
 #' @examples
 #' \dontrun{
-#' lReporting <- gsm.core::RunWorkflows(
+#' lReporting <- workr::RunWorkflows(
 #'   lReportingWorkflows["Results"],
 #'   lData = c(lMapped, list(lAnalyzed = lAnalysis))
 #' )

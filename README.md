@@ -70,7 +70,7 @@ lIngest <- gsm.mapping::Ingest(
   gsm.mapping::CombineSpecs(lMappingWorkflows)
 )
 
-lMapped <- gsm.core::RunWorkflows(lMappingWorkflows, lIngest)
+lMapped <- workr::RunWorkflows(lMappingWorkflows, lIngest)
 
 lMetricWorkflows <- workr::MakeWorkflowList(
   strNames = NULL,
@@ -78,7 +78,7 @@ lMetricWorkflows <- workr::MakeWorkflowList(
   strPackage = NULL
 )
 
-lAnalysis <- gsm.core::RunWorkflows(lMetricWorkflows, lMapped)
+lAnalysis <- workr::RunWorkflows(lMetricWorkflows, lMapped)
 
 lReportingWorkflows <- workr::MakeWorkflowList(
   strNames = NULL,
@@ -86,7 +86,7 @@ lReportingWorkflows <- workr::MakeWorkflowList(
   strPackage = NULL
 )
 
-lReporting <- gsm.core::RunWorkflows(
+lReporting <- workr::RunWorkflows(
   lReportingWorkflows,
   c(lMapped, list(lAnalyzed = lAnalysis))
 )
