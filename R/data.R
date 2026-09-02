@@ -68,10 +68,7 @@
 #' Illustrative EDC query records
 #'
 #' Synthetic clinical-query records generated deterministically from the
-#' bundled SDTM domains (`dm`, `lb`, `vs`, `eg`, `rs`) using the sampling
-#' logic of `ctasapp::simulate_query_data()`. Shape matches the ctasapp
-#' `validate_upload_queries()` contract, so the frame is upload-ready for the
-#' ctasapp dashboard.
+#' bundled SDTM domains (`dm`, `lb`, `vs`, `eg`, `rs`).
 #'
 #' @format A `data.frame` with 15 columns: `study`, `domain`, `field`,
 #'   `subject_id`, `visit`, `parameter_id`, `query_text`, `query_answer`,

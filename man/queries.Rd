@@ -19,10 +19,7 @@ queries
 }
 \description{
 Synthetic clinical-query records generated deterministically from the
-bundled SDTM domains (\code{dm}, \code{lb}, \code{vs}, \code{eg}, \code{rs}) using the sampling
-logic of \code{ctasapp::simulate_query_data()}. Shape matches the ctasapp
-\code{validate_upload_queries()} contract, so the frame is upload-ready for the
-ctasapp dashboard.
+bundled SDTM domains (\code{dm}, \code{lb}, \code{vs}, \code{eg}, \code{rs}).
 }
 \examples{
 data(queries)

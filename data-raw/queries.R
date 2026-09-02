@@ -1,8 +1,6 @@
 # Illustrative EDC-style queries against the bundled SDTM domains.
 #
-# Ports the sampling logic from ctasapp::simulate_query_data() so the shipped
-# `queries` frame matches ctasapp's `validate_upload_queries()` contract (15
-# columns). Regenerated deterministically from `data/dm.rda` etc. via
+# Regenerated deterministically from `data/dm.rda` etc. via
 # `Rscript data-raw/build.R`. Not exposed as a runtime helper -- the shipped
 # `.rda` is the artefact.
 
