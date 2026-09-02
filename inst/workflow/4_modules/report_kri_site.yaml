@@ -11,64 +11,9 @@ spec:
   Reporting_Summary:
     type: list
 steps:
-  - output: Report_Summary
-    name: base::getElement
-    params:
-      object: Reporting_Summary
-      name: "summary"
-  # Family-granular audit table (one row per field x metric family). The
-  # vendored Report_CTAS.Rmd collapses it to the field-level MetricID
-  # scheme for every join and reserves the full frame for the Metric
-  # Details `gt` table.
-  - output: Report_Metrics
-    name: base::getElement
-    params:
-      object: Reporting_Summary
-      name: "metrics"
-  - output: Report_Groups
-    name: base::getElement
-    params:
-      object: Reporting_Summary
-      name: "groups"
-  # gsm.kri::MakeCharts keys lCharts by MetricID; the audit's family-level
-  # MetricIDs will not match dfResults, so collapse to the field-level
-  # scheme just for chart building.
-  - output: Report_MetricsPruned
-    name: gsm.ctas::Prune_Metrics
-    params:
-      dfMetrics: Report_Metrics
-      dfSummary: Report_Summary
-  - output: Report_Charts
-    name: gsm.kri::MakeCharts
-    params:
-      dfResults: Report_Summary
-      dfMetrics: Report_MetricsPruned
-      dfGroups: Report_Groups
-      dfBounds: ~
-  - output: Report_Charts
-    name: gsm.ctas::Drop_Chart
-    params:
-      lCharts: Report_Charts
-      vDropCharts: vDropCharts
-  # Absolute path anchored to the R session's wd; rmarkdown::render
-  # otherwise resolves relatives against the template's own directory.
-  - output: Report_OutputDir
-    name: base::normalizePath
-    params:
-      path: strOutputDir
-      mustWork: false
-  # In-package indirection: `system.file` resolved through workr's
-  # namespace lookup skips pkgload's `inst/` shim under `load_all`, so we
-  # ask the package for the path itself.
-  - output: Report_InputPath
-    name: gsm.ctas::Report_CTAS_Path
-    params: {}
   - output: Report_Path
-    name: gsm.kri::Report_KRI
+    name: gsm.ctas::Report_CTAS
     params:
-      lCharts: Report_Charts
-      dfResults: Report_Summary
-      dfMetrics: Report_Metrics
-      dfGroups: Report_Groups
-      strOutputDir: Report_OutputDir
-      strInputPath: Report_InputPath
+      lReporting: Reporting_Summary
+      strOutputDir: strOutputDir
+      vDropCharts: vDropCharts

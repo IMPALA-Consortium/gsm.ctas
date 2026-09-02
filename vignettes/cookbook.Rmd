@@ -238,61 +238,6 @@ dfMetricsAudit <- MakeMetric_CTAS(
 dfMetricsAudit
 ```
 
-## `Prune_Metrics()`
-
-Collapse the audit to the field-level `MetricID` scheme
-(`ctas_<parameter_category_2>`) `gsm.kri::MakeCharts()` expects. Used by
-the module workflow to bridge the audit and the join keyspace.
-
-```{r prune_metrics}
-dfMetricsField <- Prune_Metrics(dfMetricsAudit, dfKept)
-
-dfMetricsField
-```
-
-## `Drop_Chart()`
-
-Remove inner tabs from a `gsm.kri::MakeCharts()` output before rendering.
-
-```{r drop_chart}
-lStub <- list(
-  ctas_AST = list(barChart = "keep", scatterPlot = "drop"),
-  ctas_SYSBP = list(barChart = "keep")
-)
-
-str(Drop_Chart(lStub, vDropCharts = "scatterPlot"))
-```
-
-## `Report_CTAS_Path()`
-
-Absolute path to the vendored `Report_CTAS.Rmd` template; passed to
-`gsm.kri::Report_KRI()` via `strInputPath` from the module workflow.
-
-```{r report_ctas_path}
-Report_CTAS_Path()
-```
-
-## `Write_ctasapp()`
-
-Walk a reporting output and write every non-empty frame as parquet (or
-csv) for [ctasapp](https://github.com/IMPALA-Consortium/ctasapp).
-
-```{r write_ctasapp, eval = FALSE}
-Write_ctasapp(lReporting, strDir = "pub", strFormat = "parquet")
-```
-
-Point ctasapp at the parquet folder by editing its `embedded:` block:
-
-```{r ctasapp, eval = FALSE}
-remotes::install_github("IMPALA-Consortium/ctasapp")
-file.copy(system.file("ctasapp.yml", package = "ctasapp"), "ctasapp.yml")
-# embedded:
-#   results: pub/results.parquet
-#   input: pub/input.parquet
-#   untransformed: pub/untransformed.parquet
-ctasapp::run_ctas_app()
-```
-
 ## Full workflow
 
 The four packaged workflow layers -- mapping, metrics, reporting, modules
@@ -339,15 +284,71 @@ lReporting <- suppressWarnings(suppressMessages(gsm.core::RunWorkflows(
   ))
 )))
 
-names(lReporting)
-str(lReporting$Reporting_Summary, max.level = 1)
-
-# The module workflow renders the site-level KRI HTML report. It writes into
-# the current working directory unless you point it elsewhere by mutating
-# `lModuleWorkflows$report_kri_site$meta$strOutputDir`.
-
 gsm.core::RunWorkflows(
   lWorkflows = lModuleWorkflows,
   lData = lReporting
 )
+```
+
+## ctasapp export
+
+[ctasapp](https://github.com/IMPALA-Consortium/ctasapp) only consumes the
+`results`, `input`, `untransformed` and `queries` frames -- the
+`3_reporting` outputs `Reporting_Results` and `Reporting_Queries`. The
+`Summary`, `Metrics`, `Groups` frames and the `4_modules` html render are
+not needed. Filter the reporting layer with `strNames` to skip the
+gsm.kri-only workflows:
+
+```{r ctasapp_workflow, eval = FALSE}
+lRaw <- list(
+  Raw_DM = gsm.ctas::dm,
+  Raw_LB = gsm.ctas::lb,
+  Raw_VS = gsm.ctas::vs,
+  Raw_EG = gsm.ctas::eg,
+  Raw_RS = gsm.ctas::rs,
+  Raw_Queries = gsm.ctas::queries
+)
+
+lMappingWorkflows <- workr::MakeWorkflowList(
+  strPath = system.file("workflow/1_mappings", package = "gsm.ctas")
+)
+lMetricWorkflows <- workr::MakeWorkflowList(
+  strPath = system.file("workflow/2_metrics", package = "gsm.ctas")
+)
+lReportingWorkflows <- workr::MakeWorkflowList(
+  strNames = c("Results", "Queries"),
+  strPath = system.file("workflow/3_reporting", package = "gsm.ctas")
+)
+
+lMapped <- gsm.core::RunWorkflows(
+  lWorkflows = lMappingWorkflows,
+  lData = gsm.mapping::Ingest(lRaw, gsm.mapping::CombineSpecs(lMappingWorkflows))
+)
+
+lAnalysis <- gsm.core::RunWorkflows(
+  lWorkflows = lMetricWorkflows,
+  lData = lMapped
+)
+
+lReporting <- gsm.core::RunWorkflows(
+  lWorkflows = lReportingWorkflows,
+  lData = c(lMapped, list(
+    lAnalyzed = lAnalysis,
+    lMetricWorkflows = lMetricWorkflows
+  ))
+)
+
+Write_ctasapp(lReporting, strDir = "pub", strFormat = "parquet")
+```
+
+Point ctasapp at the parquet folder by editing its `embedded:` block:
+
+```{r ctasapp, eval = FALSE}
+remotes::install_github("IMPALA-Consortium/ctasapp")
+file.copy(system.file("ctasapp.yml", package = "ctasapp"), "ctasapp.yml")
+# embedded:
+#   results: pub/results.parquet
+#   input: pub/input.parquet
+#   untransformed: pub/untransformed.parquet
+ctasapp::run_ctas_app()
 ```

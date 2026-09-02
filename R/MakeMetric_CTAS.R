@@ -10,9 +10,9 @@
 #' `MetricID` is `ctas_<parameter_category_3>_<parameter_category_2>` --
 #' family-granular so each `(field, metric family)` pair carries its own
 #' CTAS parameter values distinctly. This is *not* the field-level
-#' `MetricID` scheme emitted by [Summarize_CTAS()] (`ctas_<field>`); run
-#' the audit through [Prune_Metrics()] to collapse it to the field-level
-#' scheme `gsm.kri` expects for rendering.
+#' `MetricID` scheme emitted by [Summarize_CTAS()] (`ctas_<field>`);
+#' [Report_CTAS()] collapses it to that scheme internally before handing
+#' it to `gsm.kri::MakeCharts()`.
 #'
 #' @param dfResults `data.frame` Unfiltered stacked CTAS results, typically
 #'   `Reporting_Results$results` from the reporting `Results` workflow.
@@ -45,8 +45,7 @@
 #'   `Abbreviation` renders as an empty column header. It is set here to
 #'   `parameter_category_2`.
 #'
-#' @seealso [Prune_Metrics()] to slim the audit table to a `gsm.kri`-ready
-#'   one-row-per-`MetricID` frame.
+#' @seealso [Report_CTAS()] for the end-to-end reporting pipeline.
 #'
 #' @export
 MakeMetric_CTAS <- function(dfResults,
@@ -101,40 +100,4 @@ MakeMetric_CTAS <- function(dfResults,
   dfParams <- MetricParamsFrame(vType, lMetricWorkflows)
 
   cbind(dfBase, dfParams)
-}
-
-#' Collapse the CTAS metrics audit table to a `gsm.kri`-ready `dfMetrics`
-#'
-#' The audit table from [MakeMetric_CTAS()] carries one row per
-#' `(parameter_category_2, parameter_category_3)` with a family-granular
-#' `MetricID` (`ctas_<family>_<field>`). The gsm KRI summary emitted by
-#' [Summarize_CTAS()] is field-granular (`MetricID = ctas_<field>`) and
-#' `gsm.kri` requires the two frames to share a `MetricID` vocabulary.
-#'
-#' `Prune_Metrics()` collapses the audit down to one row per field, filters
-#' to the fields present in `dfSummary`, and rewrites `MetricID` to
-#' `ctas_<parameter_category_2>` so downstream `gsm.kri::MakeCharts()`
-#' joins cleanly. When multiple metric families exist for the same field
-#' the first row (by input order) wins; sponsors who need per-family
-#' parameter values should consume `Reporting_Metrics` directly.
-#'
-#' @param dfMetrics `data.frame` Output of [MakeMetric_CTAS()]. Must carry
-#'   `parameter_category_2`.
-#' @param dfSummary `data.frame` Filtered CTAS summary. Must contain
-#'   `MetricID`.
-#'
-#' @return `data.frame` One row per `MetricID` present in
-#'   `dfSummary$MetricID`, preserving column order of `dfMetrics`.
-#'
-#' @export
-Prune_Metrics <- function(dfMetrics, dfSummary) {
-  AssertColumns(dfMetrics, c("MetricID", "parameter_category_2"), "dfMetrics")
-  AssertColumns(dfSummary, "MetricID", "dfSummary")
-
-  df <- dfMetrics
-  df$MetricID <- paste0("ctas_", df$parameter_category_2)
-  df <- df[df$MetricID %in% unique(dfSummary$MetricID), , drop = FALSE]
-  df <- df[!duplicated(df$MetricID), , drop = FALSE]
-  row.names(df) <- NULL
-  df
 }

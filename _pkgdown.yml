@@ -34,9 +34,7 @@ reference:
   - Summarize_CTAS
   - Flag_CTAS
   - MakeMetric_CTAS
-  - Prune_Metrics
-  - Drop_Chart
-  - Report_CTAS_Path
+  - Report_CTAS
 - title: Package
   contents:
   - gsm.ctas-package
