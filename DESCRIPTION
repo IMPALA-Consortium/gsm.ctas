@@ -24,6 +24,7 @@ Imports:
     utils
 Suggests:
     arrow,
+    covr,
     DT,
     gsm.core,
     gsm.kri,

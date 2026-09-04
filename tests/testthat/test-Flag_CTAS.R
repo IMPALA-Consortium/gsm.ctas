@@ -87,3 +87,67 @@ test_that("accrual filter requires a valid strAccrualMetric", {
     "strAccrualMetric"
   )
 })
+
+test_that("errors when dfAnalyzed is not a data.frame", {
+  expect_error(Flag_CTAS(list(Score = 1)), "data.frame")
+})
+
+test_that("errors when strColumn is not a single string", {
+  expect_error(Flag_CTAS(MakeScoresFixture(), strColumn = c("a", "b")),
+               "single column name")
+  expect_error(Flag_CTAS(MakeScoresFixture(), strColumn = 42),
+               "single column name")
+})
+
+test_that("errors when vThreshold is empty or non-numeric", {
+  expect_error(Flag_CTAS(MakeScoresFixture(), vThreshold = numeric(0)),
+               "non-empty numeric")
+  expect_error(Flag_CTAS(MakeScoresFixture(), vThreshold = c("a", "b")),
+               "non-empty numeric")
+})
+
+test_that("errors when vThreshold is not strictly ascending", {
+  expect_error(Flag_CTAS(MakeScoresFixture(), vThreshold = c(2.0, 1.0)),
+               "strictly ascending")
+})
+
+test_that("errors when vFlag has the wrong length", {
+  expect_error(
+    Flag_CTAS(MakeScoresFixture(), vFlag = c(0, 1)),
+    "numeric elements"
+  )
+})
+
+test_that("errors when vFlagOrder does not match vFlag", {
+  expect_error(
+    Flag_CTAS(MakeScoresFixture(), vFlagOrder = c(0, 1, 99)),
+    "same values as"
+  )
+})
+
+test_that("errors when nAccrualThreshold is not a single number", {
+  expect_error(
+    Flag_CTAS(MakeScoresFixture(), nAccrualThreshold = c(1, 2),
+              strAccrualMetric = "Numerator"),
+    "single number"
+  )
+})
+
+test_that("Difference accrual metric NAs out sites below the threshold", {
+  df <- MakeScoresFixture()
+  df$Numerator <- c(1, 1, 1, 1)
+  df$Denominator <- c(2, 5, 5, 5)   # difference = 1, 4, 4, 4
+
+  dfFlagged <- Flag_CTAS(
+    df,
+    nAccrualThreshold = 3,
+    strAccrualMetric = "Difference",
+    vFlagOrder = NULL
+  )
+
+  # First row's difference (1) is below 3 => Score and Flag are NA.
+  expect_true(is.na(dfFlagged$Score[1]))
+  expect_true(is.na(dfFlagged$Flag[1]))
+  # Remaining sites keep their flag values.
+  expect_false(any(is.na(dfFlagged$Flag[-1])))
+})

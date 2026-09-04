@@ -11,6 +11,10 @@ articles:
   navbar: ~
   contents:
   - gsm-ctas
+- title: Development
+  navbar: Development
+  contents:
+  - ContributorGuidelines
 
 reference:
 - title: Mapping

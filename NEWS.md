@@ -1,5 +1,21 @@
 # gsm.ctas (development)
 
+* **QC:** adopted the IMPALA-Consortium quality-control model. Added
+  `vignette("ContributorGuidelines")`, top-level `CONTRIBUTING.md`,
+  `.github/PULL_REQUEST_TEMPLATE.md`, and a `Quality Control` section
+  in the README documenting the 100% coverage requirement. New CI
+  workflow `.github/workflows/test-coverage-strict.yaml` hard-fails
+  when line coverage drops below 100%. New
+  `.github/workflows/pr-commands.yaml` handles `/document` and
+  `/style` slash commands on pull requests. `covr` added to
+  `Suggests`. `README.md` is now generated from `README.Rmd` via
+  `devtools::build_readme()`. No `# nocov` markers are used anywhere
+  in the package; the HTML rendering pipeline is exercised with
+  real tests (`expect_s3_class(..., "htmlwidget")` in
+  `tests/testthat/test-utils_Charts.R` and end-to-end render via
+  `withr::local_tempdir()` in `tests/testthat/test_workflow.R`,
+  mirroring `gsm.simaerep`).
+
 * **Breaking:** `Summarize_CTAS()` no longer emits `Numerator`,
   `Denominator` or `Metric` columns. These were placeholder columns
   satisfying the gsm reporting contract; `Metric` was a pure alias for

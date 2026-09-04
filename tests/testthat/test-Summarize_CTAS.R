@@ -112,3 +112,27 @@ test_that("errors on missing columns", {
     "fdr_corrected_pvalue_logp"
   )
 })
+
+test_that("errors when bIncludeMissingness is not a single logical", {
+  expect_error(
+    Summarize_CTAS(MakeResultsFixture(), MakeSubjectsFixture(),
+                   bIncludeMissingness = "yes"),
+    "bIncludeMissingness"
+  )
+})
+
+test_that("errors when bByFeature is not a single logical", {
+  expect_error(
+    Summarize_CTAS(MakeResultsFixture(), MakeSubjectsFixture(),
+                   bByFeature = c(TRUE, FALSE)),
+    "bByFeature"
+  )
+})
+
+test_that("returns an empty frame when no metric keys or sites survive", {
+  dfResults <- MakeResultsFixture()[0, , drop = FALSE]
+  df <- Summarize_CTAS(dfResults, MakeSubjectsFixture())
+
+  expect_s3_class(df, "data.frame")
+  expect_equal(nrow(df), 0)
+})

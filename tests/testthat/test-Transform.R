@@ -364,3 +364,13 @@ test_that("Transform_Range and Transform_Missing share parameter_category_2 on t
   expect_gt(length(vShared), 0)
   expect_true(all(vShared %in% unique(dfLong$parameter_id)))
 })
+
+test_that("Transform_OneHot returns the empty frame when every value is missing or blank", {
+  dfLong <- MakeLBLong()
+  dfLong$value <- NA_character_
+
+  dfOut <- Transform_OneHot(dfLong)
+
+  expect_s3_class(dfOut, "data.frame")
+  expect_equal(nrow(dfOut), 0)
+})
