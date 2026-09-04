@@ -2,7 +2,7 @@
 % Please edit documentation in R/MakeMetric_CTAS.R
 \name{MakeMetric_CTAS}
 \alias{MakeMetric_CTAS}
-\title{Build the CTAS gsm KRI \code{dfMetrics} audit table}
+\title{Build the CTAS gsm-shaped \code{dfMetrics} audit table}
 \usage{
 MakeMetric_CTAS(
   dfResults,
@@ -34,7 +34,7 @@ Written verbatim into the \code{Threshold} string. Default
 for each \code{parameter_id}. \code{NULL} -> \code{parameter_name} is \code{NA}.}
 }
 \value{
-\code{data.frame} with the gsm KRI \code{dfMetrics} columns (\code{MetricID},
+\code{data.frame} with the gsm-shaped \code{dfMetrics} columns (\code{MetricID},
 \code{Abbreviation}, \code{Metric}, \code{Score}, \code{Threshold}, \code{GroupLevel},
 \code{AnalysisType}, \code{Model}) plus the CTAS identity columns
 (\code{parameter_id}, \code{parameter_name}, \code{parameter_category_1},

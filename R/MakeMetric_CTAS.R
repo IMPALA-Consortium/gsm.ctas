@@ -1,4 +1,4 @@
-#' Build the CTAS gsm KRI `dfMetrics` audit table
+#' Build the CTAS gsm-shaped `dfMetrics` audit table
 #'
 #' One row per unique `(parameter_category_2, parameter_category_3)` pair
 #' in the unfiltered stacked CTAS results, so every field the pipeline
@@ -32,7 +32,7 @@
 #'   (`Reporting_Results$input`), used only to look up `parameter_name`
 #'   for each `parameter_id`. `NULL` -> `parameter_name` is `NA`.
 #'
-#' @return `data.frame` with the gsm KRI `dfMetrics` columns (`MetricID`,
+#' @return `data.frame` with the gsm-shaped `dfMetrics` columns (`MetricID`,
 #'   `Abbreviation`, `Metric`, `Score`, `Threshold`, `GroupLevel`,
 #'   `AnalysisType`, `Model`) plus the CTAS identity columns
 #'   (`parameter_id`, `parameter_name`, `parameter_category_1`,

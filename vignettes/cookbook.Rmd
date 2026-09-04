@@ -296,7 +296,7 @@ workr::RunWorkflows(
 `3_reporting` outputs `Reporting_Results` and `Reporting_Queries`. The
 `Summary`, `Metrics`, `Groups` frames and the `4_modules` html render are
 not needed. Filter the reporting layer with `strNames` to skip the
-gsm.kri-only workflows:
+site-report-only workflows:
 
 ```{r ctasapp_workflow, eval = FALSE}
 lRaw <- list(

@@ -1,20 +1,20 @@
-#' Aggregate CTAS site scores into a gsm-shaped KRI summary
+#' Aggregate CTAS site scores into a gsm-shaped CTAS summary
 #'
 #' Pivots the long CTAS results frame (one row per site x timeseries x
 #' feature) into the gsm reporting `dfResults` contract (one row per site x
-#' synthetic `MetricID`) so the stock `gsm.kri` KRI report can render it
+#' synthetic `MetricID`) so the stock `gsm.kri` report can render it
 #' unchanged. Each `parameter_category_2` (data field, e.g. `"AST"`,
 #' `"SYSBP"`) becomes its own `MetricID` (`ctas_<field>`); metric families
 #' are collapsed with `max(Score)` so a field scored by both
-#' `range_normalized` and `ratio_missing` shows as one KRI row. When
+#' `range_normalized` and `ratio_missing` shows as one CTAS row. When
 #' `bByFeature = TRUE`, one `MetricID` per (field x CTAS feature) is
 #' emitted instead.
 #'
 #' The `Score` is the max `fdr_corrected_pvalue_logp` across every
 #' contributing (timeseries x feature) row in the group. Sites present in
 #' `dfSubjects` but absent from `dfResults` (e.g. no scorable timeseries for
-#' a field) are retained with `Score = NA`, `Numerator = 0`,
-#' `Denominator = 0` so the KRI overview table cannot silently drop them.
+#' a field) are retained with `Score = NA` so the CTAS overview table
+#' cannot silently drop them.
 #'
 #' `Flag` is intentionally not emitted here -- run [Flag_CTAS()] on the
 #' returned frame to add it. Splitting Summarize + Flag mirrors the
@@ -40,9 +40,9 @@
 #'
 #' @return `data.frame` with the gsm reporting `dfResults` columns
 #'   (`MetricID`, `GroupID`, `GroupLevel`, `StudyID`, `SnapshotDate`,
-#'   `Numerator`, `Denominator`, `Metric`, `Score`) plus the CTAS grouping
-#'   keys (`parameter_category_2`, and `feature` when `bByFeature = TRUE`)
-#'   so downstream steps can label metrics without a re-join.
+#'   `Score`) plus the CTAS grouping keys (`parameter_category_2`, and
+#'   `feature` when `bByFeature = TRUE`) so downstream steps can label
+#'   metrics without a re-join.
 #'
 #' @seealso [Flag_CTAS()] to add the `Flag` column.
 #'
@@ -95,8 +95,6 @@ Summarize_CTAS <- function(dfResults,
     dplyr::group_by(dplyr::across(dplyr::all_of(vGroupCols))) |>
     dplyr::summarise(
       Score = suppressWarnings(max(.data$fdr_corrected_pvalue_logp, na.rm = TRUE)),
-      Numerator = dplyr::n(),
-      Denominator = dplyr::n_distinct(.data$timeseries_id),
       .groups = "drop"
     ) |>
     dplyr::mutate(Score = ifelse(is.finite(.data$Score), .data$Score, NA_real_))
@@ -116,9 +114,6 @@ Summarize_CTAS <- function(dfResults,
     dfComplete <- dplyr::left_join(dfGrid, dfAgg, by = vGroupCols)
   }
 
-  dfComplete$Numerator[is.na(dfComplete$Numerator)] <- 0L
-  dfComplete$Denominator[is.na(dfComplete$Denominator)] <- 0L
-
   dfComplete$MetricID <- if (bByFeature) {
     paste0("ctas_", dfComplete$parameter_category_2, "_", dfComplete$feature)
   } else {
@@ -133,11 +128,10 @@ Summarize_CTAS <- function(dfResults,
     rep(as.character(strStudyID), nrow(dfComplete))
   }
   dfComplete$SnapshotDate <- dSnapshotDate
-  dfComplete$Metric <- dfComplete$Score
 
   vOutCols <- c(
     "MetricID", "GroupID", "GroupLevel", "StudyID", "SnapshotDate",
-    "Numerator", "Denominator", "Metric", "Score",
+    "Score",
     vMetricKeys
   )
   dfComplete[, vOutCols, drop = FALSE]

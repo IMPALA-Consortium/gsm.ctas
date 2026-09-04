@@ -65,15 +65,15 @@ test_that("MakeMetric_CTAS: one row per (field, metric_type) pair with unique Me
                   c("range_normalized", "ratio_missing"))
 })
 
-test_that("MakeMetric_CTAS: emits required gsm KRI columns + audit extras", {
+test_that("MakeMetric_CTAS: emits required gsm-shaped columns + audit extras", {
   dfMetrics <- MakeMetric_CTAS(
     MakeResultsFixture(),
     MakeMetricWorkflowsFixture()
   )
 
-  vGsmKri <- c("MetricID", "Abbreviation", "Metric", "Score",
-               "Threshold", "GroupLevel", "AnalysisType", "Model")
-  expect_true(all(vGsmKri %in% names(dfMetrics)))
+  vGsmCols <- c("MetricID", "Abbreviation", "Metric", "Score",
+                "Threshold", "GroupLevel", "AnalysisType", "Model")
+  expect_true(all(vGsmCols %in% names(dfMetrics)))
   expect_false(any(c("Numerator", "Denominator") %in% names(dfMetrics)))
   expect_setequal(unique(dfMetrics$GroupLevel), "Site")
   expect_setequal(unique(dfMetrics$AnalysisType), "CTAS")

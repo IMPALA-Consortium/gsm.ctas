@@ -2,7 +2,7 @@
 % Please edit documentation in R/Summarize_CTAS.R
 \name{Summarize_CTAS}
 \alias{Summarize_CTAS}
-\title{Aggregate CTAS site scores into a gsm-shaped KRI summary}
+\title{Aggregate CTAS site scores into a gsm-shaped CTAS summary}
 \usage{
 Summarize_CTAS(
   dfResults,
@@ -39,18 +39,18 @@ of by data field only. Default \code{FALSE}.}
 \value{
 \code{data.frame} with the gsm reporting \code{dfResults} columns
 (\code{MetricID}, \code{GroupID}, \code{GroupLevel}, \code{StudyID}, \code{SnapshotDate},
-\code{Numerator}, \code{Denominator}, \code{Metric}, \code{Score}) plus the CTAS grouping
-keys (\code{parameter_category_2}, and \code{feature} when \code{bByFeature = TRUE})
-so downstream steps can label metrics without a re-join.
+\code{Score}) plus the CTAS grouping keys (\code{parameter_category_2}, and
+\code{feature} when \code{bByFeature = TRUE}) so downstream steps can label
+metrics without a re-join.
 }
 \description{
 Pivots the long CTAS results frame (one row per site x timeseries x
 feature) into the gsm reporting \code{dfResults} contract (one row per site x
-synthetic \code{MetricID}) so the stock \code{gsm.kri} KRI report can render it
+synthetic \code{MetricID}) so the stock \code{gsm.kri} report can render it
 unchanged. Each \code{parameter_category_2} (data field, e.g. \code{"AST"},
 \code{"SYSBP"}) becomes its own \code{MetricID} (\verb{ctas_<field>}); metric families
 are collapsed with \code{max(Score)} so a field scored by both
-\code{range_normalized} and \code{ratio_missing} shows as one KRI row. When
+\code{range_normalized} and \code{ratio_missing} shows as one CTAS row. When
 \code{bByFeature = TRUE}, one \code{MetricID} per (field x CTAS feature) is
 emitted instead.
 }
@@ -58,8 +58,8 @@ emitted instead.
 The \code{Score} is the max \code{fdr_corrected_pvalue_logp} across every
 contributing (timeseries x feature) row in the group. Sites present in
 \code{dfSubjects} but absent from \code{dfResults} (e.g. no scorable timeseries for
-a field) are retained with \code{Score = NA}, \code{Numerator = 0},
-\code{Denominator = 0} so the KRI overview table cannot silently drop them.
+a field) are retained with \code{Score = NA} so the CTAS overview table
+cannot silently drop them.
 
 \code{Flag} is intentionally not emitted here -- run \code{\link[=Flag_CTAS]{Flag_CTAS()}} on the
 returned frame to add it. Splitting Summarize + Flag mirrors the

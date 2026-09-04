@@ -48,12 +48,12 @@ setup <- Report_Setup(
 
 
 ---
-title: "`r setup$GroupLevel` KRI Overview"
+title: "`r setup$GroupLevel` CTAS Overview"
 subtitle: "Study: `r setup$StudyLabel`"
 date: "Snapshot Date: `r setup$SnapshotDate`"
 --- 
 
-::: {#overall-group-select .overall-group-select title="Selected group will be highlighted in all charts for all KRIs."}
+::: {#overall-group-select .overall-group-select title="Selected group will be highlighted in all charts for all CTAS metrics."}
 :::
 
 ```{r, echo=FALSE, results='asis', fig.height=2}
@@ -64,11 +64,11 @@ Report_StudyInfo(params$dfGroups)
 
 ::: flag-container
 ::: {.flag .flag-red}
-<div> `r setup$red_kris` Red KRIs </div>
+<div> `r setup$red_kris` Red CTAS metrics </div>
 :::
 
 ::: {.flag .flag-amber}
-<div> `r setup$amber_kris` Amber KRIs </div>
+<div> `r setup$amber_kris` Amber CTAS metrics </div>
 :::
 :::
 
@@ -162,8 +162,8 @@ Report_FlagChange(dfResults = dfResults_delta)
 ## Results
 
 ```{r, echo=FALSE, results='asis'}
-## remove srs metrics from the list of metrics for results section
-vMetrics <- unique(params$dfResults$MetricID)[grep("srs", unique(params$dfResults$MetricID), invert = TRUE)]
+
+vMetrics <- unique(params$dfResults$MetricID)
 
 for (i in vMetrics) {
   lMetric <- dfMetricsPruned %>% dplyr::filter(MetricID == i) %>% as.list

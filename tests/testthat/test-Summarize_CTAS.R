@@ -35,10 +35,11 @@ test_that("emits gsm-shaped dfResults columns without a Flag", {
 
   vRequired <- c(
     "MetricID", "GroupID", "GroupLevel", "StudyID", "SnapshotDate",
-    "Numerator", "Denominator", "Metric", "Score"
+    "Score"
   )
   expect_true(all(vRequired %in% names(df)))
   expect_false("Flag" %in% names(df))
+  expect_false(any(c("Numerator", "Denominator", "Metric") %in% names(df)))
   expect_setequal(unique(df$GroupLevel), "Site")
 })
 
@@ -65,9 +66,6 @@ test_that("Score is the max fdr_corrected_pvalue_logp per group", {
   # site 101 x AST has features {average=0.5, sd=2.0} -> Score = 2.0
   dfAST101 <- df[df$GroupID == "101" & df$MetricID == "ctas_AST", ]
   expect_equal(dfAST101$Score, 2.0)
-  expect_equal(dfAST101$Numerator, 2)
-  expect_equal(dfAST101$Denominator, 2)
-  expect_equal(dfAST101$Metric, dfAST101$Score)
 })
 
 test_that("bIncludeMissingness = FALSE drops ratio_missing rows", {
@@ -78,19 +76,16 @@ test_that("bIncludeMissingness = FALSE drops ratio_missing rows", {
   # from the aggregation, so its row is site-completed with Score = NA.
   dfAST102 <- df[df$GroupID == "102" & df$MetricID == "ctas_AST", ]
   expect_true(is.na(dfAST102$Score))
-  expect_equal(dfAST102$Numerator, 0L)
 })
 
 test_that("sites in dfSubjects but not scored are kept with NA Score", {
   df <- Summarize_CTAS(MakeResultsFixture(), MakeSubjectsFixture())
 
   # site 103 has no scored timeseries in the fixture; must still appear
-  # for every MetricID with Score = NA, Numerator/Denominator = 0.
+  # for every MetricID with Score = NA.
   dfSite103 <- df[df$GroupID == "103", ]
   expect_gt(nrow(dfSite103), 0)
   expect_true(all(is.na(dfSite103$Score)))
-  expect_true(all(dfSite103$Numerator == 0))
-  expect_true(all(dfSite103$Denominator == 0))
 })
 
 test_that("strStudyID overrides per-row study", {

@@ -1,9 +1,13 @@
-#' Render the standard gsm.kri site-level KRI report from a CTAS summary
+#' Render the CTAS site-level report from a CTAS summary
 #'
 #' One-call wrapper that runs the chart-preparation pipeline
-#' (`Prune_Metrics()` -> [gsm.kri::MakeCharts()] -> `Drop_Chart()`) and
-#' hands the result to [gsm.kri::Report_KRI()] together with the vendored
-#' `inst/report/Report_CTAS.Rmd` template.
+#' (`Prune_Metrics()` -> `MakeCharts()`) and hands the
+#' result to [gsm.kri::Report_KRI()] together with the vendored
+#' `inst/report/Report_CTAS.Rmd` template. The chart builder is the
+#' internal `MakeCharts()` / `Visualize_CTAS()` pair (not
+#' `gsm.kri::MakeCharts()`) so `Widget_BarChart` only offers `"Score"`
+#' -- the CTAS `dfResults` contract has no
+#' `Numerator`/`Denominator`/`Metric` columns.
 #'
 #' `strOutputDir` is normalized to an absolute path so `rmarkdown::render()`
 #' doesn't resolve it against the template's directory. `strInputPath` is
@@ -15,9 +19,8 @@
 #' @param strOutputDir Output directory for the rendered html.
 #' @param strOutputFile Output file name; defaults to `Report_KRI`'s
 #'   auto-generated name.
-#' @param vDropCharts Character vector of inner chart tab names to omit
-#'   (e.g. `"scatterPlot"`).
-#' @param dfBounds Optional bounds frame for [gsm.kri::MakeCharts()].
+#' @param dfBounds Optional bounds frame forwarded to the internal
+#'   `MakeCharts()`.
 #' @param ... Further arguments forwarded to [gsm.kri::Report_KRI()].
 #'
 #' @return `character(1)` File path of the rendered html report, invisibly.
@@ -26,7 +29,6 @@
 Report_CTAS <- function(lReporting,
                         strOutputDir = getwd(),
                         strOutputFile = NULL,
-                        vDropCharts = NULL,
                         dfBounds = NULL,
                         ...) {
   rlang::check_installed("gsm.kri", reason = "to run `Report_CTAS()`.")
@@ -39,16 +41,17 @@ Report_CTAS <- function(lReporting,
   # won't match dfResults, so collapse to field-level just for chart building.
   dfMetricsPruned <- Prune_Metrics(dfMetrics = dfMetrics, dfSummary = dfResults)
 
-  lCharts <- gsm.kri::MakeCharts(
+  lCharts <- MakeCharts(
     dfResults = dfResults,
     dfMetrics = dfMetricsPruned,
     dfGroups = dfGroups,
     dfBounds = dfBounds
   )
 
-  if (length(vDropCharts) > 0) {
-    lCharts <- Drop_Chart(lCharts = lCharts, vDropCharts = vDropCharts)
-  }
+  # Report_KRI's groupOverview widget input check requires these columns; CTAS only emits Score.
+  dfResults$Numerator <- NA
+  dfResults$Denominator <- NA
+  dfResults$Metric <- NA
 
   gsm.kri::Report_KRI(
     lCharts = lCharts,

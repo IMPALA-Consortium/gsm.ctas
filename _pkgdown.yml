@@ -29,7 +29,7 @@ reference:
   - BindResults_CTAS
   - Write_ctasapp
 - title: Summary
-  desc: Aggregate CTAS results into gsm KRI-shaped summary + metric + group meta for the standard gsm.kri report.
+  desc: Aggregate CTAS results into a gsm-shaped summary + metric + group meta for the CTAS site report.
   contents:
   - Summarize_CTAS
   - Flag_CTAS

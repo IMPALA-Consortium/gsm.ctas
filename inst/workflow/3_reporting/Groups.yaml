@@ -1,7 +1,7 @@
 meta:
   Type: Reporting
   ID: Groups
-  Description: Long-format group metadata for the gsm.kri report, sourced from the mapping layer.
+  Description: Long-format group metadata for the CTAS site report, sourced from the mapping layer.
   Priority: 1
   Active: true
 spec:

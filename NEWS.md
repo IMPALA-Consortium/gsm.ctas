@@ -1,5 +1,19 @@
 # gsm.ctas (development)
 
+* **Breaking:** `Summarize_CTAS()` no longer emits `Numerator`,
+  `Denominator` or `Metric` columns. These were placeholder columns
+  satisfying the gsm reporting contract; `Metric` was a pure alias for
+  `Score`, and CTAS has no natural numerator/denominator. Callers that
+  want `Flag_CTAS(strAccrualMetric = ...)` accrual gating must supply
+  those columns themselves.
+
+* **Internal:** removed unused `inst/report/Report_KRI.Rmd`;
+  `Report_CTAS.Rmd` is the sole report template. Renamed
+  `inst/workflow/4_modules/report_kri_site.yaml` to
+  `report_ctas_site.yaml` (with matching `meta.ID`). Rewrote KRI-specific
+  wording ("KRI Overview", "Red/Amber KRIs") to CTAS terms in the report
+  template.
+
 * **Internal:** workflow execution now calls `workr::RunWorkflows()`
   (the lightweight runtime extracted from `gsm.core`) instead of
   `gsm.core::RunWorkflows()`. `gsm.core` stays in `Suggests` because

@@ -1,7 +1,7 @@
 meta:
   Type: Reporting
   ID: Summary
-  Description: Aggregate CTAS results into a gsm KRI-shaped summary + metric + group meta package for the standard gsm.kri report.
+  Description: Aggregate CTAS results into a gsm-shaped summary + metric + group meta package for the CTAS site report.
   Priority: 3
   Active: true
   IncludeMissingness: true
@@ -9,7 +9,7 @@ meta:
   vThreshold: [0.842, 2.326]
   vFlag: [0, 1, 2]
   vFlagOrder: [2, 1, 0]
-  # Drop MetricIDs whose maximum Flag is below this cutoff so the KRI report
+  # Drop MetricIDs whose maximum Flag is below this cutoff so the CTAS report
   # only lists fields with at least one flagged site. Set to 0 to keep every
   # metric.
   iMinFlag: 1

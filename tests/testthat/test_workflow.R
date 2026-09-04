@@ -320,7 +320,7 @@ test_that("Reporting workflow standardises queries via the Queries YAML", {
   expect_true(all(dfQ$subject_id %in% lMapped$Mapped_Subjects$subject_id))
 })
 
-test_that("Summary workflow packages a gsm KRI-shaped summary + metrics + groups", {
+test_that("Summary workflow packages a gsm-shaped summary + metrics + groups", {
   skip_if_not(bWorkflowRunnable)
 
   lReportingWorkflows <- workr::MakeWorkflowList(
@@ -342,9 +342,9 @@ test_that("Summary workflow packages a gsm KRI-shaped summary + metrics + groups
 
   dfSummary <- lSummary$summary
   vRequired <- c("MetricID", "GroupID", "GroupLevel", "StudyID",
-                 "SnapshotDate", "Numerator", "Denominator", "Metric",
-                 "Score", "Flag")
+                 "SnapshotDate", "Score", "Flag")
   expect_true(all(vRequired %in% names(dfSummary)))
+  expect_false(any(c("Numerator", "Denominator", "Metric") %in% names(dfSummary)))
   expect_setequal(unique(dfSummary$GroupLevel), "Site")
   # Every fixture site must appear at least once across the summary
   expect_true(all(vSites %in% unique(dfSummary$GroupID)))
@@ -355,7 +355,7 @@ test_that("Summary workflow packages a gsm KRI-shaped summary + metrics + groups
   expect_identical(dfMetrics, lReporting$Reporting_Metrics)
   expect_true(all(startsWith(dfMetrics$MetricID, "ctas_")))
   expect_setequal(unique(dfMetrics$AnalysisType), "CTAS")
-  # Audit MetricID scheme is family-granular; the KRI summary keeps its
+  # Audit MetricID scheme is family-granular; the CTAS summary keeps its
   # field-level scheme (`ctas_<field>`) so downstream `gsm.kri` output
   # collapses families with `max(Score)`.
   expect_equal(anyDuplicated(dfMetrics$MetricID), 0L)
@@ -407,7 +407,7 @@ test_that("Summary workflow packages a gsm KRI-shaped summary + metrics + groups
   )
 })
 
-test_that("report_kri_site module renders a KRI HTML report", {
+test_that("report_ctas_site module renders a CTAS HTML report", {
   skip_if_not(bWorkflowRunnable)
   skip_if_not_installed("gsm.kri")
   skip_if_not_installed("rmarkdown")
@@ -443,7 +443,7 @@ test_that("report_kri_site module renders a KRI HTML report", {
   lReporting$Reporting_Summary <- lSummary
 
   strDir <- withr::local_tempdir()
-  lModuleWorkflows$report_kri_site$meta$strOutputDir <- strDir
+  lModuleWorkflows$report_ctas_site$meta$strOutputDir <- strDir
   suppressWarnings(suppressMessages(workr::RunWorkflows(
     lWorkflows = lModuleWorkflows,
     lData = lReporting

@@ -67,5 +67,5 @@ Flag_CTAS(dfSummary)
 
 }
 \seealso{
-\code{gsm.core::Flag()} for the signed KRI variant.
+\code{gsm.core::Flag()} for the signed gsm-core variant.
 }

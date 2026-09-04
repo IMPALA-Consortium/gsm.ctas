@@ -31,7 +31,7 @@
 #' @return `data.frame` `dfAnalyzed` with an added `Flag` column, optionally
 #'   sorted by `vFlagOrder`.
 #'
-#' @seealso `gsm.core::Flag()` for the signed KRI variant.
+#' @seealso `gsm.core::Flag()` for the signed gsm-core variant.
 #'
 #' @examples
 #' dfSummary <- data.frame(

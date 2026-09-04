@@ -2,13 +2,12 @@
 % Please edit documentation in R/Report_CTAS.R
 \name{Report_CTAS}
 \alias{Report_CTAS}
-\title{Render the standard gsm.kri site-level KRI report from a CTAS summary}
+\title{Render the CTAS site-level report from a CTAS summary}
 \usage{
 Report_CTAS(
   lReporting,
   strOutputDir = getwd(),
   strOutputFile = NULL,
-  vDropCharts = NULL,
   dfBounds = NULL,
   ...
 )
@@ -22,10 +21,8 @@ Report_CTAS(
 \item{strOutputFile}{Output file name; defaults to \code{Report_KRI}'s
 auto-generated name.}
 
-\item{vDropCharts}{Character vector of inner chart tab names to omit
-(e.g. \code{"scatterPlot"}).}
-
-\item{dfBounds}{Optional bounds frame for \code{\link[gsm.kri:MakeCharts]{gsm.kri::MakeCharts()}}.}
+\item{dfBounds}{Optional bounds frame forwarded to the internal
+\code{MakeCharts()}.}
 
 \item{...}{Further arguments forwarded to \code{\link[gsm.kri:Report_KRI]{gsm.kri::Report_KRI()}}.}
 }
@@ -34,9 +31,13 @@ auto-generated name.}
 }
 \description{
 One-call wrapper that runs the chart-preparation pipeline
-(\code{Prune_Metrics()} -> \code{\link[gsm.kri:MakeCharts]{gsm.kri::MakeCharts()}} -> \code{Drop_Chart()}) and
-hands the result to \code{\link[gsm.kri:Report_KRI]{gsm.kri::Report_KRI()}} together with the vendored
-\code{inst/report/Report_CTAS.Rmd} template.
+(\code{Prune_Metrics()} -> \code{MakeCharts()}) and hands the
+result to \code{\link[gsm.kri:Report_KRI]{gsm.kri::Report_KRI()}} together with the vendored
+\code{inst/report/Report_CTAS.Rmd} template. The chart builder is the
+internal \code{MakeCharts()} / \code{Visualize_CTAS()} pair (not
+\code{gsm.kri::MakeCharts()}) so \code{Widget_BarChart} only offers \code{"Score"}
+-- the CTAS \code{dfResults} contract has no
+\code{Numerator}/\code{Denominator}/\code{Metric} columns.
 }
 \details{
 \code{strOutputDir} is normalized to an absolute path so \code{rmarkdown::render()}
