@@ -33,34 +33,16 @@ Report_CTAS <- function(lReporting,
                         ...) {
   rlang::check_installed("gsm.kri", reason = "to run `Report_CTAS()`.")
 
-  dfResults <- lReporting[["summary"]]
-  dfMetrics <- lReporting[["metrics"]]
-  dfGroups  <- lReporting[["groups"]]
-
-  # MakeCharts keys lCharts by MetricID; audit's family-level MetricIDs
-  # won't match dfResults, so collapse to field-level just for chart building.
-  dfMetricsPruned <- Prune_Metrics(dfMetrics = dfMetrics, dfSummary = dfResults)
-
-  lCharts <- MakeCharts(
-    dfResults = dfResults,
-    dfMetrics = dfMetricsPruned,
-    dfGroups = dfGroups,
-    dfBounds = dfBounds
-  )
-
-  # Report_KRI's groupOverview widget input check requires these columns; CTAS only emits Score.
-  dfResults$Numerator <- NA
-  dfResults$Denominator <- NA
-  dfResults$Metric <- NA
+  lReport <- Prepare_CTAS_Report(lReporting, dfBounds = dfBounds)
 
   gsm.kri::Report_KRI(
-    lCharts = lCharts,
-    dfResults = dfResults,
-    dfMetrics = dfMetrics,
-    dfGroups = dfGroups,
-    strOutputDir = normalizePath(strOutputDir, mustWork = FALSE),
+    lCharts       = lReport$lCharts,
+    dfResults     = lReport$dfResults,
+    dfMetrics     = lReport$dfMetrics,
+    dfGroups      = lReport$dfGroups,
+    strOutputDir  = normalizePath(strOutputDir, mustWork = FALSE),
     strOutputFile = strOutputFile,
-    strInputPath = system.file("report", "Report_CTAS.Rmd", package = "gsm.ctas"),
+    strInputPath  = system.file("report", "Report_CTAS.Rmd", package = "gsm.ctas"),
     ...
   )
 }

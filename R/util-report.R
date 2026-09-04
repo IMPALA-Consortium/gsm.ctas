@@ -27,3 +27,46 @@ Prune_Metrics <- function(dfMetrics, dfSummary) {
   row.names(df) <- NULL
   df
 }
+
+#' Assemble the input list for the CTAS report Rmd
+#'
+#' Bundles the pre-render steps shared by [Report_CTAS()] and the pkgdown
+#' sample article: prunes the family-granular audit to field-level
+#' `MetricID`s, builds the per-metric chart list, and stubs the
+#' `Numerator`/`Denominator`/`Metric` columns `gsm.kri::Widget_GroupOverview()`
+#' expects but CTAS never emits.
+#'
+#' @param lReporting Named list with `summary`, `metrics`, `groups` frames --
+#'   the shape produced by [Summarize_CTAS()].
+#' @param dfBounds Optional bounds frame forwarded to the internal chart builder.
+#'
+#' @return Named list with `lCharts`, `dfResults`, `dfMetrics`, `dfGroups`,
+#'   ready to be passed as `params` to `inst/report/Report_CTAS.Rmd`.
+#'
+#' @keywords internal
+#' @noRd
+Prepare_CTAS_Report <- function(lReporting, dfBounds = NULL) {
+  dfResults <- lReporting[["summary"]]
+  dfMetrics <- lReporting[["metrics"]]
+  dfGroups  <- lReporting[["groups"]]
+
+  dfMetricsPruned <- Prune_Metrics(dfMetrics = dfMetrics, dfSummary = dfResults)
+
+  lCharts <- MakeCharts(
+    dfResults = dfResults,
+    dfMetrics = dfMetricsPruned,
+    dfGroups  = dfGroups,
+    dfBounds  = dfBounds
+  )
+
+  dfResults$Numerator   <- NA
+  dfResults$Denominator <- NA
+  dfResults$Metric      <- NA
+
+  list(
+    lCharts   = lCharts,
+    dfResults = dfResults,
+    dfMetrics = dfMetrics,
+    dfGroups  = dfGroups
+  )
+}
