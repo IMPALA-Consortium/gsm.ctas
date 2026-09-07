@@ -5,7 +5,11 @@
 #' dashboard reads. The function walks `lReporting` two levels deep: each
 #' top-level element is a reporting-workflow output (a named list of frames)
 #' and every data frame it contains is written using its inner name as the
-#' file stem. This handles both the metric side
+#' file stem. Top-level bare data frames (e.g. `Reporting_Metrics`) are also
+#' written, keyed by the lowercase workflow ID
+#' (`Reporting_Metrics` -> `metrics.parquet`) so ctasapp picks them up even
+#' when the Summary workflow that wraps them is skipped. This handles both
+#' the metric side
 #' (`Reporting_Results = list(results, input, untransformed)`) and the
 #' queries side (`Reporting_Queries = list(queries)`) in a single call.
 #'
@@ -53,7 +57,17 @@ Write_ctasapp <- function(lReporting,
   lFrames <- list()
   for (nmOuter in names(lReporting)) {
     xOuter <- lReporting[[nmOuter]]
-    if (!is.list(xOuter) || is.data.frame(xOuter)) next
+    if (is.data.frame(xOuter)) {
+      # Bare-frame reporting output (e.g. Reporting_Metrics) is written under
+      # the lowercase workflow ID so ctasapp finds `metrics.parquet` even
+      # when the Summary workflow is skipped.
+      if (nrow(xOuter) > 0) {
+        strStem <- tolower(sub("^Reporting_", "", nmOuter))
+        lFrames[[strStem]] <- xOuter
+      }
+      next
+    }
+    if (!is.list(xOuter)) next
     for (nmInner in names(xOuter)) {
       xInner <- xOuter[[nmInner]]
       if (is.data.frame(xInner) && nrow(xInner) > 0) {

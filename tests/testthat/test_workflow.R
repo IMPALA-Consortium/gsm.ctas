@@ -347,7 +347,7 @@ test_that("PD reporting workflow emits ctasapp-shape Protocol Deviation records"
   expect_true(all(dfPD$dv_cat %in% c("MAJOR", "IMPORTANT", "MINOR")))
 })
 
-test_that("Write_ctasapp emits pd alongside queries and metric frames", {
+test_that("Write_ctasapp emits pd and metrics alongside queries and metric frames", {
   skip_if_not_installed("arrow")
   skip_if_not(bWorkflowRunnable)
 
@@ -357,16 +357,22 @@ test_that("Write_ctasapp emits pd alongside queries and metric frames", {
     strPackage = NULL
   )
   lReporting <- suppressWarnings(workr::RunWorkflows(
-    lWorkflows = lReportingWorkflows[c("Results", "Queries", "PD")],
-    lData = c(lMapped, list(lAnalyzed = lAnalysis))
+    lWorkflows = lReportingWorkflows[c("Results", "Queries", "PD", "Metrics")],
+    lData = c(lMapped, list(
+      lAnalyzed = lAnalysis,
+      lMetricWorkflows = lMetricWorkflows
+    ))
   ))
 
   strDir <- withr::local_tempdir()
   vPaths <- Write_ctasapp(lReporting, strDir, strFormat = "parquet")
 
   expect_true("pd.parquet" %in% basename(vPaths))
+  expect_true("metrics.parquet" %in% basename(vPaths))
   dfPD <- arrow::read_parquet(file.path(strDir, "pd.parquet"))
   expect_setequal(unique(dfPD$study), vStudyIDs)
+  dfMetrics <- arrow::read_parquet(file.path(strDir, "metrics.parquet"))
+  expect_true(all(startsWith(dfMetrics$MetricID, "ctas_")))
 })
 
 test_that("Summary workflow packages a gsm-shaped summary + metrics + groups", {

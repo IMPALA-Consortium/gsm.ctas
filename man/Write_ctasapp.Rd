@@ -24,7 +24,11 @@ the layout the \href{https://github.com/IMPALA-Consortium/ctasapp}{ctasapp}
 dashboard reads. The function walks \code{lReporting} two levels deep: each
 top-level element is a reporting-workflow output (a named list of frames)
 and every data frame it contains is written using its inner name as the
-file stem. This handles both the metric side
+file stem. Top-level bare data frames (e.g. \code{Reporting_Metrics}) are also
+written, keyed by the lowercase workflow ID
+(\code{Reporting_Metrics} -> \code{metrics.parquet}) so ctasapp picks them up even
+when the Summary workflow that wraps them is skipped. This handles both
+the metric side
 (\code{Reporting_Results = list(results, input, untransformed)}) and the
 queries side (\code{Reporting_Queries = list(queries)}) in a single call.
 }

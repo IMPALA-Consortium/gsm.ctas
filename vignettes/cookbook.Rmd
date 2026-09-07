@@ -254,11 +254,11 @@ names(lReporting)
 ## ctasapp
 
 [ctasapp](https://github.com/IMPALA-Consortium/ctasapp) only consumes the
-`results`, `input`, `untransformed`, `queries` and `pd` frames -- the
-`3_reporting` outputs `Reporting_Results`, `Reporting_Queries` and
-`Reporting_PD`. The `Summary`, `Metrics`, `Groups` frames and the
-`4_modules` html render are not needed. Filter the reporting layer with
-`strNames` to skip the site-report-only workflows:
+`results`, `input`, `untransformed`, `queries`, `pd` and `metrics` frames
+-- the `3_reporting` outputs `Reporting_Results`, `Reporting_Queries`,
+`Reporting_PD` and `Reporting_Metrics`. The `Summary` and `Groups` frames
+and the `4_modules` html render are not needed. Filter the reporting
+layer with `strNames` to skip the site-report-only workflows:
 
 ```{r ctasapp_workflow, eval = FALSE}
 
@@ -275,6 +275,9 @@ file.copy(system.file("ctasapp.yml", package = "ctasapp"), "ctasapp.yml")
 #   results: pub/results.parquet
 #   input: pub/input.parquet
 #   untransformed: pub/untransformed.parquet
+#   queries: pub/queries.parquet
+#   pd: pub/pd.parquet
+#   metrics: pub/metrics.parquet
 ctasapp::run_ctas_app()
 ```
 
