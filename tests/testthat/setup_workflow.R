@@ -80,6 +80,16 @@ if (bWorkflowRunnable) {
     strSiteCol = NULL,
     strStudyCol = "study"
   )
+  pdSmall <- gsm.ctas::pd[
+    gsm.ctas::pd$subject_id %in%
+      unique(sub("^B_", "", dmSmall$USUBJID)),
+  ]
+  pdSmall <- StackTwoStudies(
+    pdSmall,
+    strSubjectCol = "subject_id",
+    strSiteCol = "site",
+    strStudyCol = "study"
+  )
   egSmall <- StackTwoStudies(egSmall, strSiteCol = NULL)
   vSites <- sort(unique(dmSmall$SITEID))
   vStudyIDs <- sort(unique(dmSmall$STUDYID))
@@ -102,7 +112,8 @@ if (bWorkflowRunnable) {
     Raw_LB = as.data.frame(lbSmall),
     Raw_RS = as.data.frame(rsSmall),
     Raw_EG = as.data.frame(egSmall),
-    Raw_Queries = as.data.frame(qSmall)
+    Raw_Queries = as.data.frame(qSmall),
+    Raw_PD = as.data.frame(pdSmall)
   )
 
   lIngest <- gsm.mapping::Ingest(lRaw, gsm.mapping::CombineSpecs(lMappingWorkflows))

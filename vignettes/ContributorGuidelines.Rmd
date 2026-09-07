@@ -14,9 +14,6 @@ knitr::opts_chunk$set(
 )
 ```
 
-`gsm.ctas` follows the IMPALA-Consortium quality-control model documented on
-the [gsm.simaerep](https://impala-consortium.github.io/gsm.simaerep/) sister
-package. This vignette is the canonical source; the top-level
 [`CONTRIBUTING.md`](https://github.com/IMPALA-Consortium/gsm.ctas/blob/main/CONTRIBUTING.md)
 is a stub that links here.
 
@@ -24,18 +21,17 @@ is a stub that links here.
 
 - `main` — protected. Only merged via pull request; all required checks must
   be green.
-- `dev` — protected. Integration branch for the current release cycle.
 - `{issue#}_short-slug` — one feature/fix branch per GitHub issue,
-  cut from `dev`. The issue number prefix ties the branch to the tracker
+  cut from `main`. The issue number prefix ties the branch to the tracker
   and to the changelog entry.
+- `dev` branch usage is encouraged but not required before deploying complex changes so that they can be easier reviewed.
 
 ## Development process
 
 1. Open a GitHub issue describing the change. Pick the appropriate template
    from `.github/ISSUE_TEMPLATE/`.
-2. Cut a branch named `{issue#}_short-slug` from `dev`.
-3. Practice test-driven development: write the failing `testthat::test_that()`
-   block first, then the R code that makes it pass. Every exported function
+2. Cut a branch named `{issue#}_short-slug` from `main`.
+j   block first, then the R code that makes it pass. Every exported function
    and every non-trivial internal helper gets a direct unit test.
 4. Regenerate documentation and format code before pushing:
 
@@ -44,61 +40,11 @@ is a stub that links here.
    styler::style_pkg()
    ```
 
-   The `pr-commands.yaml` workflow lets a maintainer post `/document` or
-   `/style` on a pull request to run these steps in CI and commit back to
-   the branch.
 
 5. Add a bullet to `NEWS.md` under the current development header.
-6. Open a pull request against `dev`. Fill in
-   `.github/PULL_REQUEST_TEMPLATE.md`. Every check must pass:
-
-   - `R-CMD-check` — `R CMD check` across the OS/R-version matrix
-   - `test-coverage` — coverage reporter (shared IMPALA workflow)
-   - `test-coverage-strict` — hard-fails when coverage drops below 100%
-   - `qcthat` — user-acceptance and QC test gate
-   - `workflow-template-check` — CI template compliance
-   - `pkgdown-all` — documentation site build
+6. Open a pull request against `main`. 
 
 ## Quality control
 
-- **Unit tests.** 100% line coverage is required and enforced in CI by
-  [`.github/workflows/test-coverage-strict.yaml`](https://github.com/IMPALA-Consortium/gsm.ctas/blob/main/.github/workflows/test-coverage-strict.yaml).
-  Locally, iterate with `covr::report()`.
-- **No `# nocov` markers.** Every line of `R/` runs under the test suite,
-  including the HTML render pipeline. Widget builders in
-  `R/utils_Charts.R` are exercised directly in
-  `tests/testthat/test-utils_Charts.R` with
-  `expect_s3_class(..., "htmlwidget")` — mirroring
-  [`gsm.simaerep/tests/testthat/test_widgets.R`](https://github.com/IMPALA-Consortium/gsm.simaerep/blob/main/tests/testthat/test_widgets.R) —
-  and the end-to-end `Report_CTAS()` render is exercised through the
-  `report_ctas_site` module in `tests/testthat/test_workflow.R`
-  with `withr::local_tempdir()` — mirroring
-  [`gsm.simaerep/tests/testthat/test_workflow.R`](https://github.com/IMPALA-Consortium/gsm.simaerep/blob/main/tests/testthat/test_workflow.R).
-  File I/O, input validation, data preparation and everything else must
-  have real tests. This policy is also documented in the `Quality Control`
-  section of `README.md`.
-- **Workflow tests.** Beyond unit tests, `tests/testthat/test_workflow.R`
-  exercises the full mapping → metric → reporting pipeline end-to-end.
-- **Documentation.** All exported functions carry roxygen docs with runnable
-  `@examples`. `devtools::document()` must produce no diff after commit.
-- **Package checks.** `R CMD check` must be clean.
-- **Code formatting.** `styler::style_pkg()` before push.
-- **Cookbook.** Usage patterns are demonstrated in `vignette("gsm-ctas")`.
+see README.md
 
-## Release process
-
-1. Cut a release branch from `dev`, bump the `Version` field in
-   `DESCRIPTION`, promote the development header in `NEWS.md`.
-2. Merge to `main` via pull request; all required checks green.
-3. Tag the merge commit; the `r-releaser-caller.yaml` workflow handles the
-   GitHub release from there.
-
-## Required status checks
-
-The following must be marked as required status checks on `main` and `dev`
-in the GitHub branch-protection UI (repo admins only):
-
-- `R-CMD-check`
-- `test-coverage-strict`
-- `qcthat`
-- `workflow-template-check`

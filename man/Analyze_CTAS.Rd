@@ -13,7 +13,7 @@ Analyze_CTAS(
   bUniqueValueCountRelative = TRUE,
   bOwnSiteSimilScore = FALSE,
   bLOF = FALSE,
-  nMinTimepoints = 3,
+  nMinTimepoints = 1,
   nMinSubjects = 3,
   dMaxShareMissing = 0.5,
   bChangeFromBaseline = FALSE,

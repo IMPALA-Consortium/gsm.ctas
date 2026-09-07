@@ -10,3 +10,5 @@ docs
 pub
 ctasapp.yml
 *.html
+*.parquet
+*.csv

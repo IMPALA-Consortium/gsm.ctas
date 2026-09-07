@@ -12,7 +12,8 @@ lRaw <- list(
   Raw_VS      = gsm.ctas::vs,
   Raw_EG      = gsm.ctas::eg,
   Raw_RS      = gsm.ctas::rs,
-  Raw_Queries = gsm.ctas::queries
+  Raw_Queries = gsm.ctas::queries,
+  Raw_PD      = gsm.ctas::pd
 )
 
 lMappingWorkflows   <- workr::MakeWorkflowList(strPath = system.file("workflow/1_mappings",  package = "gsm.ctas"))

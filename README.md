@@ -29,13 +29,34 @@ clinical trial anomaly detection engine inside the
 writes the three files the
 [ctasapp](https://github.com/IMPALA-Consortium/ctasapp) dashboard reads.
 
-The two frameworks answer different questions. gsm KRIs count events
-against exposure – enrolment rate, AE rate, query age. CTAS instead
-compares the *distribution* of a site’s measurements against the rest of
-the study, and so detects patterns a rate-based metric cannot: values
-that are too consistent, too smooth over time, too rounded, or missing
-in a structured way. This package is the adapter that lets one workflow
-run both and drop the result on ctasapp.
+## Structure
+
+### Functions
+
+This package provides gsm-style functions to run `ctas` on SDTM
+formatted data view its output within `ctasapp` or to render an html
+report.
+
+- `Standardize_Domain()`, `Standardize_Query` standardize data for ctas
+  run
+- `Transform_Missing()`, `Transform_Range()`, `Transform_OneHot()`
+  transform non-standard numeric data types
+- `Analyze_CTAS()` run `ctas`
+- `BindResults_CTAS()`, `Summarize_CTAS()`, `Flag_CTAS()`,
+  `MakeMetric_CTAS()`, `Report_CTAS()` reporting functions
+- `Write_ctasapp()` write parquet files for `ctasapp` from reporting
+  artifacts
+
+### Workflow
+
+- `inst/workflow/1_mappings` (data specification, filtering)
+- `inst/workflow/2_metrics` (expect one yaml file per ctas configuration
+  set, as different domains data types may require different ctas
+  parameters, only average for one hot encoded data, custom timeseries
+  for specific assessments)
+- `inst/workflow/3_reporting` (create artifacts for `ctasapp` and html
+  report)
+- `inst/workflow/4_modules` (render html report)
 
 ## Installation
 
@@ -44,105 +65,207 @@ install.packages("pak")
 pak::pak("IMPALA-Consortium/gsm.ctas")
 ```
 
-The gsm framework packages and `ctas` are declared in `Remotes` and will
-be pulled in automatically. They are `Suggests`, not `Imports`: the
-mapping and aggregation functions are usable on their own, and only the
-workflow layer needs the full framework.
-
 ## Usage
 
 `gsm.ctas` ships three gsm workflow layers in `inst/workflow/`, so a
 full run is a sequence of `RunWorkflows()` calls over SDTM input:
 
 ``` r
+# End-to-end gsm.ctas pipeline shared by the cookbook and the pkgdown example.
+# Runs mapping + metrics + reporting workflows against the bundled SDTM
+# datasets and stops at `lReporting$Reporting_Summary`.
+
+library(workr)
+library(gsm.mapping)
 library(gsm.ctas)
 
 lRaw <- list(
-  Raw_DM = as.data.frame(pharmaversesdtm::dm),
-  Raw_VS = as.data.frame(pharmaversesdtm::vs),
-  Raw_LB = as.data.frame(pharmaversesdtm::lb)
+  Raw_DM      = gsm.ctas::dm,
+  Raw_LB      = gsm.ctas::lb,
+  Raw_VS      = gsm.ctas::vs,
+  Raw_EG      = gsm.ctas::eg,
+  Raw_RS      = gsm.ctas::rs,
+  Raw_Queries = gsm.ctas::queries,
+  Raw_PD      = gsm.ctas::pd
 )
 
-lMappingWorkflows <- workr::MakeWorkflowList(
-  strNames = NULL,
-  strPath = system.file("workflow/1_mappings", package = "gsm.ctas"),
-  strPackage = NULL
-)
+lMappingWorkflows   <- workr::MakeWorkflowList(strPath = system.file("workflow/1_mappings",  package = "gsm.ctas"))
+lMetricWorkflows    <- workr::MakeWorkflowList(strPath = system.file("workflow/2_metrics",   package = "gsm.ctas"))
+lReportingWorkflows <- workr::MakeWorkflowList(strPath = system.file("workflow/3_reporting", package = "gsm.ctas"))
 
-lIngest <- gsm.mapping::Ingest(
-  lRaw,
-  gsm.mapping::CombineSpecs(lMappingWorkflows)
-)
+lMapped <- suppressWarnings(suppressMessages(workr::RunWorkflows(
+  lWorkflows = lMappingWorkflows,
+  lData = gsm.mapping::Ingest(lRaw, gsm.mapping::CombineSpecs(lMappingWorkflows))
+)))
 
-lMapped <- workr::RunWorkflows(lMappingWorkflows, lIngest)
+lAnalysis <- suppressWarnings(suppressMessages(workr::RunWorkflows(
+  lWorkflows = lMetricWorkflows,
+  lData = lMapped
+)))
 
-lMetricWorkflows <- workr::MakeWorkflowList(
-  strNames = NULL,
-  strPath = system.file("workflow/2_metrics", package = "gsm.ctas"),
-  strPackage = NULL
-)
-
-lAnalysis <- workr::RunWorkflows(lMetricWorkflows, lMapped)
-
-lReportingWorkflows <- workr::MakeWorkflowList(
-  strNames = NULL,
-  strPath = system.file("workflow/3_reporting", package = "gsm.ctas"),
-  strPackage = NULL
-)
-
-lReporting <- workr::RunWorkflows(
-  lReportingWorkflows,
-  c(lMapped, list(lAnalyzed = lAnalysis))
-)
-
-Write_ctasapp(lReporting, strDir = "ctasapp_out", strFormat = "parquet")
+lReporting <- suppressWarnings(suppressMessages(workr::RunWorkflows(
+  lWorkflows = lReportingWorkflows,
+  lData = c(lMapped, list(
+    lAnalyzed = lAnalysis,
+    lMetricWorkflows = lMetricWorkflows
+  ))
+)))
 ```
 
-The last line writes `results.parquet`, `input.parquet` and (when
-non-empty) `untransformed.parquet` in the shape ctasapp uploads. The
-full walkthrough – mapping, metric YAMLs and the shard contract – is in
-`vignette("gsm-ctas")`.
+### ctasapp
 
-## How it fits together
+`ctasapp` needs to be installed and a ctasapp.yml needs to be present
+and entries need to point to parquet file.
 
-    lRaw --Ingest--> lIngest --1_mappings--> lMapped --2_metrics--> lAnalysis
-         --3_reporting--> ctasapp shards on disk
+``` r
+Write_ctasapp(lReporting, strDir = ".", strFormat = "parquet")
 
-| Layer         | Contents                                                                                                                      |
-|---------------|-------------------------------------------------------------------------------------------------------------------------------|
-| `1_mappings`  | SDTM readers (`DM`, `VS`, `LB`), site/study group tables, plus the transformation-typed frames `Subjects`, `Numeric`, `Range` |
-| `2_metrics`   | One YAML per data-type transformation (`numeric`, `range_normalized`, `ratio_missing`), each running CTAS once                |
-| `3_reporting` | `Write_ctasapp`: bind ctasapp shards across metrics and write them to disk                                                    |
 
-Each metric emits three flat frames – `results`, `input`,
-`untransformed` – in the shape ctasapp uploads consume. Multi-study
-inputs are honoured automatically via a `studyid` column threaded
-through the mapping layer: `Analyze_CTAS()` splits the input by study,
-runs CTAS on each, and stacks the results with a `study` column on every
-row.
+# remotes::install_github("IMPALA-Consortium/ctasapp")
+# file.copy(system.file("ctasapp.yml", package = "ctasapp"), "ctasapp.yml")
+# embedded:
+#   results: results.parquet
+#   input: input.parquet
+#   untransformed: untransformed.parquet
+#   queries: queries.parquet
+#   pd: pd.parquet
+
+ctasapp::run_ctas_app()
+```
+
+### html Report
+
+``` r
+
+lModuleFlows <- workr::MakeWorkflowList(strPath = system.file("workflow/4_modules", package = "gsm.ctas"))
+
+workr::RunWorkflows(
+  lWorkflows = lModuleFlows,
+  lData = lReporting
+)
+#> [INFO] Running 1 Workflows
+#> [INFO] Initializing `Module_report_ctas_site` Workflow
+#> [INFO] Checking data against spec
+#> [INFO] Workflow Step 1 of 1: `gsm.ctas::Report_CTAS`
+#> [INFO] Evaluating 2 parameter(s) for `gsm.ctas::Report_CTAS`
+#> [INFO] lReporting = Reporting_Summary: Passing lData$Reporting_Summary.
+#> [INFO] strOutputDir = strOutputDir: Passing lMeta$strOutputDir.
+#> [INFO] Calling `gsm.ctas::Report_CTAS`
+#> Parsed 0.842,2.326 to numeric vector: 0.842, 2.326
+#> Parsed 0.842,2.326 to numeric vector: 0.842, 2.326
+#> Parsed 0.842,2.326 to numeric vector: 0.842, 2.326
+#> Parsed 0.842,2.326 to numeric vector: 0.842, 2.326
+#> Parsed 0.842,2.326 to numeric vector: 0.842, 2.326
+#> Parsed 0.842,2.326 to numeric vector: 0.842, 2.326
+#> Parsed 0.842,2.326 to numeric vector: 0.842, 2.326
+#> Parsed 0.842,2.326 to numeric vector: 0.842, 2.326
+#> Parsed 0.842,2.326 to numeric vector: 0.842, 2.326
+#> Parsed 0.842,2.326 to numeric vector: 0.842, 2.326
+#> Parsed 0.842,2.326 to numeric vector: 0.842, 2.326
+#> Parsed 0.842,2.326 to numeric vector: 0.842, 2.326
+#> Parsed 0.842,2.326 to numeric vector: 0.842, 2.326
+#> Parsed 0.842,2.326 to numeric vector: 0.842, 2.326
+#> Parsed 0.842,2.326 to numeric vector: 0.842, 2.326
+#> 
+#> 
+#> processing file: Report_CTAS.Rmd
+#> 
+#> output file: /private/var/folders/k7/w79m1mzd6vz9t8b8v2_9f7m80000gn/T/Rtmpsq5mPA/Report_CTAS.knit.md
+#> 
+#> 
+#> 
+#> Output created: kri_report_CDISCPILOT01_Site_20260907.html
+#> 
+#> [INFO] character of length 1 saved as `lData$Report_Path`.
+#> 
+#> [INFO] Returning results from final step: character of length 1`.
+#> 
+#> [INFO] Completed `Module_report_ctas_site` Workflow
+```
 
 ## Extending
 
-Both common customisations are config-only and are documented in the
-vignette:
+new data fields can be added via the `1_mappings` workflows and need to
+be taken up in `2_metrics` for processing by either one of the exisiting
+configurations or by creating a new one. **One config file per ctas run
+parameter configuration**.
 
-- **CTAS features** are exposed as boolean toggles in each metric’s
-  `meta:` (`FeatureAutocorr`, `FeatureAverage`, …), so any metric can
-  score any subset without editing R.
-- **New metrics** are added by copying a metric YAML and pointing it at
-  a different mapped frame or transformation.
+## Example
 
-## Related packages
+Score sites on a single numeric SDTM field (systolic blood pressure)
+using only `gsm.ctas` functions, straight from raw SDTM to CTAS results:
 
-| Package                                                   | Role                                       |
-|-----------------------------------------------------------|--------------------------------------------|
-| [`ctas`](https://github.com/IMPALA-Consortium/ctas)       | The statistics engine                      |
-| [`gsm.core`](https://github.com/Gilead-Public/gsm.core)   | Workflow execution                         |
-| [`ctasapp`](https://github.com/IMPALA-Consortium/ctasapp) | Dashboard for drilling into a flagged site |
+``` r
+library(gsm.ctas)
 
-`gsm.ctas` detects signals; `ctasapp` investigates them.
-`Write_ctasapp()` retains the timeseries-level detail that aggregation
-would discard, in the layout ctasapp reads.
+dfSubjects <- data.frame(
+  studyid    = gsm.ctas::dm$STUDYID,
+  subject_id = gsm.ctas::dm$USUBJID,
+  site       = gsm.ctas::dm$SITEID,
+  country    = gsm.ctas::dm$COUNTRY
+)
+
+dfInput <- Standardize_Domain(
+  dfDomain     = subset(gsm.ctas::vs, VSTESTCD == "SYSBP"),
+  dfSubjects   = dfSubjects,
+  strTestCDCol = "VSTESTCD",
+  strTestCol   = "VSTEST",
+  strValueCol  = "VSSTRESN",
+  strCategory  = "Vital Signs"
+)
+
+head(dfInput)
+#> # A tibble: 6 × 17
+#>   subject_id  parameter_id parameter_name          parameter_category_1
+#>   <chr>       <chr>        <chr>                   <chr>               
+#> 1 01-701-1015 SYSBP        Systolic Blood Pressure Vital Signs         
+#> 2 01-701-1015 SYSBP        Systolic Blood Pressure Vital Signs         
+#> 3 01-701-1015 SYSBP        Systolic Blood Pressure Vital Signs         
+#> 4 01-701-1015 SYSBP        Systolic Blood Pressure Vital Signs         
+#> 5 01-701-1015 SYSBP        Systolic Blood Pressure Vital Signs         
+#> 6 01-701-1015 SYSBP        Systolic Blood Pressure Vital Signs         
+#> # ℹ 13 more variables: parameter_category_2 <chr>, parameter_category_3 <chr>,
+#> #   visit <chr>, visitnum <int>, timepoint_1_name <chr>,
+#> #   timepoint_2_name <chr>, timepoint_rank <int>, value <dbl>, result <dbl>,
+#> #   baseline <dbl>, studyid <chr>, site <chr>, country <chr>
+
+dfResults <- Analyze_CTAS(
+  dfInput                 = dfInput,
+  bAutocorr               = TRUE,
+  bAverage                = TRUE,
+  bSD                     = TRUE,
+  bRange                  = FALSE,
+  bUniqueValueCountRelative = TRUE,
+  bOwnSiteSimilScore      = FALSE,
+  bLOF                    = FALSE,
+  nMinTimepoints          = 1,
+  nMinSubjects            = 3,
+  dMaxShareMissing        = 0.5,
+  bChangeFromBaseline     = FALSE,
+  bAutogenerate           = TRUE,
+  strScoringMethod        = "ks",
+  strPadjustMethod        = "fdr",
+  dfCustomTimeseries      = ctas::ctas_data$custom_timeseries,
+  dfCustomReferenceGroups = ctas::ctas_data$custom_reference_groups,
+  nSeed                   = 1,
+  strStudyCol             = "studyid"
+)
+
+head(dfResults)
+#> # A tibble: 6 × 15
+#>   timeseries_id site  country region feature pvalue_kstest_logp kstest_statistic
+#>   <chr>         <chr> <chr>   <chr>  <chr>                <dbl>            <dbl>
+#> 1 ts_1_autogen… 701   USA     no     sd                  1.93              0.289
+#> 2 ts_1_autogen… 702   USA     no     sd                  1.43              0.986
+#> 3 ts_1_autogen… 703   USA     no     sd                  0.0845            0.163
+#> 4 ts_1_autogen… 704   USA     no     sd                  2.95              0.413
+#> 5 ts_1_autogen… 705   USA     no     sd                  1.03              0.353
+#> 6 ts_1_autogen… 706   USA     no     sd                  0.328             0.519
+#> # ℹ 8 more variables: fdr_corrected_pvalue_logp <dbl>, ref_group <chr>,
+#> #   subject_count <int>, study <chr>, parameter_id <chr>,
+#> #   parameter_category_1 <chr>, parameter_category_2 <chr>,
+#> #   parameter_category_3 <chr>
+```
 
 ## Contributing
 

@@ -9,3 +9,8 @@
 ^data-raw$
 ^CONTRIBUTING\.md$
 ^README\.Rmd$
+^README\.html$
+^ctasapp\.yml$
+^pub$
+^.*\.parquet$
+^kri_report_.*\.html$

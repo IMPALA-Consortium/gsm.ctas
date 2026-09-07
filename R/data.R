@@ -80,3 +80,21 @@
 #' data(queries)
 #' head(queries)
 "queries"
+
+#' Illustrative Protocol Deviation records
+#'
+#' Synthetic protocol-deviation records generated deterministically from the
+#' bundled `dm` dataset. Ports ctasapp's `simulate_pd_data()` (IMPALA-
+#' Consortium/ctasapp, feature branch `19_pd`, now on `main`) so the shipped
+#' frame matches the ctasapp Field Detail Protocol Deviations tab column
+#' contract 1:1.
+#'
+#' @format A `data.frame` with 10 columns: `study`, `site`, `subject_id`,
+#'   `dv_seq` (integer), `dv_term`, `dv_decod`, `dv_cat` (severity: `MAJOR`,
+#'   `IMPORTANT`, `MINOR`), `dv_scat` (subcategory), `dv_start_date` (Date),
+#'   `dv_end_date` (Date).
+#' @source `data-raw/pd.R`
+#' @examples
+#' data(pd)
+#' head(pd)
+"pd"

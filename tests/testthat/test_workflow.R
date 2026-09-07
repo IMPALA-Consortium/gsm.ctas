@@ -6,7 +6,8 @@ skip_if_not(
 test_that("mapping publishes the standardised transformation-typed frames", {
   expect_true(all(
     c("Mapped_DM", "Mapped_VS", "Mapped_LB", "Mapped_EG", "Mapped_BMI",
-      "Mapped_SITE", "Mapped_STUDY", "Mapped_Subjects") %in% names(lMapped)
+      "Mapped_SITE", "Mapped_STUDY", "Mapped_Subjects", "Mapped_PD") %in%
+      names(lMapped)
   ))
 })
 
@@ -318,6 +319,54 @@ test_that("Reporting workflow standardises queries via the Queries YAML", {
   # Standardize_Queries inner-joins subjects, so every query subject_id must
   # trace back to Mapped_Subjects.
   expect_true(all(dfQ$subject_id %in% lMapped$Mapped_Subjects$subject_id))
+})
+
+test_that("PD reporting workflow emits ctasapp-shape Protocol Deviation records", {
+  skip_if_not(bWorkflowRunnable)
+
+  lReportingWorkflows <- workr::MakeWorkflowList(
+    strNames = NULL,
+    strPath = system.file("workflow/3_reporting", package = "gsm.ctas"),
+    strPackage = NULL
+  )
+
+  lReporting <- suppressWarnings(workr::RunWorkflows(
+    lWorkflows = lReportingWorkflows["PD"],
+    lData = lMapped
+  ))
+
+  dfPD <- lReporting$Reporting_PD$pd
+  expect_s3_class(dfPD, "data.frame")
+  expect_gt(nrow(dfPD), 0)
+  expect_setequal(
+    names(dfPD),
+    c("study", "site", "subject_id", "dv_seq", "dv_term", "dv_decod",
+      "dv_cat", "dv_scat", "dv_start_date", "dv_end_date")
+  )
+  expect_setequal(unique(dfPD$study), vStudyIDs)
+  expect_true(all(dfPD$dv_cat %in% c("MAJOR", "IMPORTANT", "MINOR")))
+})
+
+test_that("Write_ctasapp emits pd alongside queries and metric frames", {
+  skip_if_not_installed("arrow")
+  skip_if_not(bWorkflowRunnable)
+
+  lReportingWorkflows <- workr::MakeWorkflowList(
+    strNames = NULL,
+    strPath = system.file("workflow/3_reporting", package = "gsm.ctas"),
+    strPackage = NULL
+  )
+  lReporting <- suppressWarnings(workr::RunWorkflows(
+    lWorkflows = lReportingWorkflows[c("Results", "Queries", "PD")],
+    lData = c(lMapped, list(lAnalyzed = lAnalysis))
+  ))
+
+  strDir <- withr::local_tempdir()
+  vPaths <- Write_ctasapp(lReporting, strDir, strFormat = "parquet")
+
+  expect_true("pd.parquet" %in% basename(vPaths))
+  dfPD <- arrow::read_parquet(file.path(strDir, "pd.parquet"))
+  expect_setequal(unique(dfPD$study), vStudyIDs)
 })
 
 test_that("Summary workflow packages a gsm-shaped summary + metrics + groups", {

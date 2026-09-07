@@ -9,7 +9,7 @@ editor_options:
   chunk_output_type: console
 ---
 
-```{r setup, include = FALSE}
+```{r setupcook, include = FALSE}
 knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>"
@@ -18,14 +18,14 @@ knitr::opts_chunk$set(
 
 ## Installation
 
-```{r install, eval = FALSE}
+```{r installcook, eval = FALSE}
 install.packages("pak")
 pak::pak("IMPALA-Consortium/gsm.ctas")
 ```
 
 ## Load
 
-```{r load, message = FALSE}
+```{r loadcook, message = FALSE}
 suppressPackageStartupMessages(library(dplyr))
 library(workr)
 library(gsm.mapping)
@@ -38,14 +38,15 @@ library(gsm.ctas)
 `gsm.ctas` ships SDTM domains (`dm`, `lb`, `vs`, `eg`, `rs`) and a synthetic
 ctasapp `queries` frame.
 
-```{r raw}
+```{r rawcook}
 lRaw <- list(
   Raw_DM = gsm.ctas::dm,
   Raw_LB = gsm.ctas::lb,
   Raw_VS = gsm.ctas::vs,
   Raw_EG = gsm.ctas::eg,
   Raw_RS = gsm.ctas::rs,
-  Raw_Queries = gsm.ctas::queries
+  Raw_Queries = gsm.ctas::queries,
+  Raw_PD = gsm.ctas::pd
 )
 
 str(lRaw, max.level = 1)
@@ -53,7 +54,7 @@ str(lRaw, max.level = 1)
 
 ## Mapping
 
-```{r mapping}
+```{r mappingcook}
 lMappingWorkflows <- workr::MakeWorkflowList(
   strNames = NULL,
   strPath = system.file("workflow/1_mappings", package = "gsm.ctas"),
@@ -250,53 +251,17 @@ example](Example_SiteCTASReport.html) stay in sync.
 names(lReporting)
 ```
 
-## ctasapp export
+## ctasapp
 
 [ctasapp](https://github.com/IMPALA-Consortium/ctasapp) only consumes the
-`results`, `input`, `untransformed` and `queries` frames -- the
-`3_reporting` outputs `Reporting_Results` and `Reporting_Queries`. The
-`Summary`, `Metrics`, `Groups` frames and the `4_modules` html render are
-not needed. Filter the reporting layer with `strNames` to skip the
-site-report-only workflows:
+`results`, `input`, `untransformed`, `queries` and `pd` frames -- the
+`3_reporting` outputs `Reporting_Results`, `Reporting_Queries` and
+`Reporting_PD`. The `Summary`, `Metrics`, `Groups` frames and the
+`4_modules` html render are not needed. Filter the reporting layer with
+`strNames` to skip the site-report-only workflows:
 
 ```{r ctasapp_workflow, eval = FALSE}
-lRaw <- list(
-  Raw_DM = gsm.ctas::dm,
-  Raw_LB = gsm.ctas::lb,
-  Raw_VS = gsm.ctas::vs,
-  Raw_EG = gsm.ctas::eg,
-  Raw_RS = gsm.ctas::rs,
-  Raw_Queries = gsm.ctas::queries
-)
 
-lMappingWorkflows <- workr::MakeWorkflowList(
-  strPath = system.file("workflow/1_mappings", package = "gsm.ctas")
-)
-lMetricWorkflows <- workr::MakeWorkflowList(
-  strPath = system.file("workflow/2_metrics", package = "gsm.ctas")
-)
-lReportingWorkflows <- workr::MakeWorkflowList(
-  strNames = c("Results", "Queries"),
-  strPath = system.file("workflow/3_reporting", package = "gsm.ctas")
-)
-
-lMapped <- workr::RunWorkflows(
-  lWorkflows = lMappingWorkflows,
-  lData = gsm.mapping::Ingest(lRaw, gsm.mapping::CombineSpecs(lMappingWorkflows))
-)
-
-lAnalysis <- workr::RunWorkflows(
-  lWorkflows = lMetricWorkflows,
-  lData = lMapped
-)
-
-lReporting <- workr::RunWorkflows(
-  lWorkflows = lReportingWorkflows,
-  lData = c(lMapped, list(
-    lAnalyzed = lAnalysis,
-    lMetricWorkflows = lMetricWorkflows
-  ))
-)
 
 Write_ctasapp(lReporting, strDir = "pub", strFormat = "parquet")
 ```
@@ -311,4 +276,16 @@ file.copy(system.file("ctasapp.yml", package = "ctasapp"), "ctasapp.yml")
 #   input: pub/input.parquet
 #   untransformed: pub/untransformed.parquet
 ctasapp::run_ctas_app()
+```
+
+## html Report
+
+```{r report, eval=TRUE}
+
+lModuleFlows <- workr::MakeWorkflowList(strPath = system.file("workflow/4_modules", package = "gsm.ctas"))
+
+workr::RunWorkflows(
+  lWorkflows = lModuleFlows,
+  lData = lReporting
+)
 ```

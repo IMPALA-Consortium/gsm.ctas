@@ -9,6 +9,7 @@ vScripts <- c(
   "data-raw/vs.R",
   "data-raw/eg.R",
   "data-raw/rs.R",
+  "data-raw/pd.R",
   "data-raw/queries.R"
 )
 

@@ -27,3 +27,26 @@ test_that("queries dataset matches the ctasapp upload contract", {
   expect_true(all(q$query_status %in% c("Open", "Answered", "Closed")))
   expect_true(all(q$domain %in% c("LB", "VS", "EG", "RS")))
 })
+
+test_that("pd dataset matches the ctasapp Protocol Deviations tab contract", {
+  e <- new.env()
+  data("pd", package = "gsm.ctas", envir = e)
+  p <- e$pd
+
+  expect_s3_class(p, "data.frame")
+  expect_gt(nrow(p), 0)
+  expect_setequal(
+    names(p),
+    c("study", "site", "subject_id", "dv_seq", "dv_term", "dv_decod",
+      "dv_cat", "dv_scat", "dv_start_date", "dv_end_date")
+  )
+  expect_type(p$dv_seq, "integer")
+  expect_s3_class(p$dv_start_date, "Date")
+  expect_s3_class(p$dv_end_date, "Date")
+  expect_true(all(p$dv_cat %in% c("MAJOR", "IMPORTANT", "MINOR")))
+  expect_true(all(p$dv_scat %in% c(
+    "INCLUSION CRITERIA NOT MET", "PROHIBITED CONMED",
+    "STUDY PROCEDURE NOT DONE", "VISIT WINDOW DEVIATION",
+    "INFORMED CONSENT ISSUE"
+  )))
+})
