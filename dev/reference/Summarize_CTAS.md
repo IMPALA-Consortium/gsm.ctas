@@ -1,142 +1,103 @@
-# Aggregate CTAS site scores into the gsm `Analysis_Analyzed` contract
+# Aggregate CTAS site scores into a gsm-shaped CTAS summary
 
-CTAS returns one score per (timeseries x feature x group), while gsm
-expects one row per group per metric. `Summarize_CTAS()` filters the
-shared [`Analyze_CTAS()`](Analyze_CTAS.md) output to a single feature
-and collapses it over timeseries.
+Pivots the long CTAS results frame (one row per site x timeseries x
+feature) into the gsm reporting `dfResults` contract (one row per site x
+synthetic `MetricID`) so the stock `gsm.kri` report can render it
+unchanged. Each `parameter_category_2` (data field, e.g. `"AST"`,
+`"SYSBP"`) becomes its own `MetricID` (`ctas_<field>`); metric families
+are collapsed with `max(Score)` so a field scored by both
+`range_normalized` and `ratio_missing` shows as one CTAS row. When
+`bByFeature = TRUE`, one `MetricID` per (field x CTAS feature) is
+emitted instead.
 
 ## Usage
 
 ``` r
 Summarize_CTAS(
-  dfSiteScores,
-  strFeature,
-  strGroupLevel = "Site",
-  strDomain = NULL,
-  strTransformation = NULL,
-  strParameterPattern = NULL,
-  vGroupIDs = NULL,
-  dHigh = 2.326,
-  dLow = 0.842
+  dfResults,
+  dfSubjects,
+  bIncludeMissingness = TRUE,
+  bByFeature = FALSE,
+  strStudyID = NULL,
+  dSnapshotDate = Sys.Date()
 )
 ```
 
 ## Arguments
 
-- dfSiteScores:
+- dfResults:
 
-  `data.frame` The `site_scores` element of
-  [`Analyze_CTAS()`](Analyze_CTAS.md), normally via
-  [`Combine_CTAS_Scores()`](Combine_CTAS_Scores.md).
+  `data.frame` Stacked CTAS results, typically
+  `Reporting_Results$results` from the reporting Results workflow. Must
+  contain `study`, `site`, `parameter_category_2`,
+  `parameter_category_3`, `feature`, `fdr_corrected_pvalue_logp`,
+  `timeseries_id`.
 
-- strFeature:
+- dfSubjects:
 
-  `character` Single CTAS feature to summarise, e.g. `"average"`.
+  `data.frame` Standardised subjects with `studyid`, `subject_id`,
+  `site`. Used to complete the (study x site x MetricID) grid so sites
+  with no scored timeseries stay visible.
 
-- strGroupLevel:
+- bIncludeMissingness:
 
-  `character` gsm group level, `"Site"` or `"Country"`.
+  `logical` Include the `ratio_missing` metric family
+  (`parameter_category_3 == "ratio_missing"`) in the aggregation.
+  Default `TRUE`.
 
-- strDomain:
+- bByFeature:
 
-  `character` Optional `parameter_category_1` to keep, e.g. `"Labs"`.
-  Must be given together with `strTransformation`.
+  `logical` Group by (data field x CTAS feature) instead of by data
+  field only. Default `FALSE`.
 
-- strTransformation:
+- strStudyID:
 
-  `character` Optional `parameter_category_3` to keep, e.g.
-  `"ratio_missing"`. Must be given together with `strDomain`.
+  `character` Optional single StudyID used for every row (overrides
+  per-row `study`). Default `NULL` -\> use the `study` column.
 
-- strParameterPattern:
+- dSnapshotDate:
 
-  `character` Optional regular expression matched against
-  `parameter_id`, as an alternative to the category pair for inputs that
-  lack the category columns.
-
-- vGroupIDs:
-
-  `character` Optional complete vector of group IDs.
-
-- dHigh:
-
-  `numeric` Score at or above which a timeseries triggers "Further
-  Evaluation".
-
-- dLow:
-
-  `numeric` Score at or above which a timeseries is put on the "Watch
-  List".
+  `Date` Snapshot date stamped on every row. Default
+  [`Sys.Date()`](https://rdrr.io/r/base/Sys.time.html).
 
 ## Value
 
-`data.frame` with `GroupID`, `GroupLevel`, `Numerator`, `Denominator`,
-`Metric` and `Score`.
+`data.frame` with the gsm reporting `dfResults` columns (`MetricID`,
+`GroupID`, `GroupLevel`, `StudyID`, `SnapshotDate`, `Score`) plus the
+CTAS grouping keys (`parameter_category_2`, and `feature` when
+`bByFeature = TRUE`) so downstream steps can label metrics without a
+re-join.
 
 ## Details
 
-A single CTAS run covers every domain in the study, so `feature` alone
-does not identify a metric once more than one domain is mapped:
-"average" spans vital signs, range-normalised labs and lab missingness
-at the same time. A metric must therefore also say which family of
-parameters it summarises.
+The `Score` is the max `fdr_corrected_pvalue_logp` across every
+contributing (timeseries x feature) row in the group. Sites present in
+`dfSubjects` but absent from `dfResults` (e.g. no scorable timeseries
+for a field) are retained with `Score = NA` so the CTAS overview table
+cannot silently drop them.
 
-There are two ways to do so, and the category pair is preferred:
+`Flag` is intentionally not emitted here – run
+[`Flag_CTAS()`](Flag_CTAS.md) on the returned frame to add it. Splitting
+Summarize + Flag mirrors the
+[`gsm.core::Summarize()`](https://rdrr.io/pkg/gsm.core/man/Summarize.html)
+/ [`gsm.core::Flag()`](https://rdrr.io/pkg/gsm.core/man/Flag.html) seam
+so users can swap thresholds without re-aggregating.
 
-- `strDomain` and `strTransformation` match `parameter_category_1` (e.g.
-  `"Labs"`) and `parameter_category_3` (e.g. `"ratio_missing"`). These
-  are the structured fields the `Input_*()` functions set, recovered by
-  [`Combine_CTAS_Scores()`](Combine_CTAS_Scores.md). **Both** are needed
-  to identify a family: `parameter_category_3` is `"numeric"` for every
-  plain numeric domain, so it would select vital signs and ECG together.
+## See also
 
-- `strParameterPattern` matches a regular expression against
-  `parameter_id`. This works without the category columns, but
-  re-derives from a string what the categories already state, and is
-  easy to get subtly wrong - `"^LB_"` selects both lab families where
-  `"^LB_MISS_"` selects one.
-
-Groups with no evaluated timeseries for the feature are retained with
-`Denominator = 0`, `Metric = NA` and `Score = NA`, so that the report
-does not silently drop them. Supply `vGroupIDs` to complete the grid
-against a known group list; otherwise only groups present in
-`dfSiteScores` appear.
-
-`Denominator` counts the timeseries evaluated for the feature, not
-participants. Sites are normally assessed on the same timeseries, so the
-denominator is usually constant across sites within a metric, and varies
-only where a site contributes no data at all for a parameter. It differs
-*between* metrics, because CTAS autogenerates one timeseries per
-timepoint combination and those differ by domain. It is a coverage
-denominator, not an exposure one, and should not be read as site size.
-
-The default thresholds `2.326` / `0.842` are drawn from experience
-rather than derived. They are one-sided normal z-quantiles (99% / 80%)
-applied to a -log10(p) scale, where they correspond to p = 0.0047 and p
-= 0.144. Override them from the workflow YAML `meta` block where a
-different convention is wanted.
+[`Flag_CTAS()`](Flag_CTAS.md) to add the `Flag` column.
 
 ## Examples
 
 ``` r
-dfSiteScores <- data.frame(
-  timeseries_id = c("ts1", "ts2", "ts1"),
-  site = c("001", "001", "002"),
-  country = "USA",
-  parameter_id = c("VS_SYSBP", "LB_NORM_ALB", "VS_SYSBP"),
-  parameter_category_1 = c("Vital Signs", "Labs", "Vital Signs"),
-  parameter_category_3 = c("numeric", "range_normalized", "numeric"),
-  feature = "average",
-  fdr_corrected_pvalue_logp = c(3.1, 0.5, 1.0)
+if (FALSE) { # \dontrun{
+lReporting <- workr::RunWorkflows(
+  lReportingWorkflows["Results"],
+  lData = c(lMapped, list(lAnalyzed = lAnalysis))
 )
-Summarize_CTAS(
-  dfSiteScores,
-  strFeature = "average",
-  strDomain = "Vital Signs",
-  strTransformation = "numeric"
+dfSummary <- Summarize_CTAS(
+  dfResults = lReporting$Reporting_Results$results,
+  dfSubjects = lMapped$Mapped_Subjects
 )
-#> # A tibble: 2 × 6
-#>   GroupID GroupLevel Numerator Denominator Metric Score
-#>   <chr>   <chr>          <dbl>       <dbl>  <dbl> <dbl>
-#> 1 001     Site               1           1      1   3.1
-#> 2 002     Site               0           1      0   1  
+} # }
 ```

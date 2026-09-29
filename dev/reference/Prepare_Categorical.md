@@ -28,14 +28,3 @@ Prepare_Categorical(vValue, strPrefix = "var")
 observation), `Level` (`character` label of the form
 `"{strPrefix}={value}"`) and `Encoded` (`integer`, 1 if the observation
 matches the level, else 0).
-
-## Examples
-
-``` r
-Prepare_Categorical(c("CR", "PR", NA), strPrefix = "OVRLRESP")
-#>   RowIndex       Level Encoded
-#> 1        1 OVRLRESP=CR       1
-#> 2        2 OVRLRESP=CR       0
-#> 3        1 OVRLRESP=PR       0
-#> 4        2 OVRLRESP=PR       1
-```

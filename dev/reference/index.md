@@ -2,78 +2,68 @@
 
 ## Mapping
 
-Map SDTM domains into CTAS input frames.
+Map SDTM domains into the CTAS long-format vocabulary.
 
-- [`Input_Missing()`](Input_Missing.md) : Map a findings domain to a
-  missingness-ratio CTAS input
-
-- [`Input_Numeric()`](Input_Numeric.md) : Map a numeric findings domain
-  to CTAS input
-
-- [`Input_OneHot()`](Input_OneHot.md) : Map a categorical findings
-  domain to CTAS input via one-hot encoding
-
-- [`Input_Range()`](Input_Range.md) : Map a numeric findings domain with
-  reference ranges to CTAS input
-
-- [`Input_Subjects()`](Input_Subjects.md) :
-
-  Map a subject-level domain to the CTAS `subjects` frame
-
-- [`Combine_CTAS_Input()`](Combine_CTAS_Input.md) : Combine domain
-  inputs into the five CTAS input frames
-
-## Preparation
-
-Make values comparable across parameters.
-
-- [`Prepare_Categorical()`](Prepare_Categorical.md) : One-hot encode a
-  categorical variable
-- [`Prepare_MissingRatio()`](Prepare_MissingRatio.md) : Running ratio of
-  missing values over time
-- [`Prepare_Normalize()`](Prepare_Normalize.md) : Normalize values by
-  reference range
-- [`Prepare_TimepointRank()`](Prepare_TimepointRank.md) : Recalculate
-  timepoint rank as a positional integer
+- [`Standardize_Domain()`](Standardize_Domain.md) : Rename an SDTM
+  findings domain into the CTAS long-format vocabulary
+- [`Standardize_Queries()`](Standardize_Queries.md) : Standardise an EDC
+  query frame into the CTAS + ctasapp vocabulary
+- [`Transform_Missing()`](Transform_Missing.md) : Convert findings to a
+  running missing-ratio timeseries for CTAS
+- [`Transform_OneHot()`](Transform_OneHot.md) : One-hot encode a
+  categorical findings frame for CTAS
+- [`Transform_Range()`](Transform_Range.md) : Normalise
+  reference-bounded numeric findings for CTAS
 
 ## Analysis
 
-Run CTAS and bridge into the gsm analysis contract.
+Run CTAS and emit the ctasapp-shaped output frames.
 
-- [`Analyze_CTAS()`](Analyze_CTAS.md) : Run the CTAS engine over a
-  combined study input
-
-- [`Combine_CTAS_Scores()`](Combine_CTAS_Scores.md) : Attach parameter
-  identity and category to CTAS site scores
-
-- [`Summarize_CTAS()`](Summarize_CTAS.md) :
-
-  Aggregate CTAS site scores into the gsm `Analysis_Analyzed` contract
-
-- [`Flag_CTAS()`](Flag_CTAS.md) : Flag aggregated CTAS scores
+- [`Analyze_CTAS()`](Analyze_CTAS.md) : Score sites with CTAS
 
 ## Reporting
 
-Adjust the stock gsm.kri report for CTAS metrics.
+Bind the ctasapp output frames and write them to disk for the ctasapp
+dashboard.
 
-- [`DropChart()`](DropChart.md) :
+- [`BindResults_CTAS()`](BindResults_CTAS.md) : Bind one named shard
+  across metric workflow outputs
+- [`Write_ctasapp()`](Write_ctasapp.md) : Write ctasapp shards to disk
 
-  Remove named charts from a `gsm.kri` chart list
+## Summary
 
-## Drill-down
+Aggregate CTAS results into a gsm-shaped summary + metric + group meta
+for the CTAS site report.
 
-Retain and export timeseries-level detail for the ctasapp dashboard.
+- [`Summarize_CTAS()`](Summarize_CTAS.md) : Aggregate CTAS site scores
+  into a gsm-shaped CTAS summary
 
-- [`Combine_CTAS_Detail()`](Combine_CTAS_Detail.md) :
+- [`Flag_CTAS()`](Flag_CTAS.md) :
 
-  Assemble the timeseries-level detail object for `ctasapp` drill-down
+  Flag CTAS scores with a gsm-shaped `Flag` column
 
-- [`Write_CTAS_Detail()`](Write_CTAS_Detail.md) :
+- [`MakeMetric_CTAS()`](MakeMetric_CTAS.md) :
 
-  Write the CTAS detail object to files `ctasapp` can load
+  Build the CTAS gsm-shaped `dfMetrics` audit table
+
+- [`Report_CTAS()`](Report_CTAS.md) : Render the CTAS site-level report
+  from a CTAS summary
 
 ## Package
 
 - [`gsm.ctas`](gsm.ctas-package.md)
   [`gsm.ctas-package`](gsm.ctas-package.md) : gsm.ctas: Add CTAS Anomaly
   Detection to gsm
+
+## Datasets
+
+Illustrative SDTM domains and EDC query records shipped with the
+package.
+
+- [`dm`](dm.md) : SDTM DM (Demographics) domain
+- [`lb`](lb.md) : SDTM LB (Laboratory) domain
+- [`vs`](vs.md) : SDTM VS (Vital Signs) domain
+- [`eg`](eg.md) : SDTM EG (ECG) domain
+- [`rs`](rs.md) : SDTM RS (Disease Response) domain
+- [`queries`](queries.md) : Illustrative EDC query records
+- [`pd`](pd.md) : Illustrative Protocol Deviation records

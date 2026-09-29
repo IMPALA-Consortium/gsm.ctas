@@ -2,4 +2,8 @@
 
 ### Get started
 
-- [gsm.ctas end to end](gsm-ctas.md):
+- [gsm.ctas cookbook](Cookbook.md):
+
+### Development
+
+- [Contributor Guidelines](ContributorGuidelines.md):

@@ -1,18 +1,22 @@
-# Validate a combined CTAS input list
+# Validate a CTAS long-format input frame
 
-Validate a combined CTAS input list
+Validate a CTAS long-format input frame
 
 ## Usage
 
 ``` r
-AssertCTASInput(lInput)
+AssertCTASInput(dfInput, strStudyCol = "studyid")
 ```
 
 ## Arguments
 
-- lInput:
+- dfInput:
 
-  `list` Result of [`Combine_CTAS_Input()`](Combine_CTAS_Input.md).
+  `data.frame` Long-format CTAS input.
+
+- strStudyCol:
+
+  `character` Optional study column expected on `dfInput`.
 
 ## Value
 

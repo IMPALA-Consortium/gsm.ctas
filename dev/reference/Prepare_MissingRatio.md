@@ -34,14 +34,3 @@ Prepare_MissingRatio(vValue, vSubjectID, vParameterID)
 
 Rows are assumed to be supplied in chronological order within each
 group; the returned vector is aligned to the input row order.
-
-## Examples
-
-``` r
-Prepare_MissingRatio(
-  vValue = c(1, NA, 3, NA),
-  vSubjectID = c("S1", "S1", "S2", "S2"),
-  vParameterID = rep("SYSBP", 4)
-)
-#> [1] 0.0 0.5 0.0 0.5
-```

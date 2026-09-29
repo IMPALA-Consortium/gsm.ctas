@@ -24,17 +24,3 @@ Prepare_TimepointRank(dfInput)
 
 `data.frame` with `timepoint_rank` recalculated, sorted by group and
 rank.
-
-## Examples
-
-``` r
-Prepare_TimepointRank(data.frame(
-  subject_id = c("S1", "S1"),
-  parameter_id = c("SYSBP", "SYSBP"),
-  timepoint_1_name = c("WEEK 2", "WEEK 12"),
-  timepoint_rank = c(3, 7)
-))
-#>   subject_id parameter_id timepoint_1_name timepoint_rank
-#> 1         S1        SYSBP           WEEK 2              1
-#> 2         S1        SYSBP          WEEK 12              2
-```

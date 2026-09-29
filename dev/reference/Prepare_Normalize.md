@@ -33,10 +33,3 @@ Prepare_Normalize(vValue, vLow, vHigh)
 
 Returns `NA_real_` wherever the range is invalid, i.e. either bound is
 missing or the range width is not strictly positive.
-
-## Examples
-
-``` r
-Prepare_Normalize(c(5, 10, 15), vLow = c(5, 5, 5), vHigh = c(10, 10, 10))
-#> [1] 0 1 2
-```
