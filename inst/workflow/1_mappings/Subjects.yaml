@@ -1,0 +1,31 @@
+meta:
+  Type: Mapped
+  ID: Subjects
+  Description: Standardised subjects frame for CTAS input, derived from Mapped_DM
+  Priority: 2
+spec:
+  Mapped_DM:
+    STUDYID:
+      type: character
+    USUBJID:
+      type: character
+    SITEID:
+      type: character
+    COUNTRY:
+      type: character
+steps:
+  # `Mapped_Subjects` is the transformation-neutral subject table that every
+  # metric YAML consumes via `Standardize_Domain()`. Column names are
+  # lower-case to match the CTAS vocabulary so downstream code never has to
+  # translate.
+  - output: Mapped_Subjects
+    name: workr::RunQuery
+    params:
+      df: Mapped_DM
+      strQuery: |
+        SELECT DISTINCT
+          STUDYID as studyid,
+          USUBJID as subject_id,
+          SITEID as site,
+          COUNTRY as country
+        FROM df

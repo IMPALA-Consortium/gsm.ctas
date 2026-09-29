@@ -1,0 +1,87 @@
+meta:
+  Type: Analysis
+  ID: range_normalized
+  FeatureAutocorr: true
+  FeatureAverage: true
+  FeatureSD: true
+  FeatureRange: true
+  FeatureUniqueValueCountRelative: true
+  FeatureOwnSiteSimilScore: false
+  FeatureLOF: false
+  MinTimepoints: 1
+  MinSubjects: 25
+  MaxShareMissing: 0.3
+  ScoringMethod: ks
+  PadjustMethod: fdr
+  Seed: 20260813
+spec:
+  Mapped_Subjects:
+    studyid:
+      type: character
+    subject_id:
+      type: character
+    site:
+      type: character
+    country:
+      type: character
+  Mapped_LB:
+    STUDYID:
+      type: character
+    USUBJID:
+      type: character
+    LBTESTCD:
+      type: character
+    LBTEST:
+      type: character
+    LBSTRESN:
+      type: numeric
+    LBSTNRLO:
+      type: numeric
+    LBSTNRHI:
+      type: numeric
+    VISIT:
+      type: character
+    VISITNUM:
+      type: numeric
+steps:
+  - output: Temp_CTAS_Long
+    name: gsm.ctas::Standardize_Domain
+    params:
+      dfDomain: Mapped_LB
+      dfSubjects: Mapped_Subjects
+      strTestCDCol: LBTESTCD
+      strTestCol: LBTEST
+      strValueCol: LBSTRESN
+      strLowCol: LBSTNRLO
+      strHighCol: LBSTNRHI
+      strCategory: Labs
+  - output: Temp_CTAS_Values
+    name: gsm.ctas::Transform_Range
+    params:
+      dfInput: Temp_CTAS_Long
+  - output: Temp_CTAS_Results
+    name: gsm.ctas::Analyze_CTAS
+    params:
+      dfInput: Temp_CTAS_Values
+      bAutocorr: FeatureAutocorr
+      bAverage: FeatureAverage
+      bSD: FeatureSD
+      bRange: FeatureRange
+      bUniqueValueCountRelative: FeatureUniqueValueCountRelative
+      bOwnSiteSimilScore: FeatureOwnSiteSimilScore
+      bLOF: FeatureLOF
+      nMinTimepoints: MinTimepoints
+      nMinSubjects: MinSubjects
+      dMaxShareMissing: MaxShareMissing
+      strScoringMethod: ScoringMethod
+      strPadjustMethod: PadjustMethod
+      nSeed: Seed
+  # `Transform_Range` stamps `original_value`/`lower`/`upper` onto `Temp_CTAS_Values`,
+  # which flows through as the `untransformed` shard.
+  - output: lAnalysis
+    name: base::list
+    params:
+      ID: ID
+      results: Temp_CTAS_Results
+      input: Temp_CTAS_Values
+      untransformed: Temp_CTAS_Values

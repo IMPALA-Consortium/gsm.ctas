@@ -1,0 +1,27 @@
+meta:
+  Type: Mapped
+  ID: EG
+  Description: SDTM EG (Electrocardiogram) Data Mapping
+  Priority: 1
+spec:
+  Raw_EG:
+    STUDYID:
+      type: character
+    USUBJID:
+      type: character
+    EGTESTCD:
+      type: character
+    EGTEST:
+      type: character
+    EGSTRESN:
+      type: numeric
+    VISIT:
+      type: character
+    VISITNUM:
+      type: numeric
+steps:
+  - output: Mapped_EG
+    name: workr::RunQuery
+    params:
+      df: Raw_EG
+      strQuery: "SELECT * FROM df WHERE LOWER(VISIT) NOT LIKE '%unsch%'"

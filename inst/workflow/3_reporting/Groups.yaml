@@ -1,7 +1,7 @@
 meta:
   Type: Reporting
   ID: Groups
-  Description: Reporting Groups Data
+  Description: Long-format group metadata for the CTAS site report, sourced from the mapping layer.
   Priority: 1
   Active: true
 spec:
@@ -12,7 +12,6 @@ spec:
     _all:
       required: true
 steps:
-  # gsm.ctas v1 scores each site against all others, so no COUNTRY level is bound.
   - output: Reporting_Groups
     name: dplyr::bind_rows
     params:

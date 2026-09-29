@@ -5,6 +5,8 @@ meta:
   Priority: 1
 spec:
   Raw_VS:
+    STUDYID:
+      type: character
     USUBJID:
       type: character
     VSTESTCD:
@@ -22,4 +24,4 @@ steps:
     name: workr::RunQuery
     params:
       df: Raw_VS
-      strQuery: "SELECT * FROM df"
+      strQuery: "SELECT * FROM df WHERE LOWER(VISIT) NOT LIKE '%unsch%'"

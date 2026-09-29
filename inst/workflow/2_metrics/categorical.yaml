@@ -1,0 +1,127 @@
+meta:
+  Type: Analysis
+  ID: categorical
+  # Binary one-hot series are degenerate for autocorrelation, SD, range and
+  # unique-value count. Site-level mean (= positive rate) is the meaningful
+  # CTAS signal.
+  FeatureAutocorr: false
+  FeatureAverage: true
+  FeatureSD: false
+  FeatureRange: false
+  FeatureUniqueValueCountRelative: false
+  FeatureOwnSiteSimilScore: false
+  FeatureLOF: false
+  MinTimepoints: 1
+  MinSubjects: 25
+  MaxShareMissing: 0.3
+  ScoringMethod: ks
+  PadjustMethod: fdr
+  Seed: 20260813
+spec:
+  Mapped_Subjects:
+    studyid:
+      type: character
+    subject_id:
+      type: character
+    site:
+      type: character
+    country:
+      type: character
+  Mapped_RS:
+    STUDYID:
+      type: character
+    USUBJID:
+      type: character
+    RSTESTCD:
+      type: character
+    RSTEST:
+      type: character
+    RSSTRESC:
+      type: character
+    VISIT:
+      type: character
+    VISITNUM:
+      type: numeric
+  Mapped_BMI:
+    STUDYID:
+      type: character
+    USUBJID:
+      type: character
+    VSTESTCD:
+      type: character
+    VSTEST:
+      type: character
+    VSSTRESC:
+      type: character
+    VISIT:
+      type: character
+    VISITNUM:
+      type: numeric
+steps:
+  # Each source domain gets its own `Standardize_Domain` call so the per-row
+  # `parameter_category_1` traces back to the source. Downstream steps are
+  # category-agnostic.
+  - output: Temp_RS_Long
+    name: gsm.ctas::Standardize_Domain
+    params:
+      dfDomain: Mapped_RS
+      dfSubjects: Mapped_Subjects
+      strTestCDCol: RSTESTCD
+      strTestCol: RSTEST
+      strValueCol: RSSTRESC
+      strCategory: Disease Response
+  - output: Temp_BMI_Long
+    name: gsm.ctas::Standardize_Domain
+    params:
+      dfDomain: Mapped_BMI
+      dfSubjects: Mapped_Subjects
+      strTestCDCol: VSTESTCD
+      strTestCol: VSTEST
+      strValueCol: VSSTRESC
+      strCategory: BMI
+  # RS and BMI testcodes are disjoint (`OVRLRESP` vs `BMICAT`), so
+  # `parameter_id` uniqueness is preserved after row-binding.
+  - output: Temp_CTAS_Long
+    name: dplyr::bind_rows
+    params:
+      rs: Temp_RS_Long
+      bmi: Temp_BMI_Long
+  # `Transform_OneHot` expands each row into one row per observed level of the
+  # same test; `result` becomes the 0/1 indicator scored by CTAS.
+  - output: Temp_CTAS_Values
+    name: gsm.ctas::Transform_OneHot
+    params:
+      dfInput: Temp_CTAS_Long
+  - output: Temp_CTAS_Results
+    name: gsm.ctas::Analyze_CTAS
+    params:
+      dfInput: Temp_CTAS_Values
+      bAutocorr: FeatureAutocorr
+      bAverage: FeatureAverage
+      bSD: FeatureSD
+      bRange: FeatureRange
+      bUniqueValueCountRelative: FeatureUniqueValueCountRelative
+      bOwnSiteSimilScore: FeatureOwnSiteSimilScore
+      bLOF: FeatureLOF
+      nMinTimepoints: MinTimepoints
+      nMinSubjects: MinSubjects
+      dMaxShareMissing: MaxShareMissing
+      strScoringMethod: ScoringMethod
+      strPadjustMethod: PadjustMethod
+      nSeed: Seed
+  # `original_category` on `Temp_CTAS_Values` carries the raw label
+  # (e.g. `"CR"`, `"Obese"`). We de-duplicate to one row per
+  # (subject x cat2 x visit) so it can flow through the `untransformed`
+  # output without repeating each observation once per level.
+  - output: Temp_CTAS_Untransformed
+    name: workr::RunQuery
+    params:
+      df: Temp_CTAS_Values
+      strQuery: "SELECT * FROM df QUALIFY ROW_NUMBER() OVER (PARTITION BY subject_id, parameter_category_2, timepoint_1_name) = 1"
+  - output: lAnalysis
+    name: base::list
+    params:
+      ID: ID
+      results: Temp_CTAS_Results
+      input: Temp_CTAS_Values
+      untransformed: Temp_CTAS_Untransformed

@@ -1,0 +1,110 @@
+meta:
+  Type: Analysis
+  ID: numeric
+  FeatureAutocorr: true
+  FeatureAverage: true
+  FeatureSD: true
+  FeatureRange: true
+  FeatureUniqueValueCountRelative: true
+  FeatureOwnSiteSimilScore: false
+  FeatureLOF: false
+  MinTimepoints: 1
+  MinSubjects: 25
+  MaxShareMissing: 0.3
+  ScoringMethod: ks
+  PadjustMethod: fdr
+  Seed: 20260813
+spec:
+  Mapped_Subjects:
+    studyid:
+      type: character
+    subject_id:
+      type: character
+    site:
+      type: character
+    country:
+      type: character
+  Mapped_VS:
+    STUDYID:
+      type: character
+    USUBJID:
+      type: character
+    VSTESTCD:
+      type: character
+    VSTEST:
+      type: character
+    VSSTRESN:
+      type: numeric
+    VISIT:
+      type: character
+    VISITNUM:
+      type: numeric
+  Mapped_EG:
+    STUDYID:
+      type: character
+    USUBJID:
+      type: character
+    EGTESTCD:
+      type: character
+    EGTEST:
+      type: character
+    EGSTRESN:
+      type: numeric
+    VISIT:
+      type: character
+    VISITNUM:
+      type: numeric
+steps:
+  # Each source domain gets its own `Standardize_Domain` call so the per-row
+  # `parameter_category_1` traces back to the source. Downstream steps are
+  # category-agnostic.
+  - output: Temp_VS_Values
+    name: gsm.ctas::Standardize_Domain
+    params:
+      dfDomain: Mapped_VS
+      dfSubjects: Mapped_Subjects
+      strTestCDCol: VSTESTCD
+      strTestCol: VSTEST
+      strValueCol: VSSTRESN
+      strCategory: Vital Signs
+  - output: Temp_EG_Values
+    name: gsm.ctas::Standardize_Domain
+    params:
+      dfDomain: Mapped_EG
+      dfSubjects: Mapped_Subjects
+      strTestCDCol: EGTESTCD
+      strTestCol: EGTEST
+      strValueCol: EGSTRESN
+      strCategory: ECG
+  # VS and EG testcodes are disjoint, so `parameter_id` uniqueness is
+  # preserved after row-binding.
+  - output: Temp_CTAS_Values
+    name: dplyr::bind_rows
+    params:
+      vs: Temp_VS_Values
+      eg: Temp_EG_Values
+  - output: Temp_CTAS_Results
+    name: gsm.ctas::Analyze_CTAS
+    params:
+      dfInput: Temp_CTAS_Values
+      bAutocorr: FeatureAutocorr
+      bAverage: FeatureAverage
+      bSD: FeatureSD
+      bRange: FeatureRange
+      bUniqueValueCountRelative: FeatureUniqueValueCountRelative
+      bOwnSiteSimilScore: FeatureOwnSiteSimilScore
+      bLOF: FeatureLOF
+      nMinTimepoints: MinTimepoints
+      nMinSubjects: MinSubjects
+      dMaxShareMissing: MaxShareMissing
+      strScoringMethod: ScoringMethod
+      strPadjustMethod: PadjustMethod
+      nSeed: Seed
+  # `Temp_CTAS_Values` carries no `original_value`, so no `untransformed`
+  # is emitted for this metric.
+  - output: lAnalysis
+    name: base::list
+    params:
+      ID: ID
+      results: Temp_CTAS_Results
+      input: Temp_CTAS_Values

@@ -1,65 +1,123 @@
-#' Run the CTAS engine over a combined study input
+#' Score sites with CTAS
 #'
-#' A gsm-friendly wrapper around [ctas::process_a_study()]. It validates the
-#' input list produced by [Combine_CTAS_Input()], applies reproducible seeding,
-#' and converts the degenerate cases CTAS signals by returning `NULL` elements
-#' into an informative error.
+#' A gsm-friendly wrapper around [ctas::process_a_study()]. It takes a single
+#' long data frame in the CTAS + [ctasapp](https://github.com/IMPALA-Consortium/ctasapp)
+#' vocabulary (typically the output of an `Input_*()` function), splits by
+#' study when the multi-study contract is active, runs `process_a_study()`
+#' per study, and returns the flat `results` frame ctasapp displays.
 #'
-#' `process_a_study()` is an all-metrics-at-once engine: a single call scores
-#' every (timeseries x feature x site) combination. It is therefore intended to
-#' run once per study, in a high-`Priority` mapping workflow, with each metric
-#' workflow filtering the shared result to one feature.
+#' Only `results` is returned; the `input` and `untransformed` frames ctasapp
+#' also consumes are pure projections of the input `dfInput`, so the metric
+#' YAML assembles the ctasapp payload in a separate `base::list` step (see
+#' `inst/workflow/2_metrics/*.yaml`).
 #'
-#' @param lInput `list` Result of [Combine_CTAS_Input()].
-#' @param strFeatures `character` Semicolon-delimited CTAS features.
+#' The single-df pattern follows
+#' [ctasval](https://github.com/IMPALA-Consortium/ctasval): `subjects` and
+#' `parameters` are re-derived from `dfInput` via `distinct()` inside the
+#' function so callers only have to keep one frame consistent.
+#'
+#' Feature selection is a boolean-per-feature contract instead of the
+#' semicolon-delimited string CTAS accepts, so metric YAMLs can toggle
+#' features individually from `meta:`.
+#'
+#' @param dfInput `data.frame` Long-format CTAS input with at minimum
+#'   `subject_id`, `site`, `parameter_id`, `parameter_name`,
+#'   `parameter_category_1/2/3`, `timepoint_1_name`, `timepoint_2_name`,
+#'   `timepoint_rank`, `result`, `baseline`. Additional CTAS subject columns
+#'   (`country`, `region`) are carried through when present.
+#' @param bAutocorr `logical` Score the `autocorr` feature.
+#' @param bAverage `logical` Score the `average` feature.
+#' @param bSD `logical` Score the `sd` feature.
+#' @param bRange `logical` Score the `range` feature.
+#' @param bUniqueValueCountRelative `logical` Score the
+#'   `unique_value_count_relative` feature.
+#' @param bOwnSiteSimilScore `logical` Score the `own_site_simil_score`
+#'   feature.
+#' @param bLOF `logical` Score the `lof` feature.
 #' @param nMinTimepoints `numeric` Minimum timepoints per timeseries.
 #' @param nMinSubjects `numeric` Minimum subjects per timeseries.
 #' @param dMaxShareMissing `numeric` Maximum share of missing timepoints.
 #' @param bChangeFromBaseline `logical` Derive change-from-baseline timeseries.
 #' @param bAutogenerate `logical` Autogenerate timeseries.
-#' @param strScoringMethod `character` One of "ks", "mixedeffects",
-#'   "avg_feat_value".
+#' @param strScoringMethod `character` One of `"ks"`, `"mixedeffects"`,
+#'   `"avg_feat_value"`.
 #' @param strPadjustMethod `character` Passed to [stats::p.adjust()].
+#' @param dfCustomTimeseries `data.frame` Custom timeseries table forwarded
+#'   to [ctas::process_a_study()]. Defaults to the shipped `ctas::ctas_data`.
+#' @param dfCustomReferenceGroups `data.frame` Custom reference-group table
+#'   forwarded to [ctas::process_a_study()]. Defaults to
+#'   `ctas::ctas_data$custom_reference_groups`.
 #' @param nSeed `numeric` Optional seed for reproducibility.
+#' @param strStudyCol `character` Column on `dfInput` identifying the study.
+#'   `NULL` disables the split and drops the `study` output column.
 #' @param ... Further arguments passed to [ctas::process_a_study()].
 #'
-#' @return `list` with `timeseries`, `timeseries_features`, `PCA_coordinates`
-#'   and `site_scores`.
+#' @return `data.frame` One row per (site x timeseries x feature), carrying
+#'   `parameter_id`, the category columns, and `study` (when the multi-study
+#'   contract is active).
 #'
 #' @examples
 #' \donttest{
-#' lInput <- Combine_CTAS_Input(
-#'   Input_Numeric(pharmaversesdtm::vs),
-#'   dfSubjects = Input_Subjects(pharmaversesdtm::dm)
+#' dfSubjects <- data.frame(
+#'   studyid = pharmaversesdtm::dm$STUDYID,
+#'   subject_id = pharmaversesdtm::dm$USUBJID,
+#'   site = pharmaversesdtm::dm$SITEID,
+#'   country = pharmaversesdtm::dm$COUNTRY
 #' )
-#' lCTAS <- Analyze_CTAS(lInput)
+#' dfValues <- Standardize_Domain(
+#'   dfDomain = pharmaversesdtm::vs,
+#'   dfSubjects = dfSubjects,
+#'   strTestCDCol = "VSTESTCD", strTestCol = "VSTEST",
+#'   strValueCol = "VSSTRESN",
+#'   strCategory = "Vital Signs"
+#' )
+#' dfResults <- Analyze_CTAS(dfValues, nSeed = 1)
+#' lAnalysis <- list(ID = "numeric", results = dfResults,
+#'                   input = dfValues, untransformed = dfValues)
 #' }
 #'
 #' @export
-Analyze_CTAS <- function(lInput,
-                         strFeatures = "autocorr;average;sd;unique_value_count_relative",
-                         nMinTimepoints = 3,
+Analyze_CTAS <- function(dfInput,
+                         bAutocorr = TRUE,
+                         bAverage = TRUE,
+                         bSD = TRUE,
+                         bRange = FALSE,
+                         bUniqueValueCountRelative = TRUE,
+                         bOwnSiteSimilScore = FALSE,
+                         bLOF = FALSE,
+                         nMinTimepoints = 1,
                          nMinSubjects = 3,
                          dMaxShareMissing = 0.5,
                          bChangeFromBaseline = FALSE,
                          bAutogenerate = TRUE,
                          strScoringMethod = "ks",
                          strPadjustMethod = "fdr",
+                         dfCustomTimeseries = ctas::ctas_data$custom_timeseries,
+                         dfCustomReferenceGroups = ctas::ctas_data$custom_reference_groups,
                          nSeed = NULL,
+                         strStudyCol = "studyid",
                          ...) {
-  AssertCTASInput(lInput)
+  AssertCTASInput(dfInput, strStudyCol = strStudyCol)
 
   strScoringMethod <- rlang::arg_match(
     strScoringMethod, c("ks", "mixedeffects", "avg_feat_value")
   )
 
-  fnRun <- function() {
+  strFeatures <- AssembleFeatures(
+    bAutocorr = bAutocorr, bAverage = bAverage, bSD = bSD, bRange = bRange,
+    bUniqueValueCountRelative = bUniqueValueCountRelative,
+    bOwnSiteSimilScore = bOwnSiteSimilScore, bLOF = bLOF
+  )
+
+  fnRunOne <- function(dfSub) {
+    lIn <- BuildCTASInput(dfSub, strStudyCol,
+                          dfCustomTimeseries, dfCustomReferenceGroups)
     ctas::process_a_study(
-      subjects = lInput$subjects,
-      parameters = lInput$parameters,
-      data = lInput$data,
-      custom_timeseries = lInput$custom_timeseries,
-      custom_reference_groups = lInput$custom_reference_groups,
+      subjects = lIn$subjects,
+      parameters = lIn$parameters,
+      data = lIn$data,
+      custom_timeseries = lIn$custom_timeseries,
+      custom_reference_groups = lIn$custom_reference_groups,
       default_timeseries_features_to_calculate = strFeatures,
       default_minimum_timepoints_per_series = nMinTimepoints,
       default_minimum_subjects_per_series = nMinSubjects,
@@ -72,94 +130,43 @@ Analyze_CTAS <- function(lInput,
     )
   }
 
-  lCTAS <- if (is.null(nSeed)) {
-    fnRun()
+  vStudies <- if (!is.null(strStudyCol) && strStudyCol %in% names(dfInput)) {
+    sort(unique(as.character(dfInput[[strStudyCol]])))
   } else {
-    rlang::check_installed("withr", "to seed `Analyze_CTAS()`.")
-    withr::with_seed(nSeed, fnRun())
+    character(0)
   }
 
-  AssertCTASResult(lCTAS)
+  fnAll <- function() {
+    if (length(vStudies) <= 1) {
+      lCTAS <- fnRunOne(dfInput)
+      AssertCTASResult(lCTAS)
+      if (length(vStudies) == 1) {
+        lCTAS <- TagStudyID(lCTAS, vStudies, strStudyCol)
+      }
+      return(lCTAS)
+    }
 
-  lCTAS
-}
+    lPerStudy <- lapply(vStudies, function(strStudy) {
+      dfSub <- dfInput[dfInput[[strStudyCol]] == strStudy, , drop = FALSE]
+      lRes <- fnRunOne(dfSub)
+      AssertCTASResult(lRes)
+      TagStudyID(lRes, strStudy, strStudyCol)
+    })
 
-#' Validate a combined CTAS input list
-#'
-#' @param lInput `list` Result of [Combine_CTAS_Input()].
-#'
-#' @return `NULL`, invisibly. Aborts when the input is unusable.
-#'
-#' @keywords internal
-AssertCTASInput <- function(lInput) {
-  vRequired <- c(
-    "data", "subjects", "parameters", "custom_timeseries",
-    "custom_reference_groups"
-  )
-
-  if (!is.list(lInput) || is.data.frame(lInput)) {
-    cli::cli_abort("{.arg lInput} must be a list, as returned by {.fn Combine_CTAS_Input}.")
-  }
-
-  vMissing <- setdiff(vRequired, names(lInput))
-  if (length(vMissing) > 0) {
-    cli::cli_abort(c(
-      "{.arg lInput} is missing required element{?s}: {.val {vMissing}}.",
-      "i" = "Build it with {.fn Combine_CTAS_Input}."
-    ))
-  }
-
-  bFrames <- vapply(lInput[vRequired], is.data.frame, logical(1))
-  if (!all(bFrames)) {
-    cli::cli_abort(
-      "Element{?s} {.val {vRequired[!bFrames]}} of {.arg lInput} must be {.cls data.frame}."
+    list(
+      site_scores = dplyr::bind_rows(lapply(lPerStudy, `[[`, "site_scores")),
+      timeseries = dplyr::bind_rows(lapply(lPerStudy, `[[`, "timeseries")),
+      timeseries_features = dplyr::bind_rows(lapply(lPerStudy, `[[`, "timeseries_features")),
+      PCA_coordinates = dplyr::bind_rows(lapply(lPerStudy, `[[`, "PCA_coordinates"))
     )
   }
 
-  if (nrow(lInput$data) == 0) {
-    cli::cli_abort("{.arg lInput$data} has no rows; there is nothing for CTAS to analyse.")
+  lCTAS <- if (is.null(nSeed)) {
+    fnAll()
+  } else {
+    rlang::check_installed("withr", "to seed `Analyze_CTAS()`.")
+    withr::with_seed(nSeed, fnAll())
   }
 
-  if (nrow(lInput$parameters) == 0) {
-    cli::cli_abort("{.arg lInput$parameters} has no rows; no parameter can be scored.")
-  }
-
-  nSites <- dplyr::n_distinct(lInput$subjects$site)
-  if (nSites < 2) {
-    cli::cli_abort(c(
-      "CTAS compares sites against each other, so at least 2 sites are required.",
-      "x" = "{.arg lInput$subjects} contains {nSites} site{?s}."
-    ))
-  }
-
-  invisible(NULL)
-}
-
-#' Validate the CTAS result
-#'
-#' `process_a_study()` returns a list of `NULL`s when no timeseries could be
-#' constructed. Turn that into an actionable message rather than letting it
-#' surface as a downstream subsetting failure.
-#'
-#' @param lCTAS `list` Result of [ctas::process_a_study()].
-#'
-#' @return `NULL`, invisibly. Aborts when the result is degenerate.
-#'
-#' @keywords internal
-AssertCTASResult <- function(lCTAS) {
-  if (is.null(lCTAS$timeseries_features) || nrow(lCTAS$timeseries_features) == 0) {
-    cli::cli_abort(c(
-      "CTAS produced no timeseries features.",
-      "i" = "Relax {.arg nMinTimepoints}, {.arg nMinSubjects} or {.arg dMaxShareMissing}."
-    ))
-  }
-
-  if (is.null(lCTAS$site_scores) || nrow(lCTAS$site_scores) == 0) {
-    cli::cli_abort(c(
-      "CTAS produced no site scores.",
-      "i" = "Too few sites or subjects contribute complete timeseries."
-    ))
-  }
-
-  invisible(NULL)
+  BuildResults(lCTAS = lCTAS, dfInput = dfInput, strStudyCol = strStudyCol)
 }

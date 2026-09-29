@@ -8,30 +8,31 @@ Authors@R: c(
 Description: Integrates the 'ctas' clinical trial anomaly detection statistics
     engine into the Good Statistical Monitoring ('gsm') framework. Provides
     mappings from SDTM domains into the long-format input 'ctas' expects,
-    data preparation by data type, and aggregation of 'ctas' site scores into
-    the gsm analysis contract, together with declarative workflow YAML.
+    data preparation by data type, and writes the flat files the 'ctasapp'
+    dashboard consumes, together with declarative workflow YAML.
 License: MIT + file LICENSE
 Encoding: UTF-8
+LazyData: true
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 7.3.3
 Depends:
     R (>= 4.1.0)
 Imports:
     cli,
     ctas,
     dplyr,
-    purrr,
     rlang,
     utils
 Suggests:
     arrow,
+    covr,
+    DT,
     gsm.core,
     gsm.kri,
     gsm.mapping,
     gsm.reporting,
     knitr,
     pharmaversesdtm,
-    readxl,
+    purrr,
     rmarkdown,
     testthat (>= 3.0.0),
     withr,
@@ -46,3 +47,4 @@ Remotes:
     gsm.kri=Gilead-Public/gsm.kri@main,
     gsm.reporting=Gilead-Public/gsm.reporting@main,
     workr=Gilead-Public/workr@main
+Config/roxygen2/version: 8.0.0

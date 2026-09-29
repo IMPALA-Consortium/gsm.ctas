@@ -2,41 +2,70 @@
 % Please edit documentation in R/Flag_CTAS.R
 \name{Flag_CTAS}
 \alias{Flag_CTAS}
-\title{Flag aggregated CTAS scores}
+\title{Flag CTAS scores with a gsm-shaped \code{Flag} column}
 \usage{
-Flag_CTAS(dfAnalyzed, vThreshold = c(0.842, 2.326), strColumn = "Score")
+Flag_CTAS(
+  dfAnalyzed,
+  strColumn = "Score",
+  vThreshold = c(0.842, 2.326),
+  vFlag = c(0, 1, 2),
+  vFlagOrder = c(2, 1, 0),
+  nAccrualThreshold = NULL,
+  strAccrualMetric = NULL
+)
 }
 \arguments{
-\item{dfAnalyzed}{\code{data.frame} Result of \code{\link[=Summarize_CTAS]{Summarize_CTAS()}}.}
+\item{dfAnalyzed}{\code{data.frame} Aggregated CTAS scores, typically the
+output of \code{\link[=Summarize_CTAS]{Summarize_CTAS()}}. Must contain \code{strColumn}.}
 
-\item{vThreshold}{\code{numeric} Ascending thresholds on the \code{Score} scale.
-Defaults to \code{c(0.842, 2.326)}, drawn from experience.}
+\item{strColumn}{\code{character} Column to threshold. Default \code{"Score"}.}
 
-\item{strColumn}{\code{character} Column to flag on.}
+\item{vThreshold}{\code{numeric} Ascending threshold values. Default
+\code{c(0.842, 2.326)}.}
+
+\item{vFlag}{\code{numeric} Flag values, one longer than \code{vThreshold}. Default
+\code{c(0, 1, 2)}.}
+
+\item{vFlagOrder}{\code{numeric} Sort order for the returned rows. Must
+contain the same values as \code{vFlag}. Default \code{c(2, 1, 0)} (red first).
+Pass \code{NULL} to leave rows unsorted.}
+
+\item{nAccrualThreshold}{\code{numeric} Minimum accrual value below which
+\code{Score} and \code{Flag} are set to \code{NA}. Default \code{NULL} (no accrual filter).}
+
+\item{strAccrualMetric}{\code{character} Column to compare against
+\code{nAccrualThreshold}. One of \code{"Numerator"}, \code{"Denominator"},
+\code{"Difference"} (Denominator - Numerator). Required when
+\code{nAccrualThreshold} is set.}
 }
 \value{
-\code{dfAnalyzed} with an added \code{Flag} column, sorted by flag severity.
+\code{data.frame} \code{dfAnalyzed} with an added \code{Flag} column, optionally
+sorted by \code{vFlagOrder}.
 }
 \description{
-Thin wrapper around \code{\link[gsm.core:Flag]{gsm.core::Flag()}} that fixes the flagging to be
-one-sided. CTAS reports an unsigned -log10(p): it says "this site differs
-from the others", not in which direction. Signed flags would therefore be
-fabricated, so only \code{0} / \code{1} / \code{2} are emitted and no negative flag is ever
-produced in v1.
+User-facing gsm-style flagging function that mirrors the
+\code{gsm.core::Flag()} signature but with unsigned CTAS defaults appropriate
+for the \code{-log10(p)} scoring scale. Adds a \code{Flag} column to \code{dfAnalyzed}
+based on left-closed intervals of the score column.
 }
 \details{
-Groups with \code{Score = NA} (no evaluated timeseries for the feature) keep
-\code{Flag = NA}; they are shown as not evaluated rather than as not flagged.
+CTAS \code{-log10(p)} is one-sided and non-negative, so the defaults are two
+ascending thresholds (\code{0.842}, \code{2.326} -- 80\% and 99\% one-sided normal
+z-quantiles) with three flag levels (\code{0} = green, \code{1} = amber,
+\code{2} = red). A \code{Flag = 2} means the site differs from its peers; the
+unsigned scale carries no directional information.
 }
 \examples{
-dfAnalyzed <- data.frame(
-  GroupID = c("001", "002", "003"),
-  GroupLevel = "Site",
-  Numerator = c(1, 0, 0),
-  Denominator = c(2, 2, 0),
-  Metric = c(0.5, 0, NA),
-  Score = c(3.1, 0.2, NA)
+dfSummary <- data.frame(
+  MetricID = "ctas_AST",
+  GroupID = c("101", "102", "103"),
+  Score = c(0.1, 1.2, 3.0),
+  Numerator = c(2, 4, 3),
+  Denominator = c(2, 4, 3)
 )
-Flag_CTAS(dfAnalyzed)
+Flag_CTAS(dfSummary)
 
+}
+\seealso{
+\code{gsm.core::Flag()} for the signed gsm-core variant.
 }

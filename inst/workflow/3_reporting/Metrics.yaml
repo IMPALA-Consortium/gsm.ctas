@@ -1,12 +1,30 @@
 meta:
   Type: Reporting
   ID: Metrics
-  Description: Reporting Metrics Data
-  Priority: 1
+  Description: Audit table of every CTAS field x metric family with the CTAS parameters that were passed in each metric YAML.
+  Priority: 2
   Active: true
+  vThreshold: [0.842, 2.326]
+spec:
+  Reporting_Results:
+    type: list
+  lMetricWorkflows:
+    type: list
 steps:
-  # lWorkflows is a named list of metric workflows.
-  - output: Reporting_Metrics
-    name: gsm.reporting::MakeMetric
+  - output: Reporting_ResultsFrame
+    name: base::getElement
     params:
-      lWorkflows: lWorkflows
+      object: Reporting_Results
+      name: "results"
+  - output: Reporting_InputFrame
+    name: base::getElement
+    params:
+      object: Reporting_Results
+      name: "input"
+  - output: Reporting_Metrics
+    name: gsm.ctas::MakeMetric_CTAS
+    params:
+      dfResults: Reporting_ResultsFrame
+      lMetricWorkflows: lMetricWorkflows
+      vThreshold: vThreshold
+      dfInput: Reporting_InputFrame

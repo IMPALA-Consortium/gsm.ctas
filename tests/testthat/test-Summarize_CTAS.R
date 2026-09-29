@@ -1,405 +1,138 @@
-MakeSiteScores <- function() {
-  dplyr::tibble(
-    timeseries_id = c("ts1", "ts2", "ts3", "ts1", "ts2", "ts3", "ts1"),
-    site = c("001", "001", "001", "002", "002", "002", "003"),
-    country = c("USA", "USA", "USA", "USA", "USA", "USA", "DEU"),
-    feature = c(rep("average", 6), "sd"),
-    fdr_corrected_pvalue_logp = c(3.0, 2.5, 0.1, 1.0, 0.5, 0.0, 4.0)
-  )
-}
+# Unit tests for Summarize_CTAS().
+#
+# Uses a small hand-rolled `dfResults` shaped like the frame emitted by
+# `BindResults_CTAS()` so we don't pay the CTAS runtime cost. Column vocabulary
+# mirrors the workflow-produced Reporting_Results$results contract.
 
-# --- AddCTASTrigger -----------------------------------------------------------
-
-test_that("AddCTASTrigger classifies against both thresholds", {
-  dfTrigger <- AddCTASTrigger(MakeSiteScores())
-
-  expect_equal(
-    dfTrigger$Trigger,
-    c(
-      "Further Evaluation", "Further Evaluation", "No Action",
-      "Watch List", "No Action", "No Action", "Further Evaluation"
-    )
-  )
-})
-
-test_that("AddCTASTrigger treats thresholds as inclusive lower bounds", {
-  dfScores <- data.frame(fdr_corrected_pvalue_logp = c(2.326, 0.842))
-
-  expect_equal(
-    AddCTASTrigger(dfScores)$Trigger,
-    c("Further Evaluation", "Watch List")
-  )
-})
-
-test_that("AddCTASTrigger propagates NA scores", {
-  dfScores <- data.frame(fdr_corrected_pvalue_logp = NA_real_)
-
-  expect_true(is.na(AddCTASTrigger(dfScores)$Trigger))
-})
-
-test_that("AddCTASTrigger honours custom thresholds", {
-  dfScores <- data.frame(fdr_corrected_pvalue_logp = c(3.0, 1.0))
-
-  expect_equal(
-    AddCTASTrigger(dfScores, dHigh = 5, dLow = 2)$Trigger,
-    c("Watch List", "No Action")
-  )
-})
-
-test_that("AddCTASTrigger rejects invalid thresholds", {
-  dfScores <- data.frame(fdr_corrected_pvalue_logp = 1)
-
-  expect_error(AddCTASTrigger(dfScores, dHigh = "a"), "single number")
-  expect_error(AddCTASTrigger(dfScores, dHigh = c(1, 2)), "single number")
-  expect_error(AddCTASTrigger(dfScores, dHigh = 1, dLow = 2), "must not be below")
-})
-
-# --- CountTriggered -----------------------------------------------------------
-
-test_that("CountTriggered counts only the requested trigger", {
-  dfCount <- MakeSiteScores() |>
-    AddCTASTrigger() |>
-    CountTriggered()
-
-  # Regression guard for the `filter(trigger == trigger)` self-comparison
-  # defect, which counts every timeseries instead of the triggered ones.
-  expect_lt(sum(dfCount$N), nrow(MakeSiteScores()))
-  expect_equal(dfCount$N[dfCount$site == "001"], 2L)
-  expect_false("002" %in% dfCount$site)
-})
-
-test_that("CountTriggered can count other categories and group columns", {
-  dfTrigger <- AddCTASTrigger(MakeSiteScores())
-
-  expect_equal(
-    CountTriggered(dfTrigger, strTrigger = "Watch List")$N,
-    1L
-  )
-  expect_true(
-    "country" %in% names(CountTriggered(dfTrigger, strGroupCol = "country"))
-  )
-})
-
-# --- FilterParameters ---------------------------------------------------------
-
-MakeMultiDomainScores <- function() {
-  dplyr::tibble(
-    timeseries_id = c("ts1", "ts2", "ts3"),
-    site = c("001", "001", "001"),
-    country = "USA",
-    parameter_id = c("VS_SYSBP", "LB_NORM_ALB", "LB_MISS_ALB"),
-    parameter_category_1 = c("Vital Signs", "Labs", "Labs"),
-    parameter_category_3 = c("numeric", "range_normalized", "ratio_missing"),
-    feature = "average",
-    fdr_corrected_pvalue_logp = c(3.0, 0.5, 1.0)
-  )
-}
-
-test_that("FilterParameters is a no-op without a selector", {
-  # Single-domain studies must keep working without any parameter columns.
-  dfScores <- MakeSiteScores()
-
-  expect_equal(FilterParameters(dfScores), dfScores)
-  expect_equal(FilterParameters(dfScores, strParameterPattern = NULL), dfScores)
-})
-
-test_that("FilterParameters selects one family on the category pair", {
-  dfLabs <- FilterParameters(
-    MakeMultiDomainScores(),
-    strDomain = "Labs", strTransformation = "ratio_missing"
-  )
-
-  expect_equal(dfLabs$parameter_id, "LB_MISS_ALB")
-})
-
-test_that("FilterParameters requires both categories", {
-  # Neither identifies a family alone: category_3 is "numeric" for every plain
-  # numeric domain, and category_1 is "Labs" for both lab views.
-  expect_error(
-    FilterParameters(MakeMultiDomainScores(), strDomain = "Labs"),
-    "together"
-  )
-  expect_error(
-    FilterParameters(MakeMultiDomainScores(), strTransformation = "numeric"),
-    "together"
-  )
-})
-
-test_that("FilterParameters explains how to recover missing categories", {
-  # CTAS drops them, so the fix is upstream in Combine_CTAS_Scores().
-  expect_error(
-    FilterParameters(
-      MakeSiteScores(), strDomain = "Labs", strTransformation = "numeric"
-    ),
-    "Combine_CTAS_Scores"
-  )
-})
-
-test_that("FilterParameters rejects a category pair that matches nothing", {
-  # An empty result would present every site as unevaluated, which is
-  # indistinguishable from a genuinely absent domain.
-  expect_error(
-    FilterParameters(
-      MakeMultiDomainScores(), strDomain = "ECG", strTransformation = "numeric"
-    ),
-    "No parameter"
-  )
-})
-
-test_that("FilterParameters refuses both selectors at once", {
-  expect_error(
-    FilterParameters(
-      MakeMultiDomainScores(),
-      strDomain = "Labs", strTransformation = "ratio_missing",
-      strParameterPattern = "^LB_MISS_"
-    ),
-    "not both"
-  )
-})
-
-test_that("FilterParameters still supports the parameter_id pattern", {
-  expect_equal(
-    FilterParameters(
-      MakeMultiDomainScores(), strParameterPattern = "^LB_NORM_"
-    )$parameter_id,
-    "LB_NORM_ALB"
-  )
-
-  # "^LB_" straddles both lab families - the reason the categories are preferred.
-  expect_equal(
-    nrow(FilterParameters(MakeMultiDomainScores(), strParameterPattern = "^LB_")),
-    2
-  )
-})
-
-test_that("FilterParameters requires parameter_id when a pattern is given", {
-  expect_error(
-    FilterParameters(MakeSiteScores(), strParameterPattern = "^VS_"),
-    "parameter_id"
-  )
-})
-
-test_that("FilterParameters rejects a pattern that matches nothing", {
-  expect_error(
-    FilterParameters(MakeMultiDomainScores(), strParameterPattern = "^RS_"),
-    "No parameter"
-  )
-})
-
-test_that("FilterParameters validates its selector arguments", {
-  expect_error(
-    FilterParameters(MakeMultiDomainScores(), strParameterPattern = 1),
-    "single string"
-  )
-  expect_error(
-    FilterParameters(
-      MakeMultiDomainScores(),
-      strDomain = c("Labs", "Vital Signs"), strTransformation = "numeric"
-    ),
-    "single string"
-  )
-})
-
-test_that("Summarize_CTAS restricts the metric to one parameter family", {
-  # Without this, a study mapping VS and LB would give the same score to every
-  # "average" metric, because one CTAS run covers all domains at once.
-  dfAll <- Summarize_CTAS(MakeMultiDomainScores(), strFeature = "average")
-  dfVS <- Summarize_CTAS(
-    MakeMultiDomainScores(),
-    strFeature = "average", strDomain = "Vital Signs", strTransformation = "numeric"
-  )
-
-  expect_equal(dfAll$Denominator, 3)
-  expect_equal(dfVS$Denominator, 1)
-  expect_equal(dfVS$Score, 3.0)
-  expect_equal(dfVS$Numerator, 1)
-})
-
-test_that("Summarize_CTAS separates the two lab views of the same domain", {
-  # Both are parameter_category_1 == "Labs"; only category_3 tells them apart.
-  dfNorm <- Summarize_CTAS(
-    MakeMultiDomainScores(),
-    strFeature = "average", strDomain = "Labs", strTransformation = "range_normalized"
-  )
-  dfMiss <- Summarize_CTAS(
-    MakeMultiDomainScores(),
-    strFeature = "average", strDomain = "Labs", strTransformation = "ratio_missing"
-  )
-
-  expect_equal(dfNorm$Denominator, 1)
-  expect_equal(dfNorm$Score, 0.5)
-  expect_equal(dfMiss$Denominator, 1)
-  expect_equal(dfMiss$Score, 1.0)
-})
-
-# --- Summarize_CTAS -----------------------------------------------------------
-
-test_that("Summarize_CTAS returns the Analysis_Analyzed contract", {
-  dfAnalyzed <- Summarize_CTAS(MakeSiteScores(), strFeature = "average")
-
-  expect_named(
-    dfAnalyzed,
-    c("GroupID", "GroupLevel", "Numerator", "Denominator", "Metric", "Score")
-  )
-  expect_equal(dfAnalyzed$GroupID, c("001", "002"))
-  expect_true(all(dfAnalyzed$GroupLevel == "Site"))
-})
-
-test_that("Summarize_CTAS aggregates numerator, denominator, metric and score", {
-  dfAnalyzed <- Summarize_CTAS(MakeSiteScores(), strFeature = "average")
-
-  expect_equal(dfAnalyzed$Numerator, c(2, 0))
-  expect_equal(dfAnalyzed$Denominator, c(3, 3))
-  expect_equal(dfAnalyzed$Metric, c(2 / 3, 0))
-  expect_equal(dfAnalyzed$Score, c(3.0, 1.0))
-})
-
-test_that("Summarize_CTAS filters to a single feature", {
-  dfAnalyzed <- Summarize_CTAS(MakeSiteScores(), strFeature = "sd")
-
-  expect_equal(dfAnalyzed$GroupID, "003")
-  expect_equal(dfAnalyzed$Denominator, 1)
-})
-
-test_that("Summarize_CTAS retains groups with no evaluated timeseries", {
-  dfAnalyzed <- Summarize_CTAS(
-    MakeSiteScores(),
-    strFeature = "average",
-    vGroupIDs = c("001", "002", "003", "004")
-  )
-
-  expect_equal(dfAnalyzed$GroupID, c("001", "002", "003", "004"))
-  expect_equal(dfAnalyzed$Denominator[3:4], c(0, 0))
-  expect_equal(dfAnalyzed$Numerator[3:4], c(0, 0))
-  expect_true(all(is.na(dfAnalyzed$Metric[3:4])))
-  expect_true(all(is.na(dfAnalyzed$Score[3:4])))
-})
-
-test_that("Summarize_CTAS can aggregate at country level", {
-  dfAnalyzed <- Summarize_CTAS(
-    MakeSiteScores(),
-    strFeature = "average",
-    strGroupLevel = "Country"
-  )
-
-  expect_equal(dfAnalyzed$GroupID, "USA")
-  expect_equal(dfAnalyzed$GroupLevel, "Country")
-  expect_equal(dfAnalyzed$Denominator, 6)
-  expect_equal(dfAnalyzed$Numerator, 2)
-})
-
-test_that("Summarize_CTAS honours custom thresholds", {
-  dfAnalyzed <- Summarize_CTAS(
-    MakeSiteScores(),
-    strFeature = "average",
-    dHigh = 0.9,
-    dLow = 0.2
-  )
-
-  expect_equal(dfAnalyzed$Numerator, c(2, 1))
-})
-
-test_that("Summarize_CTAS returns an empty frame for an unknown feature", {
-  dfAnalyzed <- Summarize_CTAS(MakeSiteScores(), strFeature = "nonesuch")
-
-  expect_equal(nrow(dfAnalyzed), 0)
-})
-
-test_that("Summarize_CTAS validates its inputs", {
-  expect_error(Summarize_CTAS("not a frame", "average"), "data.frame")
-  expect_error(
-    Summarize_CTAS(data.frame(site = "001"), "average"),
-    "missing required column"
-  )
-  expect_error(
-    Summarize_CTAS(MakeSiteScores(), strFeature = c("average", "sd")),
-    "single string"
-  )
-  expect_error(
-    Summarize_CTAS(MakeSiteScores(), "average", strGroupLevel = "Region"),
-    "must be one of"
-  )
-})
-
-test_that("Summarize_CTAS works on the cached CTAS fixture", {
-  strFixture <- testthat::test_path("fixtures", "ctas_result.rds")
-  skip_if_not(file.exists(strFixture), "CTAS fixture not built")
-
-  lFixture <- readRDS(strFixture)
-  dfScores <- lFixture$result$site_scores
-  strFeature <- dfScores$feature[[1]]
-
-  dfAnalyzed <- Summarize_CTAS(dfScores, strFeature = strFeature)
-
-  expect_setequal(
-    dfAnalyzed$GroupID,
-    unique(as.character(dfScores$site[dfScores$feature == strFeature]))
-  )
-  expect_true(all(dfAnalyzed$Numerator <= dfAnalyzed$Denominator))
-  expect_true(all(dfAnalyzed$Metric >= 0 & dfAnalyzed$Metric <= 1, na.rm = TRUE))
-})
-
-# --- Flag_CTAS ----------------------------------------------------------------
-
-MakeAnalyzed <- function() {
+MakeResultsFixture <- function() {
   data.frame(
-    GroupID = c("001", "002", "003", "004"),
-    GroupLevel = "Site",
-    Numerator = c(2, 1, 0, 0),
-    Denominator = c(3, 3, 3, 0),
-    Metric = c(2 / 3, 1 / 3, 0, NA),
-    Score = c(3.0, 1.0, 0.1, NA)
+    study = c("STUDY_A", "STUDY_A", "STUDY_A", "STUDY_A", "STUDY_A"),
+    site = c("101", "101", "101", "102", "102"),
+    parameter_category_1 = "Labs",
+    parameter_category_2 = c("AST", "AST", "ALT", "AST", "ALT"),
+    parameter_category_3 = c("numeric", "numeric", "numeric",
+                             "ratio_missing", "numeric"),
+    parameter_id = c("NUM_AST", "NUM_AST", "NUM_ALT", "MISS_AST", "NUM_ALT"),
+    feature = c("average", "sd", "average", "average", "average"),
+    fdr_corrected_pvalue_logp = c(0.5, 2.0, 3.0, 1.5, 0.1),
+    timeseries_id = c("t1", "t2", "t3", "t4", "t5"),
+    parameter_name = "test",
+    stringsAsFactors = FALSE
   )
 }
 
-test_that("Flag_CTAS flags one-sided with no negative flags", {
-  skip_if_not_installed("gsm.core")
+MakeSubjectsFixture <- function() {
+  data.frame(
+    studyid = c("STUDY_A", "STUDY_A", "STUDY_A"),
+    subject_id = c("s1", "s2", "s3"),
+    site = c("101", "102", "103"),   # site 103 has no scored timeseries
+    stringsAsFactors = FALSE
+  )
+}
 
-  dfFlagged <- Flag_CTAS(MakeAnalyzed())
+test_that("emits gsm-shaped dfResults columns without a Flag", {
+  df <- Summarize_CTAS(MakeResultsFixture(), MakeSubjectsFixture())
 
-  expect_true(all(dfFlagged$Flag %in% c(0, 1, 2, NA)))
-  expect_equal(dfFlagged$Flag[dfFlagged$GroupID == "001"], 2)
-  expect_equal(dfFlagged$Flag[dfFlagged$GroupID == "002"], 1)
-  expect_equal(dfFlagged$Flag[dfFlagged$GroupID == "003"], 0)
+  vRequired <- c(
+    "MetricID", "GroupID", "GroupLevel", "StudyID", "SnapshotDate",
+    "Score"
+  )
+  expect_true(all(vRequired %in% names(df)))
+  expect_false("Flag" %in% names(df))
+  expect_false(any(c("Numerator", "Denominator", "Metric") %in% names(df)))
+  expect_setequal(unique(df$GroupLevel), "Site")
 })
 
-test_that("Flag_CTAS leaves unevaluated groups unflagged", {
-  skip_if_not_installed("gsm.core")
+test_that("MetricID synthesis: default groups by data field only", {
+  df <- Summarize_CTAS(MakeResultsFixture(), MakeSubjectsFixture())
 
-  dfFlagged <- Flag_CTAS(MakeAnalyzed())
-
-  expect_true(is.na(dfFlagged$Flag[dfFlagged$GroupID == "004"]))
+  expect_true(all(startsWith(df$MetricID, "ctas_")))
+  expect_setequal(unique(df$MetricID), c("ctas_AST", "ctas_ALT"))
+  expect_false("feature" %in% names(df))
 })
 
-test_that("Flag_CTAS preserves the Analysis_Analyzed columns and adds Flag", {
-  skip_if_not_installed("gsm.core")
+test_that("bByFeature = TRUE adds feature to MetricID and to the frame", {
+  df <- Summarize_CTAS(MakeResultsFixture(), MakeSubjectsFixture(),
+                       bByFeature = TRUE)
 
-  dfFlagged <- Flag_CTAS(MakeAnalyzed())
-
-  expect_true(all(names(MakeAnalyzed()) %in% names(dfFlagged)))
-  expect_true("Flag" %in% names(dfFlagged))
-  expect_equal(nrow(dfFlagged), 4)
+  expect_true("feature" %in% names(df))
+  expect_true("ctas_AST_average" %in% df$MetricID)
+  expect_true("ctas_AST_sd" %in% df$MetricID)
 })
 
-test_that("Flag_CTAS sorts by flag severity", {
-  skip_if_not_installed("gsm.core")
+test_that("Score is the max fdr_corrected_pvalue_logp per group", {
+  df <- Summarize_CTAS(MakeResultsFixture(), MakeSubjectsFixture())
 
-  dfFlagged <- Flag_CTAS(MakeAnalyzed())
-
-  expect_equal(dfFlagged$Flag[1], 2)
+  # site 101 x AST has features {average=0.5, sd=2.0} -> Score = 2.0
+  dfAST101 <- df[df$GroupID == "101" & df$MetricID == "ctas_AST", ]
+  expect_equal(dfAST101$Score, 2.0)
 })
 
-test_that("Flag_CTAS honours custom thresholds", {
-  skip_if_not_installed("gsm.core")
+test_that("bIncludeMissingness = FALSE drops ratio_missing rows", {
+  df <- Summarize_CTAS(MakeResultsFixture(), MakeSubjectsFixture(),
+                       bIncludeMissingness = FALSE)
 
-  dfFlagged <- Flag_CTAS(MakeAnalyzed(), vThreshold = c(0.05, 0.5))
-
-  expect_equal(dfFlagged$Flag[dfFlagged$GroupID == "003"], 1)
+  # site 102 x AST (parameter_category_3 = ratio_missing) is dropped
+  # from the aggregation, so its row is site-completed with Score = NA.
+  dfAST102 <- df[df$GroupID == "102" & df$MetricID == "ctas_AST", ]
+  expect_true(is.na(dfAST102$Score))
 })
 
-test_that("Flag_CTAS validates its inputs", {
-  expect_error(Flag_CTAS("not a frame"), "data.frame")
-  expect_error(Flag_CTAS(MakeAnalyzed(), vThreshold = 1), "two numbers")
-  expect_error(Flag_CTAS(MakeAnalyzed(), vThreshold = c(2, 1)), "ascending")
-  expect_error(Flag_CTAS(MakeAnalyzed(), strColumn = "Nope"), "not found")
+test_that("sites in dfSubjects but not scored are kept with NA Score", {
+  df <- Summarize_CTAS(MakeResultsFixture(), MakeSubjectsFixture())
+
+  # site 103 has no scored timeseries in the fixture; must still appear
+  # for every MetricID with Score = NA.
+  dfSite103 <- df[df$GroupID == "103", ]
+  expect_gt(nrow(dfSite103), 0)
+  expect_true(all(is.na(dfSite103$Score)))
+})
+
+test_that("strStudyID overrides per-row study", {
+  df <- Summarize_CTAS(MakeResultsFixture(), MakeSubjectsFixture(),
+                       strStudyID = "STUDY_OVR")
+
+  expect_setequal(unique(df$StudyID), "STUDY_OVR")
+})
+
+test_that("dSnapshotDate is stamped verbatim", {
+  d <- as.Date("2024-06-01")
+  df <- Summarize_CTAS(MakeResultsFixture(), MakeSubjectsFixture(),
+                       dSnapshotDate = d)
+
+  expect_setequal(unique(df$SnapshotDate), d)
+})
+
+test_that("errors on missing columns", {
+  dfBad <- MakeResultsFixture()
+  dfBad$fdr_corrected_pvalue_logp <- NULL
+
+  expect_error(
+    Summarize_CTAS(dfBad, MakeSubjectsFixture()),
+    "fdr_corrected_pvalue_logp"
+  )
+})
+
+test_that("errors when bIncludeMissingness is not a single logical", {
+  expect_error(
+    Summarize_CTAS(MakeResultsFixture(), MakeSubjectsFixture(),
+                   bIncludeMissingness = "yes"),
+    "bIncludeMissingness"
+  )
+})
+
+test_that("errors when bByFeature is not a single logical", {
+  expect_error(
+    Summarize_CTAS(MakeResultsFixture(), MakeSubjectsFixture(),
+                   bByFeature = c(TRUE, FALSE)),
+    "bByFeature"
+  )
+})
+
+test_that("returns an empty frame when no metric keys or sites survive", {
+  dfResults <- MakeResultsFixture()[0, , drop = FALSE]
+  df <- Summarize_CTAS(dfResults, MakeSubjectsFixture())
+
+  expect_s3_class(df, "data.frame")
+  expect_equal(nrow(df), 0)
 })
