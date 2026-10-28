@@ -256,3 +256,57 @@ test_that("Transform_Missing results must match source data (#31)", {
 
   expect_equal(dfLBReverted, dfLBOriginal, ignore_attr = TRUE)
 })
+
+test_that("Transform_Range results must match source data (#32)", {
+
+  dfSubjects <- data.frame(
+    studyid = gsm.ctas::dm$STUDYID,
+    subject_id = gsm.ctas::dm$USUBJID,
+    site = gsm.ctas::dm$SITEID,
+    country = gsm.ctas::dm$COUNTRY,
+    stringsAsFactors = FALSE
+  )
+
+  dfLB <- Standardize_Domain(
+    dfDomain = gsm.ctas::lb,
+    dfSubjects = dfSubjects,
+    strTestCDCol = "LBTESTCD",
+    strTestCol = "LBTEST",
+    strValueCol = "LBSTRESN",
+    strLowCol = "LBSTNRLO",
+    strHighCol = "LBSTNRHI",
+    strCategory = "Labs"
+  )
+
+  # Warns about rows it drops; those rows are excluded from the source below.
+  dfRange <- suppressWarnings(Transform_Range(dfLB))
+
+  dfLBReverted <- dfRange |>
+    dplyr::transmute(
+      STUDYID = studyid,
+      USUBJID = subject_id,
+      LBTESTCD = parameter_category_2,
+      VISIT = visit,
+      LBSTNRLO = lower,
+      LBSTNRHI = upper,
+      LBSTRESN = result * (upper - lower) + lower
+    ) |>
+    dplyr::arrange(dplyr::across(dplyr::everything())) |>
+    as.data.frame()
+
+  # Transform_Range drops missing results and unusable reference ranges.
+  dfLBOriginal <- gsm.ctas::lb |>
+    dplyr::filter(
+      !is.na(LBSTRESN),
+      !is.na(LBSTNRLO),
+      !is.na(LBSTNRHI),
+      LBSTNRHI > LBSTNRLO
+    ) |>
+    dplyr::select(
+      STUDYID, USUBJID, LBTESTCD, VISIT, LBSTNRLO, LBSTNRHI, LBSTRESN
+    ) |>
+    dplyr::arrange(dplyr::across(dplyr::everything())) |>
+    as.data.frame()
+
+  expect_equal(dfLBReverted, dfLBOriginal, ignore_attr = TRUE)
+})
