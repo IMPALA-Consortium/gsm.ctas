@@ -87,3 +87,74 @@ test_that("ctas and gsm.ctas results match on vitals and labs sample data (#25)"
   expect_equal(dfGsmResults, dfDirectResults)
 
 })
+
+test_that("Standardize_Domain results must match source data (#29)", {
+
+  dfSubjects <- data.frame(
+    studyid = gsm.ctas::dm$STUDYID,
+    subject_id = gsm.ctas::dm$USUBJID,
+    site = gsm.ctas::dm$SITEID,
+    country = gsm.ctas::dm$COUNTRY,
+    stringsAsFactors = FALSE
+  )
+
+  # Vital Signs
+
+  dfVS <- Standardize_Domain(
+    dfDomain = gsm.ctas::vs,
+    dfSubjects = dfSubjects,
+    strTestCDCol = "VSTESTCD",
+    strTestCol = "VSTEST",
+    strValueCol = "VSSTRESN",
+    strCategory = "Vital Signs"
+  )
+
+  dfVSReverted <- dfVS |>
+    dplyr::transmute(
+      STUDYID = studyid,
+      USUBJID = subject_id,
+      VSTESTCD = parameter_id,
+      VSTEST = parameter_name,
+      VISIT = visit,
+      VSSTRESN = value
+    ) |>
+    dplyr::arrange(dplyr::across(dplyr::everything())) |>
+    as.data.frame()
+
+  dfVSOriginal <- gsm.ctas::vs |>
+    dplyr::select(STUDYID, USUBJID, VSTESTCD, VSTEST, VISIT, VSSTRESN) |>
+    dplyr::arrange(dplyr::across(dplyr::everything())) |>
+    as.data.frame()
+
+  expect_equal(dfVSReverted, dfVSOriginal, ignore_attr = TRUE)
+
+  # Labs
+
+  dfLB <- Standardize_Domain(
+    dfDomain = gsm.ctas::lb,
+    dfSubjects = dfSubjects,
+    strTestCDCol = "LBTESTCD",
+    strTestCol = "LBTEST",
+    strValueCol = "LBSTRESN",
+    strCategory = "Labs"
+  )
+
+  dfLBReverted <- dfLB |>
+    dplyr::transmute(
+      STUDYID = studyid,
+      USUBJID = subject_id,
+      LBTESTCD = parameter_id,
+      LBTEST = parameter_name,
+      VISIT = visit,
+      LBSTRESN = value
+    ) |>
+    dplyr::arrange(dplyr::across(dplyr::everything())) |>
+    as.data.frame()
+
+  dfLBOriginal <- gsm.ctas::lb |>
+    dplyr::select(STUDYID, USUBJID, LBTESTCD, LBTEST, VISIT, LBSTRESN) |>
+    dplyr::arrange(dplyr::across(dplyr::everything())) |>
+    as.data.frame()
+
+  expect_equal(dfLBReverted, dfLBOriginal, ignore_attr = TRUE)
+})
