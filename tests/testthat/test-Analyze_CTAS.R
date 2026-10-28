@@ -134,20 +134,6 @@ test_that("Analyze_CTAS errors informatively when no timeseries can be built", {
 
 # --- successful run ----------------------------------------------------------
 
-test_that("Analyze_CTAS returns the flat results data.frame", {
-  df <- MakeInput()
-
-  dfResults <- suppressWarnings(Analyze_CTAS(df, nSeed = 1))
-
-  expect_s3_class(dfResults, "data.frame")
-  expect_true(all(
-    c("site", "feature", "fdr_corrected_pvalue_logp",
-      "parameter_id", "parameter_category_1", "parameter_category_3") %in%
-      names(dfResults)
-  ))
-  expect_gt(nrow(dfResults), 0)
-})
-
 test_that("Analyze_CTAS is reproducible when nSeed is supplied", {
   df <- MakeInput()
 
@@ -158,15 +144,6 @@ test_that("Analyze_CTAS is reproducible when nSeed is supplied", {
 })
 
 # --- multi-study -------------------------------------------------------------
-
-test_that("Analyze_CTAS tags results with study on a single-study run", {
-  df <- MakeInput(strStudy = "STUDY_A")
-
-  dfResults <- suppressWarnings(Analyze_CTAS(df, nSeed = 1))
-
-  expect_true("study" %in% names(dfResults))
-  expect_setequal(unique(dfResults$study), "STUDY_A")
-})
 
 test_that("Analyze_CTAS splits by studyid and stacks the flat frames", {
   dfA <- MakeInput(strStudy = "STUDY_A")

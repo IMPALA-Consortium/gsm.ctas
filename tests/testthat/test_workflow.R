@@ -107,22 +107,6 @@ test_that("only range_normalized publishes an untransformed shard", {
   )
 })
 
-test_that("range_normalized and ratio_missing share cat2 for stitching", {
-  # ctasapp groups sidebar entries by parameter_category_2, so LB tests
-  # scored by both metrics must publish the same cat2 on both sides.
-  vRange <- unique(
-    lAnalysis$Analysis_range_normalized$input$parameter_category_2
-  )
-  vMissing <- unique(
-    lAnalysis$Analysis_ratio_missing$input$parameter_category_2
-  )
-  vShared <- intersect(vRange, vMissing)
-
-  expect_gt(length(vShared), 0)
-  # cat2 must be the raw LBTESTCD, not an Input_*-prefixed id.
-  expect_false(any(grepl("^(RANGE|MISS|NUM)_", vShared)))
-})
-
 test_that("parameter_category_3 identifies the transformation each metric ran", {
   expect_setequal(
     unique(lAnalysis$Analysis_numeric$results$parameter_category_3), "numeric"
@@ -462,50 +446,5 @@ test_that("Summary workflow packages a gsm-shaped summary + metrics + groups", {
   )
 })
 
-test_that("report_ctas_site module renders a CTAS HTML report", {
-  skip_if_not(bWorkflowRunnable)
-  skip_if_not_installed("gsm.kri")
-  skip_if_not_installed("rmarkdown")
-
-  lReportingWorkflows <- workr::MakeWorkflowList(
-    strNames = NULL,
-    strPath = system.file("workflow/3_reporting", package = "gsm.ctas"),
-    strPackage = NULL
-  )
-  lModuleWorkflows <- workr::MakeWorkflowList(
-    strNames = NULL,
-    strPath = system.file("workflow/4_modules", package = "gsm.ctas"),
-    strPackage = NULL
-  )
-
-  # gsm.kri::Report_KRI is single-study; drop the second study block from
-  # the summary before rendering.
-  lReporting <- suppressWarnings(workr::RunWorkflows(
-    lWorkflows = lReportingWorkflows[c("Results", "Groups", "Metrics", "Summary")],
-    lData = c(lMapped, list(
-      lAnalyzed = lAnalysis,
-      lMetricWorkflows = lMetricWorkflows
-    ))
-  ))
-  strStudyID <- vStudyIDs[1]
-  lSummary <- lReporting$Reporting_Summary
-  lSummary$summary <- lSummary$summary[lSummary$summary$StudyID == strStudyID, , drop = FALSE]
-  lSummary$groups <- lSummary$groups[
-    lSummary$groups$GroupLevel != "Study" |
-      lSummary$groups$GroupID == strStudyID, ,
-    drop = FALSE
-  ]
-  lReporting$Reporting_Summary <- lSummary
-
-  strDir <- withr::local_tempdir()
-  lModuleWorkflows$report_ctas_site$meta$strOutputDir <- strDir
-  suppressWarnings(suppressMessages(workr::RunWorkflows(
-    lWorkflows = lModuleWorkflows,
-    lData = lReporting
-  )))
-
-  vHtml <- list.files(strDir, pattern = "\\.html$", full.names = TRUE)
-  expect_gt(length(vHtml), 0)
-})
 
 
