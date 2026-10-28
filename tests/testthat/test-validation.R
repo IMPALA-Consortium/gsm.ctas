@@ -480,3 +480,284 @@ test_that("Pipeline renders the html report (#34)", {
   expect_length(vReports, 1)
   expect_gt(file.size(vReports), 0)
 })
+
+test_that("YAML pipeline and function-only results must be identical (#35)", {
+  skip_if_not_installed("workr")
+  skip_if_not_installed("gsm.mapping")
+
+  lRaw <- list(
+    Raw_DM = gsm.ctas::dm,
+    Raw_LB = gsm.ctas::lb,
+    Raw_VS = gsm.ctas::vs,
+    Raw_EG = gsm.ctas::eg,
+    Raw_RS = gsm.ctas::rs,
+    Raw_Queries = gsm.ctas::queries,
+    Raw_PD = gsm.ctas::pd
+  )
+
+  lMappingWorkflows <- workr::MakeWorkflowList(
+    strPath = system.file("workflow/1_mappings", package = "gsm.ctas")
+  )
+
+  lMapped <- suppressWarnings(suppressMessages(workr::RunWorkflows(
+    lWorkflows = lMappingWorkflows,
+    lData = gsm.mapping::Ingest(lRaw, gsm.mapping::CombineSpecs(lMappingWorkflows))
+  )))
+
+  # YAML pipeline
+
+  lMetricWorkflows <- workr::MakeWorkflowList(
+    strPath = system.file("workflow/2_metrics", package = "gsm.ctas")
+  )
+
+  lReportingWorkflows <- workr::MakeWorkflowList(
+    strPath = system.file("workflow/3_reporting", package = "gsm.ctas")
+  )
+
+  lAnalysis <- suppressWarnings(suppressMessages(workr::RunWorkflows(
+    lWorkflows = lMetricWorkflows,
+    lData = lMapped
+  )))
+
+  lReporting <- suppressWarnings(suppressMessages(workr::RunWorkflows(
+    lWorkflows = lReportingWorkflows[c("Results", "Groups", "Metrics", "Summary")],
+    lData = c(lMapped, list(
+      lAnalyzed = lAnalysis,
+      lMetricWorkflows = lMetricWorkflows
+    ))
+  )))
+
+  # Function-only pipeline, parameters copied from the metric and reporting YAMLs
+
+  dfSubjects <- lMapped$Mapped_Subjects
+
+  # numeric.yaml
+
+  dfNumericInput <- dplyr::bind_rows(
+    vs = Standardize_Domain(
+      dfDomain = lMapped$Mapped_VS,
+      dfSubjects = dfSubjects,
+      strTestCDCol = "VSTESTCD",
+      strTestCol = "VSTEST",
+      strValueCol = "VSSTRESN",
+      strCategory = "Vital Signs"
+    ),
+    eg = Standardize_Domain(
+      dfDomain = lMapped$Mapped_EG,
+      dfSubjects = dfSubjects,
+      strTestCDCol = "EGTESTCD",
+      strTestCol = "EGTEST",
+      strValueCol = "EGSTRESN",
+      strCategory = "ECG"
+    )
+  )
+
+  dfNumericResults <- suppressWarnings(Analyze_CTAS(
+    dfNumericInput,
+    bAutocorr = TRUE,
+    bAverage = TRUE,
+    bSD = TRUE,
+    bRange = TRUE,
+    bUniqueValueCountRelative = TRUE,
+    bOwnSiteSimilScore = FALSE,
+    bLOF = FALSE,
+    nMinTimepoints = 1,
+    nMinSubjects = 25,
+    dMaxShareMissing = 0.3,
+    strScoringMethod = "ks",
+    strPadjustMethod = "fdr",
+    nSeed = 20260813
+  ))
+
+  # range_normalized.yaml
+
+  dfRangeInput <- suppressWarnings(Transform_Range(Standardize_Domain(
+    dfDomain = lMapped$Mapped_LB,
+    dfSubjects = dfSubjects,
+    strTestCDCol = "LBTESTCD",
+    strTestCol = "LBTEST",
+    strValueCol = "LBSTRESN",
+    strLowCol = "LBSTNRLO",
+    strHighCol = "LBSTNRHI",
+    strCategory = "Labs"
+  )))
+
+  dfRangeResults <- suppressWarnings(Analyze_CTAS(
+    dfRangeInput,
+    bAutocorr = TRUE,
+    bAverage = TRUE,
+    bSD = TRUE,
+    bRange = TRUE,
+    bUniqueValueCountRelative = TRUE,
+    bOwnSiteSimilScore = FALSE,
+    bLOF = FALSE,
+    nMinTimepoints = 1,
+    nMinSubjects = 25,
+    dMaxShareMissing = 0.3,
+    strScoringMethod = "ks",
+    strPadjustMethod = "fdr",
+    nSeed = 20260813
+  ))
+
+  # ratio_missing.yaml
+
+  dfMissingInput <- Transform_Missing(dplyr::bind_rows(
+    lb = Standardize_Domain(
+      dfDomain = lMapped$Mapped_LB,
+      dfSubjects = dfSubjects,
+      strTestCDCol = "LBTESTCD",
+      strTestCol = "LBTEST",
+      strValueCol = "LBSTRESN",
+      strCategory = "Labs"
+    ),
+    vs = Standardize_Domain(
+      dfDomain = lMapped$Mapped_VS,
+      dfSubjects = dfSubjects,
+      strTestCDCol = "VSTESTCD",
+      strTestCol = "VSTEST",
+      strValueCol = "VSSTRESN",
+      strCategory = "Vital Signs"
+    ),
+    eg = Standardize_Domain(
+      dfDomain = lMapped$Mapped_EG,
+      dfSubjects = dfSubjects,
+      strTestCDCol = "EGTESTCD",
+      strTestCol = "EGTEST",
+      strValueCol = "EGSTRESN",
+      strCategory = "ECG"
+    )
+  ))
+
+  dfMissingResults <- suppressWarnings(Analyze_CTAS(
+    dfMissingInput,
+    bAutocorr = FALSE,
+    bAverage = TRUE,
+    bSD = TRUE,
+    bRange = FALSE,
+    bUniqueValueCountRelative = FALSE,
+    bOwnSiteSimilScore = FALSE,
+    bLOF = FALSE,
+    nMinTimepoints = 1,
+    nMinSubjects = 25,
+    dMaxShareMissing = 0.3,
+    strScoringMethod = "ks",
+    strPadjustMethod = "fdr",
+    nSeed = 20260813
+  ))
+
+  # categorical.yaml
+
+  dfCategoricalInput <- Transform_OneHot(dplyr::bind_rows(
+    rs = Standardize_Domain(
+      dfDomain = lMapped$Mapped_RS,
+      dfSubjects = dfSubjects,
+      strTestCDCol = "RSTESTCD",
+      strTestCol = "RSTEST",
+      strValueCol = "RSSTRESC",
+      strCategory = "Disease Response"
+    ),
+    bmi = Standardize_Domain(
+      dfDomain = lMapped$Mapped_BMI,
+      dfSubjects = dfSubjects,
+      strTestCDCol = "VSTESTCD",
+      strTestCol = "VSTEST",
+      strValueCol = "VSSTRESC",
+      strCategory = "BMI"
+    )
+  ))
+
+  dfCategoricalResults <- suppressWarnings(Analyze_CTAS(
+    dfCategoricalInput,
+    bAutocorr = FALSE,
+    bAverage = TRUE,
+    bSD = FALSE,
+    bRange = FALSE,
+    bUniqueValueCountRelative = FALSE,
+    bOwnSiteSimilScore = FALSE,
+    bLOF = FALSE,
+    nMinTimepoints = 1,
+    nMinSubjects = 25,
+    dMaxShareMissing = 0.3,
+    strScoringMethod = "ks",
+    strPadjustMethod = "fdr",
+    nSeed = 20260813
+  ))
+
+  # One row per subject x field x visit, first by parameter_id, as in categorical.yaml.
+  dfCategoricalUntransformed <- dfCategoricalInput |>
+    dplyr::arrange(parameter_id, original_category, timepoint_rank) |>
+    dplyr::distinct(subject_id, parameter_category_2, timepoint_1_name, .keep_all = TRUE)
+
+  # Results.yaml
+
+  lFunctionAnalysis <- list(
+    Analysis_numeric = list(
+      results = dfNumericResults,
+      input = dfNumericInput
+    ),
+    Analysis_range_normalized = list(
+      results = dfRangeResults,
+      input = dfRangeInput,
+      untransformed = dfRangeInput
+    ),
+    Analysis_ratio_missing = list(
+      results = dfMissingResults,
+      input = dfMissingInput
+    ),
+    Analysis_categorical = list(
+      results = dfCategoricalResults,
+      input = dfCategoricalInput,
+      untransformed = dfCategoricalUntransformed
+    )
+  )
+
+  # Bind in the same order as the YAML pipeline.
+  lFunctionAnalysis <- lFunctionAnalysis[names(lAnalysis)]
+
+  lFunctionResults <- list(
+    results = BindResults_CTAS(lFunctionAnalysis, "results"),
+    input = BindResults_CTAS(lFunctionAnalysis, "input"),
+    untransformed = BindResults_CTAS(lFunctionAnalysis, "untransformed")
+  )
+
+  # Summary.yaml
+
+  dfFunctionSummary <- Summarize_CTAS(
+    dfResults = lFunctionResults$results,
+    dfSubjects = dfSubjects,
+    bIncludeMissingness = TRUE,
+    bByFeature = FALSE
+  ) |>
+    Flag_CTAS(
+      vThreshold = c(0.842, 2.326),
+      vFlag = c(0, 1, 2),
+      vFlagOrder = c(2, 1, 0)
+    ) |>
+    dplyr::filter(max(Flag) >= 1, .by = MetricID)
+
+  # Compare
+
+  expect_equal(lReporting$Reporting_Results$results, lFunctionResults$results)
+  expect_equal(lReporting$Reporting_Results$input, lFunctionResults$input)
+
+  # categorical.yaml de-duplicates untransformed with SQL, which does not keep row order.
+  dfYamlUntransformed <- lReporting$Reporting_Results$untransformed |>
+    dplyr::arrange(dplyr::across(dplyr::everything())) |>
+    as.data.frame()
+
+  dfFunctionUntransformed <- lFunctionResults$untransformed |>
+    dplyr::arrange(dplyr::across(dplyr::everything())) |>
+    as.data.frame()
+
+  expect_equal(dfYamlUntransformed, dfFunctionUntransformed)
+
+  dfYamlSummary <- lReporting$Reporting_Summary$summary |>
+    dplyr::arrange(dplyr::across(dplyr::everything())) |>
+    as.data.frame()
+
+  dfFunctionSummary <- dfFunctionSummary |>
+    dplyr::arrange(dplyr::across(dplyr::everything())) |>
+    as.data.frame()
+
+  expect_equal(dfYamlSummary, dfFunctionSummary)
+})

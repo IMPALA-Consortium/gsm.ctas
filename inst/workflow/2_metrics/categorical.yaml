@@ -117,7 +117,7 @@ steps:
     name: workr::RunQuery
     params:
       df: Temp_CTAS_Values
-      strQuery: "SELECT * FROM df QUALIFY ROW_NUMBER() OVER (PARTITION BY subject_id, parameter_category_2, timepoint_1_name) = 1"
+      strQuery: "SELECT * FROM df QUALIFY ROW_NUMBER() OVER (PARTITION BY subject_id, parameter_category_2, timepoint_1_name ORDER BY parameter_id, original_category, timepoint_rank) = 1"
   - output: lAnalysis
     name: base::list
     params:
