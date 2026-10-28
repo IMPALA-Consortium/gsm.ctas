@@ -310,3 +310,108 @@ test_that("Transform_Range results must match source data (#32)", {
 
   expect_equal(dfLBReverted, dfLBOriginal, ignore_attr = TRUE)
 })
+
+test_that("Write_ctasapp files meet ctasapp file requirements (#33)", {
+  skip_if_not_installed("workr")
+  skip_if_not_installed("gsm.mapping")
+  skip_if_not_installed("arrow")
+
+  lRaw <- list(
+    Raw_DM = gsm.ctas::dm,
+    Raw_LB = gsm.ctas::lb,
+    Raw_VS = gsm.ctas::vs,
+    Raw_EG = gsm.ctas::eg,
+    Raw_RS = gsm.ctas::rs,
+    Raw_Queries = gsm.ctas::queries,
+    Raw_PD = gsm.ctas::pd
+  )
+
+  lMappingWorkflows <- workr::MakeWorkflowList(
+    strPath = system.file("workflow/1_mappings", package = "gsm.ctas")
+  )
+
+  lMetricWorkflows <- workr::MakeWorkflowList(
+    strPath = system.file("workflow/2_metrics", package = "gsm.ctas")
+  )
+
+  lReportingWorkflows <- workr::MakeWorkflowList(
+    strPath = system.file("workflow/3_reporting", package = "gsm.ctas")
+  )
+
+  lMapped <- suppressWarnings(suppressMessages(workr::RunWorkflows(
+    lWorkflows = lMappingWorkflows,
+    lData = gsm.mapping::Ingest(lRaw, gsm.mapping::CombineSpecs(lMappingWorkflows))
+  )))
+
+  lAnalysis <- suppressWarnings(suppressMessages(workr::RunWorkflows(
+    lWorkflows = lMetricWorkflows,
+    lData = lMapped
+  )))
+
+  lReporting <- suppressWarnings(suppressMessages(workr::RunWorkflows(
+    lWorkflows = lReportingWorkflows[c("Results", "Queries", "PD")],
+    lData = c(lMapped, list(lAnalyzed = lAnalysis))
+  )))
+
+  strDir <- withr::local_tempdir()
+
+  Write_ctasapp(lReporting, strDir, strFormat = "parquet")
+
+  # ctasapp reads files as plain data frames.
+  dfResults <- as.data.frame(arrow::read_parquet(file.path(strDir, "results.parquet")))
+  dfInput <- as.data.frame(arrow::read_parquet(file.path(strDir, "input.parquet")))
+  dfUntransformed <- as.data.frame(arrow::read_parquet(file.path(strDir, "untransformed.parquet")))
+  dfQueries <- as.data.frame(arrow::read_parquet(file.path(strDir, "queries.parquet")))
+  dfPD <- as.data.frame(arrow::read_parquet(file.path(strDir, "pd.parquet")))
+
+  # Requirements hardcoded from ctasapp validate_upload_*() and validate_upload_crossfile().
+
+  # results
+
+  expect_contains(
+    names(dfResults),
+    c("site", "timeseries_id", "parameter_id", "feature", "fdr_corrected_pvalue_logp")
+  )
+  expect_true(is.numeric(dfResults$fdr_corrected_pvalue_logp))
+
+  # input
+
+  expect_contains(
+    names(dfInput),
+    c(
+      "subject_id", "site", "parameter_id", "parameter_name",
+      "parameter_category_3", "timepoint_1_name", "timepoint_rank", "result"
+    )
+  )
+  expect_true(is.numeric(dfInput$result))
+  expect_true(is.numeric(dfInput$timepoint_rank))
+  expect_in(
+    unique(dfInput$parameter_category_3),
+    c("numeric", "range_normalized", "ratio_missing", "categorical", "bar")
+  )
+
+  # untransformed
+
+  expect_contains(
+    names(dfUntransformed),
+    c("subject_id", "parameter_category_2", "timepoint_1_name")
+  )
+
+  # queries
+
+  expect_contains(
+    names(dfQueries),
+    c("subject_id", "parameter_id", "visit", "data_change")
+  )
+  expect_true(is.logical(dfQueries$data_change))
+
+  # pd
+
+  expect_gt(nrow(dfPD), 0)
+  expect_contains(names(dfPD), "site")
+
+  # cross-file
+
+  expect_in(unique(dfResults$parameter_id), unique(dfInput$parameter_id))
+  expect_in(unique(dfResults$site), unique(dfInput$site))
+})
