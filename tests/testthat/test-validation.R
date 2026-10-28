@@ -50,7 +50,7 @@ test_that("ctas and gsm.ctas results match on vitals and labs sample data (#25)"
   )))
 
   strStudy <- unique(dfInput$studyid)
-  
+
   expect_length(strStudy, 1)
 
   dfDirectScores <- lDirectCTAS$site_scores
@@ -85,11 +85,9 @@ test_that("ctas and gsm.ctas results match on vitals and labs sample data (#25)"
     dfGsmResults, study, site, timeseries_id, feature
   )
   expect_equal(dfGsmResults, dfDirectResults)
-
 })
 
 test_that("Standardize_Domain results must match source data (#29)", {
-
   dfSubjects <- data.frame(
     studyid = gsm.ctas::dm$STUDYID,
     subject_id = gsm.ctas::dm$USUBJID,
@@ -160,7 +158,6 @@ test_that("Standardize_Domain results must match source data (#29)", {
 })
 
 test_that("Transform_OneHot results must match source data (#30)", {
-
   dfSubjects <- data.frame(
     studyid = gsm.ctas::dm$STUDYID,
     subject_id = gsm.ctas::dm$USUBJID,
@@ -204,7 +201,6 @@ test_that("Transform_OneHot results must match source data (#30)", {
 })
 
 test_that("Transform_Missing results must match source data (#31)", {
-
   dfSubjects <- data.frame(
     studyid = gsm.ctas::dm$STUDYID,
     subject_id = gsm.ctas::dm$USUBJID,
@@ -258,7 +254,6 @@ test_that("Transform_Missing results must match source data (#31)", {
 })
 
 test_that("Transform_Range results must match source data (#32)", {
-
   dfSubjects <- data.frame(
     studyid = gsm.ctas::dm$STUDYID,
     subject_id = gsm.ctas::dm$USUBJID,

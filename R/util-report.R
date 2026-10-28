@@ -48,7 +48,7 @@ Prune_Metrics <- function(dfMetrics, dfSummary) {
 Prepare_CTAS_Report <- function(lReporting, dfBounds = NULL) {
   dfResults <- lReporting[["summary"]]
   dfMetrics <- lReporting[["metrics"]]
-  dfGroups  <- lReporting[["groups"]]
+  dfGroups <- lReporting[["groups"]]
 
   dfMetricsPruned <- Prune_Metrics(dfMetrics = dfMetrics, dfSummary = dfResults)
 
@@ -59,9 +59,9 @@ Prepare_CTAS_Report <- function(lReporting, dfBounds = NULL) {
     dfBounds  = dfBounds
   )
 
-  dfResults$Numerator   <- NA
+  dfResults$Numerator <- NA
   dfResults$Denominator <- NA
-  dfResults$Metric      <- NA
+  dfResults$Metric <- NA
 
   list(
     lCharts   = lCharts,

@@ -61,8 +61,10 @@ Standardize_Domain <- function(dfDomain,
                                strPrefix = "") {
   AssertColumns(
     dfDomain,
-    c(strSubjectCol, strTestCDCol, strTestCol, strValueCol,
-      strVisitCol, strVisitNumCol, strLowCol, strHighCol),
+    c(
+      strSubjectCol, strTestCDCol, strTestCol, strValueCol,
+      strVisitCol, strVisitNumCol, strLowCol, strHighCol
+    ),
     "dfDomain"
   )
   AssertColumns(dfSubjects, c("subject_id", "site"), "dfSubjects")

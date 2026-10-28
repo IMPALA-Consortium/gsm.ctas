@@ -3,8 +3,10 @@
 MakeResultsFixture <- function(bMultiFamily = FALSE) {
   df <- data.frame(
     parameter_category_2 = c("AST", "ALT", "AST"),
-    parameter_category_3 = c("range_normalized", "range_normalized",
-                             "ratio_missing"),
+    parameter_category_3 = c(
+      "range_normalized", "range_normalized",
+      "ratio_missing"
+    ),
     parameter_id = c("RANGE_AST", "RANGE_ALT", "MISS_AST"),
     parameter_category_1 = "Labs",
     stringsAsFactors = FALSE
@@ -19,9 +21,11 @@ MakeResultsFixture <- function(bMultiFamily = FALSE) {
 MakeInputFixture <- function() {
   data.frame(
     parameter_id = c("RANGE_AST", "RANGE_ALT", "MISS_AST"),
-    parameter_name = c("Aspartate Aminotransferase",
-                       "Alanine Aminotransferase",
-                       "Aspartate Aminotransferase"),
+    parameter_name = c(
+      "Aspartate Aminotransferase",
+      "Alanine Aminotransferase",
+      "Aspartate Aminotransferase"
+    ),
     stringsAsFactors = FALSE
   )
 }
@@ -57,12 +61,16 @@ test_that("MakeMetric_CTAS: one row per (field, metric_type) pair with unique Me
   expect_equal(nrow(dfMetrics), 3)
   expect_setequal(
     dfMetrics$MetricID,
-    c("ctas_range_normalized_AST", "ctas_range_normalized_ALT",
-      "ctas_ratio_missing_AST")
+    c(
+      "ctas_range_normalized_AST", "ctas_range_normalized_ALT",
+      "ctas_ratio_missing_AST"
+    )
   )
   expect_equal(anyDuplicated(dfMetrics$MetricID), 0L)
-  expect_setequal(unique(dfMetrics$parameter_category_3),
-                  c("range_normalized", "ratio_missing"))
+  expect_setequal(
+    unique(dfMetrics$parameter_category_3),
+    c("range_normalized", "ratio_missing")
+  )
 })
 
 test_that("MakeMetric_CTAS: emits required gsm-shaped columns + audit extras", {
@@ -71,14 +79,18 @@ test_that("MakeMetric_CTAS: emits required gsm-shaped columns + audit extras", {
     MakeMetricWorkflowsFixture()
   )
 
-  vGsmCols <- c("MetricID", "Abbreviation", "Metric", "Score",
-                "Threshold", "GroupLevel", "AnalysisType", "Model")
+  vGsmCols <- c(
+    "MetricID", "Abbreviation", "Metric", "Score",
+    "Threshold", "GroupLevel", "AnalysisType", "Model"
+  )
   expect_true(all(vGsmCols %in% names(dfMetrics)))
   expect_false(any(c("Numerator", "Denominator") %in% names(dfMetrics)))
   expect_setequal(unique(dfMetrics$GroupLevel), "Site")
   expect_setequal(unique(dfMetrics$AnalysisType), "CTAS")
-  vIds <- c("parameter_id", "parameter_name", "parameter_category_1",
-            "parameter_category_2", "parameter_category_3")
+  vIds <- c(
+    "parameter_id", "parameter_name", "parameter_category_1",
+    "parameter_category_2", "parameter_category_3"
+  )
   expect_true(all(vIds %in% names(dfMetrics)))
 })
 

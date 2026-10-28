@@ -280,8 +280,10 @@ test_that("Transform_OneHot enumerates levels per parameter_category_2", {
   dfLong <- data.frame(
     studyid = "A", subject_id = "S1", site = "701",
     parameter_id = c("OVRLRESP", "OVRLRESP", "TRGRESP", "TRGRESP"),
-    parameter_name = c("Overall Response", "Overall Response",
-                       "Target Response", "Target Response"),
+    parameter_name = c(
+      "Overall Response", "Overall Response",
+      "Target Response", "Target Response"
+    ),
     parameter_category_1 = "Disease Response",
     parameter_category_2 = c("OVRLRESP", "OVRLRESP", "TRGRESP", "TRGRESP"),
     visit = c("WEEK 2", "WEEK 4", "WEEK 2", "WEEK 4"),

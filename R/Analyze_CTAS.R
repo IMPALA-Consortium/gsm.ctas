@@ -72,8 +72,10 @@
 #'   strCategory = "Vital Signs"
 #' )
 #' dfResults <- Analyze_CTAS(dfValues, nSeed = 1)
-#' lAnalysis <- list(ID = "numeric", results = dfResults,
-#'                   input = dfValues, untransformed = dfValues)
+#' lAnalysis <- list(
+#'   ID = "numeric", results = dfResults,
+#'   input = dfValues, untransformed = dfValues
+#' )
 #' }
 #'
 #' @export
@@ -110,8 +112,10 @@ Analyze_CTAS <- function(dfInput,
   )
 
   fnRunOne <- function(dfSub) {
-    lIn <- BuildCTASInput(dfSub, strStudyCol,
-                          dfCustomTimeseries, dfCustomReferenceGroups)
+    lIn <- BuildCTASInput(
+      dfSub, strStudyCol,
+      dfCustomTimeseries, dfCustomReferenceGroups
+    )
     ctas::process_a_study(
       subjects = lIn$subjects,
       parameters = lIn$parameters,

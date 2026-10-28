@@ -128,4 +128,3 @@ if (bWorkflowRunnable) {
     workr::RunWorkflows(lWorkflows = lMetricWorkflows, lData = lMapped)
   )
 }
-

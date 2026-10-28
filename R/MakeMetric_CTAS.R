@@ -59,13 +59,17 @@ MakeMetric_CTAS <- function(dfResults,
   )
 
   vIdCols <- intersect(
-    c("parameter_id", "parameter_category_1",
-      "parameter_category_2", "parameter_category_3"),
+    c(
+      "parameter_id", "parameter_category_1",
+      "parameter_category_2", "parameter_category_3"
+    ),
     names(dfResults)
   )
   dfKeys <- dplyr::distinct(dfResults[, vIdCols, drop = FALSE])
-  dfKeys <- dfKeys[order(dfKeys$parameter_category_3,
-                         dfKeys$parameter_category_2), , drop = FALSE]
+  dfKeys <- dfKeys[order(
+    dfKeys$parameter_category_3,
+    dfKeys$parameter_category_2
+  ), , drop = FALSE]
   # A single (pc2, pc3) can carry more than one parameter_id when the raw
   # data has ambiguous inputs; keep the first so MetricID stays unique.
   dfKeys <- dfKeys[

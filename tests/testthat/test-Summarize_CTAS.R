@@ -10,8 +10,10 @@ MakeResultsFixture <- function() {
     site = c("101", "101", "101", "102", "102"),
     parameter_category_1 = "Labs",
     parameter_category_2 = c("AST", "AST", "ALT", "AST", "ALT"),
-    parameter_category_3 = c("numeric", "numeric", "numeric",
-                             "ratio_missing", "numeric"),
+    parameter_category_3 = c(
+      "numeric", "numeric", "numeric",
+      "ratio_missing", "numeric"
+    ),
     parameter_id = c("NUM_AST", "NUM_AST", "NUM_ALT", "MISS_AST", "NUM_ALT"),
     feature = c("average", "sd", "average", "average", "average"),
     fdr_corrected_pvalue_logp = c(0.5, 2.0, 3.0, 1.5, 0.1),
@@ -25,7 +27,7 @@ MakeSubjectsFixture <- function() {
   data.frame(
     studyid = c("STUDY_A", "STUDY_A", "STUDY_A"),
     subject_id = c("s1", "s2", "s3"),
-    site = c("101", "102", "103"),   # site 103 has no scored timeseries
+    site = c("101", "102", "103"), # site 103 has no scored timeseries
     stringsAsFactors = FALSE
   )
 }
@@ -53,7 +55,8 @@ test_that("MetricID synthesis: default groups by data field only", {
 
 test_that("bByFeature = TRUE adds feature to MetricID and to the frame", {
   df <- Summarize_CTAS(MakeResultsFixture(), MakeSubjectsFixture(),
-                       bByFeature = TRUE)
+    bByFeature = TRUE
+  )
 
   expect_true("feature" %in% names(df))
   expect_true("ctas_AST_average" %in% df$MetricID)
@@ -70,7 +73,8 @@ test_that("Score is the max fdr_corrected_pvalue_logp per group", {
 
 test_that("bIncludeMissingness = FALSE drops ratio_missing rows", {
   df <- Summarize_CTAS(MakeResultsFixture(), MakeSubjectsFixture(),
-                       bIncludeMissingness = FALSE)
+    bIncludeMissingness = FALSE
+  )
 
   # site 102 x AST (parameter_category_3 = ratio_missing) is dropped
   # from the aggregation, so its row is site-completed with Score = NA.
@@ -90,7 +94,8 @@ test_that("sites in dfSubjects but not scored are kept with NA Score", {
 
 test_that("strStudyID overrides per-row study", {
   df <- Summarize_CTAS(MakeResultsFixture(), MakeSubjectsFixture(),
-                       strStudyID = "STUDY_OVR")
+    strStudyID = "STUDY_OVR"
+  )
 
   expect_setequal(unique(df$StudyID), "STUDY_OVR")
 })
@@ -98,7 +103,8 @@ test_that("strStudyID overrides per-row study", {
 test_that("dSnapshotDate is stamped verbatim", {
   d <- as.Date("2024-06-01")
   df <- Summarize_CTAS(MakeResultsFixture(), MakeSubjectsFixture(),
-                       dSnapshotDate = d)
+    dSnapshotDate = d
+  )
 
   expect_setequal(unique(df$SnapshotDate), d)
 })
@@ -116,7 +122,8 @@ test_that("errors on missing columns", {
 test_that("errors when bIncludeMissingness is not a single logical", {
   expect_error(
     Summarize_CTAS(MakeResultsFixture(), MakeSubjectsFixture(),
-                   bIncludeMissingness = "yes"),
+      bIncludeMissingness = "yes"
+    ),
     "bIncludeMissingness"
   )
 })
@@ -124,7 +131,8 @@ test_that("errors when bIncludeMissingness is not a single logical", {
 test_that("errors when bByFeature is not a single logical", {
   expect_error(
     Summarize_CTAS(MakeResultsFixture(), MakeSubjectsFixture(),
-                   bByFeature = c(TRUE, FALSE)),
+      bByFeature = c(TRUE, FALSE)
+    ),
     "bByFeature"
   )
 })

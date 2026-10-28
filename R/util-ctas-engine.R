@@ -44,9 +44,11 @@ BuildCTASInput <- function(dfInput, strStudyCol, dfCustomTimeseries,
   if (!"country" %in% names(dfSubjects)) dfSubjects$country <- "no"
   if (!"region" %in% names(dfSubjects)) dfSubjects$region <- "no"
 
-  vParamCols <- c("parameter_id", "parameter_name",
-                  "parameter_category_1", "parameter_category_2",
-                  "parameter_category_3")
+  vParamCols <- c(
+    "parameter_id", "parameter_name",
+    "parameter_category_1", "parameter_category_2",
+    "parameter_category_3"
+  )
   dfParameters <- dfInput |>
     dplyr::distinct(dplyr::across(dplyr::all_of(vParamCols))) |>
     dplyr::mutate(
