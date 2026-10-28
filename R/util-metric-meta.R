@@ -3,7 +3,7 @@
 #' @keywords internal
 LookupParameterName <- function(vParamId, dfInput) {
   if (is.null(dfInput) ||
-      !all(c("parameter_id", "parameter_name") %in% names(dfInput))) {
+    !all(c("parameter_id", "parameter_name") %in% names(dfInput))) {
     return(rep(NA_character_, length(vParamId)))
   }
   dfLookup <- dplyr::distinct(

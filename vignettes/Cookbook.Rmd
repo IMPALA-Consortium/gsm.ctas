@@ -261,8 +261,6 @@ and the `4_modules` html render are not needed. Filter the reporting
 layer with `strNames` to skip the site-report-only workflows:
 
 ```{r ctasapp_workflow, eval = FALSE}
-
-
 Write_ctasapp(lReporting, strDir = "pub", strFormat = "parquet")
 ```
 
@@ -284,7 +282,6 @@ ctasapp::run_ctas_app()
 ## html Report
 
 ```{r report, eval=TRUE}
-
 lModuleFlows <- workr::MakeWorkflowList(strPath = system.file("workflow/4_modules", package = "gsm.ctas"))
 
 workr::RunWorkflows(

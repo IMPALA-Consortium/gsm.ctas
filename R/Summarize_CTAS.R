@@ -67,8 +67,10 @@ Summarize_CTAS <- function(dfResults,
                            dSnapshotDate = Sys.Date()) {
   AssertColumns(
     dfResults,
-    c("study", "site", "parameter_category_2", "parameter_category_3",
-      "feature", "fdr_corrected_pvalue_logp", "timeseries_id"),
+    c(
+      "study", "site", "parameter_category_2", "parameter_category_3",
+      "feature", "fdr_corrected_pvalue_logp", "timeseries_id"
+    ),
     "dfResults"
   )
   AssertColumns(dfSubjects, c("studyid", "subject_id", "site"), "dfSubjects")

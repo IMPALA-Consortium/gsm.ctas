@@ -28,7 +28,7 @@ vPool <- rbind(
   BuildRows(lb, "LBTESTCD", "LBSTRESN", "LB"),
   BuildRows(vs, "VSTESTCD", "VSSTRESN", "VS"),
   BuildRows(eg, "EGTESTCD", "EGSTRESN", "EG"),
-  BuildRows(rs, "RSTESTCD", "RSORRES",  "RS")
+  BuildRows(rs, "RSTESTCD", "RSORRES", "RS")
 )
 vPool <- vPool[!is.na(vPool$visit) & vPool$visit != "", ]
 
@@ -67,7 +67,8 @@ vStatuses <- c("Open", "Answered", "Closed")
 vTypes <- c("Monitor", "Data Management")
 
 data_change <- sample(
-  c(TRUE, FALSE), nQueries, replace = TRUE,
+  c(TRUE, FALSE), nQueries,
+  replace = TRUE,
   prob = c(dChangeFrac, 1 - dChangeFrac)
 )
 query_status <- sample(vStatuses, nQueries, replace = TRUE)
@@ -85,8 +86,10 @@ if (any(vChangedNum)) {
   vOrig <- suppressWarnings(as.numeric(sampled$value[vChangedNum]))
   vOk <- !is.na(vOrig)
   if (any(vOk)) {
-    vNoise <- stats::rnorm(sum(vOk), mean = 0,
-                           sd = pmax(abs(vOrig[vOk]) * 0.3, 0.1))
+    vNoise <- stats::rnorm(sum(vOk),
+      mean = 0,
+      sd = pmax(abs(vOrig[vOk]) * 0.3, 0.1)
+    )
     vTargets <- which(vChangedNum)[vOk]
     value_first_entry[vTargets] <- as.character(round(vOrig[vOk] + vNoise, 4))
   }

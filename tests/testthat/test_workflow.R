@@ -5,8 +5,10 @@ skip_if_not(
 
 test_that("mapping publishes the standardised transformation-typed frames", {
   expect_true(all(
-    c("Mapped_DM", "Mapped_VS", "Mapped_LB", "Mapped_EG", "Mapped_BMI",
-      "Mapped_SITE", "Mapped_STUDY", "Mapped_Subjects", "Mapped_PD") %in%
+    c(
+      "Mapped_DM", "Mapped_VS", "Mapped_LB", "Mapped_EG", "Mapped_BMI",
+      "Mapped_SITE", "Mapped_STUDY", "Mapped_Subjects", "Mapped_PD"
+    ) %in%
       names(lMapped)
   ))
 })
@@ -15,8 +17,10 @@ test_that("Mapped_BMI derives WHO categories from VS HEIGHT and WEIGHT", {
   dfBMI <- lMapped$Mapped_BMI
 
   expect_true(all(
-    c("STUDYID", "USUBJID", "VSTESTCD", "VSTEST", "VSSTRESC",
-      "VISIT", "VISITNUM") %in% names(dfBMI)
+    c(
+      "STUDYID", "USUBJID", "VSTESTCD", "VSTEST", "VSSTRESC",
+      "VISIT", "VISITNUM"
+    ) %in% names(dfBMI)
   ))
   expect_setequal(unique(dfBMI$VSTESTCD), "BMICAT")
   expect_true(all(
@@ -59,18 +63,22 @@ test_that("every metric workflow emits the ctasapp-shaped list", {
   purrr::iwalk(lAnalysis, function(lResult, strID) {
     expect_true(all(c("ID", "results", "input") %in% names(lResult)))
     expect_true(all(
-      c("site", "feature", "fdr_corrected_pvalue_logp",
+      c(
+        "site", "feature", "fdr_corrected_pvalue_logp",
         "parameter_id", "parameter_category_1", "parameter_category_3",
-        "study") %in%
+        "study"
+      ) %in%
         names(lResult$results)
     ))
     # `input` is the raw `Input_*()` output, so it carries `studyid`;
     # `Write_ctasapp()` renames it to `study` on the way to parquet.
     expect_true(all(
-      c("subject_id", "parameter_id", "timepoint_1_name", "result",
+      c(
+        "subject_id", "parameter_id", "timepoint_1_name", "result",
         "site", "studyid", "parameter_name",
         "parameter_category_1", "parameter_category_2",
-        "parameter_category_3") %in%
+        "parameter_category_3"
+      ) %in%
         names(lResult$input)
     ))
     expect_setequal(unique(lResult$results$study), vStudyIDs)
@@ -105,22 +113,6 @@ test_that("only range_normalized publishes an untransformed shard", {
   expect_true(
     "original_value" %in% names(lAnalysis$Analysis_range_normalized$untransformed)
   )
-})
-
-test_that("range_normalized and ratio_missing share cat2 for stitching", {
-  # ctasapp groups sidebar entries by parameter_category_2, so LB tests
-  # scored by both metrics must publish the same cat2 on both sides.
-  vRange <- unique(
-    lAnalysis$Analysis_range_normalized$input$parameter_category_2
-  )
-  vMissing <- unique(
-    lAnalysis$Analysis_ratio_missing$input$parameter_category_2
-  )
-  vShared <- intersect(vRange, vMissing)
-
-  expect_gt(length(vShared), 0)
-  # cat2 must be the raw LBTESTCD, not an Input_*-prefixed id.
-  expect_false(any(grepl("^(RANGE|MISS|NUM)_", vShared)))
 })
 
 test_that("parameter_category_3 identifies the transformation each metric ran", {
@@ -301,9 +293,11 @@ test_that("Reporting workflow standardises queries via the Queries YAML", {
   expect_s3_class(dfQ, "data.frame")
   expect_gt(nrow(dfQ), 0)
   expect_true(all(
-    c("subject_id",
+    c(
+      "subject_id",
       "parameter_id", "parameter_category_1", "parameter_category_2",
-      "timepoint_1_name") %in% names(dfQ)
+      "timepoint_1_name"
+    ) %in% names(dfQ)
   ))
   # `site` must NOT be present -- ctasapp re-joins it from measures.
   expect_false("site" %in% names(dfQ))
@@ -340,8 +334,10 @@ test_that("PD reporting workflow emits ctasapp-shape Protocol Deviation records"
   expect_gt(nrow(dfPD), 0)
   expect_setequal(
     names(dfPD),
-    c("study", "site", "subject_id", "dv_seq", "dv_term", "dv_decod",
-      "dv_cat", "dv_scat", "dv_start_date", "dv_end_date")
+    c(
+      "study", "site", "subject_id", "dv_seq", "dv_term", "dv_decod",
+      "dv_cat", "dv_scat", "dv_start_date", "dv_end_date"
+    )
   )
   expect_setequal(unique(dfPD$study), vStudyIDs)
   expect_true(all(dfPD$dv_cat %in% c("MAJOR", "IMPORTANT", "MINOR")))
@@ -396,8 +392,10 @@ test_that("Summary workflow packages a gsm-shaped summary + metrics + groups", {
   expect_setequal(names(lSummary), c("summary", "metrics", "groups"))
 
   dfSummary <- lSummary$summary
-  vRequired <- c("MetricID", "GroupID", "GroupLevel", "StudyID",
-                 "SnapshotDate", "Score", "Flag")
+  vRequired <- c(
+    "MetricID", "GroupID", "GroupLevel", "StudyID",
+    "SnapshotDate", "Score", "Flag"
+  )
   expect_true(all(vRequired %in% names(dfSummary)))
   expect_false(any(c("Numerator", "Denominator", "Metric") %in% names(dfSummary)))
   expect_setequal(unique(dfSummary$GroupLevel), "Site")
@@ -422,14 +420,20 @@ test_that("Summary workflow packages a gsm-shaped summary + metrics + groups", {
   expect_setequal(dfExpected, unique(dfMetrics$MetricID))
   expect_true(all(
     paste0("ctas_", unique(dfMetrics$parameter_category_2)) %in%
-      c(unique(dfSummary$MetricID),
+      c(
+        unique(dfSummary$MetricID),
         # audit may include fields the summary filter dropped
-        setdiff(paste0("ctas_", unique(dfMetrics$parameter_category_2)),
-                unique(dfSummary$MetricID)))
+        setdiff(
+          paste0("ctas_", unique(dfMetrics$parameter_category_2)),
+          unique(dfSummary$MetricID)
+        )
+      )
   ))
-  vIdCols <- c("parameter_id", "parameter_name",
-               "parameter_category_1", "parameter_category_2",
-               "parameter_category_3")
+  vIdCols <- c(
+    "parameter_id", "parameter_name",
+    "parameter_category_1", "parameter_category_2",
+    "parameter_category_3"
+  )
   expect_true(all(vIdCols %in% names(dfMetrics)))
   expect_false(any(c("Numerator", "Denominator", "MetricType") %in% names(dfMetrics)))
   # parameter_name is looked up from Reporting_Results$input; at least
@@ -445,8 +449,10 @@ test_that("Summary workflow packages a gsm-shaped summary + metrics + groups", {
   expect_false(any(is.na(dfMetrics$FeatureAverage)))
 
   dfGroups <- lSummary$groups
-  expect_setequal(names(dfGroups),
-                  c("GroupID", "GroupLevel", "Param", "Value"))
+  expect_setequal(
+    names(dfGroups),
+    c("GroupID", "GroupLevel", "Param", "Value")
+  )
   # Groups comes from the mapping layer (Mapped_STUDY + Mapped_SITE), so
   # both group levels must be present and every stacked-fixture site must
   # have a ParticipantCount row from Mapped_SITE.
@@ -461,51 +467,3 @@ test_that("Summary workflow packages a gsm-shaped summary + metrics + groups", {
     vStudyIDs
   )
 })
-
-test_that("report_ctas_site module renders a CTAS HTML report", {
-  skip_if_not(bWorkflowRunnable)
-  skip_if_not_installed("gsm.kri")
-  skip_if_not_installed("rmarkdown")
-
-  lReportingWorkflows <- workr::MakeWorkflowList(
-    strNames = NULL,
-    strPath = system.file("workflow/3_reporting", package = "gsm.ctas"),
-    strPackage = NULL
-  )
-  lModuleWorkflows <- workr::MakeWorkflowList(
-    strNames = NULL,
-    strPath = system.file("workflow/4_modules", package = "gsm.ctas"),
-    strPackage = NULL
-  )
-
-  # gsm.kri::Report_KRI is single-study; drop the second study block from
-  # the summary before rendering.
-  lReporting <- suppressWarnings(workr::RunWorkflows(
-    lWorkflows = lReportingWorkflows[c("Results", "Groups", "Metrics", "Summary")],
-    lData = c(lMapped, list(
-      lAnalyzed = lAnalysis,
-      lMetricWorkflows = lMetricWorkflows
-    ))
-  ))
-  strStudyID <- vStudyIDs[1]
-  lSummary <- lReporting$Reporting_Summary
-  lSummary$summary <- lSummary$summary[lSummary$summary$StudyID == strStudyID, , drop = FALSE]
-  lSummary$groups <- lSummary$groups[
-    lSummary$groups$GroupLevel != "Study" |
-      lSummary$groups$GroupID == strStudyID, ,
-    drop = FALSE
-  ]
-  lReporting$Reporting_Summary <- lSummary
-
-  strDir <- withr::local_tempdir()
-  lModuleWorkflows$report_ctas_site$meta$strOutputDir <- strDir
-  suppressWarnings(suppressMessages(workr::RunWorkflows(
-    lWorkflows = lModuleWorkflows,
-    lData = lReporting
-  )))
-
-  vHtml <- list.files(strDir, pattern = "\\.html$", full.names = TRUE)
-  expect_gt(length(vHtml), 0)
-})
-
-

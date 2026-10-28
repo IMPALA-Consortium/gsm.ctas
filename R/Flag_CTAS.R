@@ -74,7 +74,7 @@ Flag_CTAS <- function(dfAnalyzed,
     )
   }
   if (!is.null(vFlagOrder) &&
-        (!is.numeric(vFlagOrder) || !setequal(vFlagOrder, vFlag))) {
+    (!is.numeric(vFlagOrder) || !setequal(vFlagOrder, vFlag))) {
     cli::cli_abort(
       "{.arg vFlagOrder} must contain the same values as {.arg vFlag}."
     )
@@ -84,7 +84,7 @@ Flag_CTAS <- function(dfAnalyzed,
       cli::cli_abort("{.arg nAccrualThreshold} must be a single number.")
     }
     if (is.null(strAccrualMetric) ||
-          !strAccrualMetric %in% c("Numerator", "Denominator", "Difference")) {
+      !strAccrualMetric %in% c("Numerator", "Denominator", "Difference")) {
       cli::cli_abort(
         '{.arg strAccrualMetric} must be one of "Numerator", "Denominator", "Difference".'
       )
@@ -110,8 +110,7 @@ Flag_CTAS <- function(dfAnalyzed,
   dfFlagged$Flag <- vFlag[vIdx]
 
   if (!is.null(nAccrualThreshold)) {
-    vAcc <- switch(
-      strAccrualMetric,
+    vAcc <- switch(strAccrualMetric,
       Numerator = dfFlagged$Numerator,
       Denominator = dfFlagged$Denominator,
       Difference = dfFlagged$Denominator - dfFlagged$Numerator
@@ -123,7 +122,8 @@ Flag_CTAS <- function(dfAnalyzed,
 
   if (!is.null(vFlagOrder)) {
     dfFlagged <- dfFlagged[order(match(dfFlagged$Flag, vFlagOrder)), ,
-                           drop = FALSE]
+      drop = FALSE
+    ]
     rownames(dfFlagged) <- NULL
   }
 

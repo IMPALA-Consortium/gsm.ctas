@@ -27,15 +27,19 @@
 Transform_Missing <- function(dfInput, strPrefix = "MISS") {
   AssertColumns(
     dfInput,
-    c("subject_id", "parameter_id", "parameter_name",
+    c(
+      "subject_id", "parameter_id", "parameter_name",
       "parameter_category_1", "parameter_category_2",
-      "visit", "visitnum", "value"),
+      "visit", "visitnum", "value"
+    ),
     "dfInput"
   )
 
   dfInput |>
-    dplyr::arrange(.data$subject_id, .data$parameter_id,
-                   .data$visitnum, .data$visit) |>
+    dplyr::arrange(
+      .data$subject_id, .data$parameter_id,
+      .data$visitnum, .data$visit
+    ) |>
     dplyr::mutate(
       parameter_id = paste0(.env$strPrefix, "_", .data$parameter_category_2),
       parameter_name = paste0("Ratio Missing: ", .data$parameter_name),

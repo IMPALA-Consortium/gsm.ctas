@@ -7,8 +7,10 @@ test_that("EmptyCTASUntransformed returns a zero-row frame with the ctasapp sche
   expect_equal(nrow(df), 0)
   expect_equal(
     names(df),
-    c("subject_id", "parameter_category_2", "timepoint_1_name",
-      "original_value", "lower", "upper", "original_category")
+    c(
+      "subject_id", "parameter_category_2", "timepoint_1_name",
+      "original_value", "lower", "upper", "original_category"
+    )
   )
   expect_type(df$subject_id, "character")
   expect_type(df$original_value, "double")

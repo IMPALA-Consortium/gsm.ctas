@@ -34,9 +34,11 @@
 Transform_OneHot <- function(dfInput, strPrefix = "CAT") {
   AssertColumns(
     dfInput,
-    c("subject_id", "parameter_id", "parameter_name",
+    c(
+      "subject_id", "parameter_id", "parameter_name",
       "parameter_category_1", "parameter_category_2",
-      "visit", "visitnum", "value"),
+      "visit", "visitnum", "value"
+    ),
     "dfInput"
   )
 

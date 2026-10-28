@@ -30,9 +30,11 @@ test_that("Standardize_Queries maps raw queries into the CTAS vocabulary", {
   expect_s3_class(dfOut, "data.frame")
   expect_equal(nrow(dfOut), 3)
   expect_true(all(
-    c("subject_id",
+    c(
+      "subject_id",
       "parameter_id", "parameter_category_1", "parameter_category_2",
-      "timepoint_1_name") %in% names(dfOut)
+      "timepoint_1_name"
+    ) %in% names(dfOut)
   ))
   # `site`/`country`/`studyid` collide with ctasapp's downstream joins.
   expect_false("site" %in% names(dfOut))
@@ -44,8 +46,10 @@ test_that("Standardize_Queries maps raw queries into the CTAS vocabulary", {
   )
   # Original query columns preserved verbatim.
   expect_true(all(
-    c("query_text", "query_status", "data_change",
-      "value_first_entry", "value_now") %in% names(dfOut)
+    c(
+      "query_text", "query_status", "data_change",
+      "value_first_entry", "value_now"
+    ) %in% names(dfOut)
   ))
 })
 

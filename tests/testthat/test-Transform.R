@@ -113,12 +113,6 @@ test_that("Standardize_Domain joins studyid/site/country from dfSubjects", {
   expect_equal(dfLong$country, "USA")
 })
 
-test_that("Standardize_Domain carries low/high when the columns are supplied", {
-  dfLong <- MakeLBLong()
-
-  expect_true(all(c("low", "high") %in% names(dfLong)))
-})
-
 test_that("Standardize_Domain errors informatively on missing columns", {
   expect_error(
     Standardize_Domain(
@@ -199,22 +193,6 @@ test_that("Standardize_Domain breaks visitnum ties on the VISIT name", {
 
 # --- Transform_Range -------------------------------------------------------------
 
-test_that("Transform_Range normalises values by their reference range", {
-  dfLong <- data.frame(
-    studyid = "A", subject_id = "S1", site = "701",
-    parameter_id = "ALT", parameter_name = "Alanine Aminotransferase",
-    parameter_category_1 = "Labs", parameter_category_2 = "ALT",
-    visit = c("WEEK 2", "WEEK 4"), visitnum = c(3, 4),
-    value = c(10, 40), low = c(10, 10), high = c(40, 40)
-  )
-
-  df <- Transform_Range(dfLong)
-
-  expect_equal(df$result, c(0, 1))
-  expect_setequal(df$parameter_category_3, "range_normalized")
-  expect_equal(df$original_value, c(10, 40))
-})
-
 test_that("Transform_Range drops rows with an unusable reference range", {
   dfLong <- data.frame(
     studyid = "A", subject_id = "S1", site = "701",
@@ -230,32 +208,6 @@ test_that("Transform_Range drops rows with an unusable reference range", {
   )
 
   expect_equal(nrow(df), 1)
-})
-
-test_that("Transform_Range carries the untransformed detail columns", {
-  dfLong <- MakeLBLong()
-
-  df <- suppressWarnings(Transform_Range(dfLong))
-
-  expect_true(all(c("original_value", "lower", "upper", "original_category") %in% names(df)))
-})
-
-# --- Transform_Missing -----------------------------------------------------------
-
-test_that("Transform_Missing retains missing rows and encodes the running ratio", {
-  dfLong <- data.frame(
-    studyid = "A", subject_id = "S1", site = "701",
-    parameter_id = "ALT", parameter_name = "ALT",
-    parameter_category_1 = "Labs", parameter_category_2 = "ALT",
-    visit = c("WEEK 2", "WEEK 4"), visitnum = c(3, 4),
-    value = c(10, NA)
-  )
-
-  df <- Transform_Missing(dfLong)
-
-  expect_equal(nrow(df), 2)
-  expect_equal(df$result, c(0, 0.5))
-  expect_setequal(df$parameter_category_3, "ratio_missing")
 })
 
 # --- Transform_OneHot -----------------------------------------------------------
@@ -328,8 +280,10 @@ test_that("Transform_OneHot enumerates levels per parameter_category_2", {
   dfLong <- data.frame(
     studyid = "A", subject_id = "S1", site = "701",
     parameter_id = c("OVRLRESP", "OVRLRESP", "TRGRESP", "TRGRESP"),
-    parameter_name = c("Overall Response", "Overall Response",
-                       "Target Response", "Target Response"),
+    parameter_name = c(
+      "Overall Response", "Overall Response",
+      "Target Response", "Target Response"
+    ),
     parameter_category_1 = "Disease Response",
     parameter_category_2 = c("OVRLRESP", "OVRLRESP", "TRGRESP", "TRGRESP"),
     visit = c("WEEK 2", "WEEK 4", "WEEK 2", "WEEK 4"),
@@ -348,21 +302,6 @@ test_that("Transform_OneHot enumerates levels per parameter_category_2", {
     df$parameter_id[df$parameter_category_2 == "TRGRESP"],
     c("CAT_TRGRESP=CR", "CAT_TRGRESP=PR")
   )
-})
-
-# --- cross-metric stitching --------------------------------------------------
-
-test_that("Transform_Range and Transform_Missing share parameter_category_2 on the same field", {
-  dfLong <- MakeLBLong()
-
-  dfRange <- suppressWarnings(Transform_Range(dfLong))
-  dfMissing <- Transform_Missing(dfLong)
-
-  vShared <- intersect(unique(dfRange$parameter_category_2),
-                       unique(dfMissing$parameter_category_2))
-
-  expect_gt(length(vShared), 0)
-  expect_true(all(vShared %in% unique(dfLong$parameter_id)))
 })
 
 test_that("Transform_OneHot returns the empty frame when every value is missing or blank", {

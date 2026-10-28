@@ -15,6 +15,8 @@ Closes #
 
 - [ ] Branch cut from `dev` and named `{issue#}_short-slug`.
 - [ ] Tests added or updated (`tests/testthat/`).
+- [ ] Each linked issue has a test with `(#issue)` in its title or the
+      `qcthat-nocov` label.
 - [ ] `covr::percent_coverage(covr::package_coverage())` is `100` locally.
 - [ ] No `# nocov` markers introduced. HTML-rendering code paths are
       exercised with real tests (`expect_s3_class(..., "htmlwidget")`

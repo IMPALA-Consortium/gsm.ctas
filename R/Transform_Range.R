@@ -31,10 +31,12 @@
 Transform_Range <- function(dfInput, strPrefix = "RANGE") {
   AssertColumns(
     dfInput,
-    c("subject_id", "parameter_id", "parameter_name",
+    c(
+      "subject_id", "parameter_id", "parameter_name",
       "parameter_category_1", "parameter_category_2",
       "visit", "visitnum",
-      "value", "low", "high"),
+      "value", "low", "high"
+    ),
     "dfInput"
   )
 

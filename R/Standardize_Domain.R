@@ -61,8 +61,10 @@ Standardize_Domain <- function(dfDomain,
                                strPrefix = "") {
   AssertColumns(
     dfDomain,
-    c(strSubjectCol, strTestCDCol, strTestCol, strValueCol,
-      strVisitCol, strVisitNumCol, strLowCol, strHighCol),
+    c(
+      strSubjectCol, strTestCDCol, strTestCol, strValueCol,
+      strVisitCol, strVisitNumCol, strLowCol, strHighCol
+    ),
     "dfDomain"
   )
   AssertColumns(dfSubjects, c("subject_id", "site"), "dfSubjects")
@@ -88,6 +90,13 @@ Standardize_Domain <- function(dfDomain,
     baseline = NA_real_
   )
 
+  if (!is.null(strLowCol)) {
+    dfLong$low <- as.numeric(dfDomain[[strLowCol]])
+  }
+  if (!is.null(strHighCol)) {
+    dfLong$high <- as.numeric(dfDomain[[strHighCol]])
+  }
+
   # Normalize visit rank to a contiguous 1..N per (subject_id, parameter_id),
   # mirroring ctasapp's recalculate_timepoint_rank().
   dfLong <- Prepare_TimepointRank(dfLong)
@@ -95,13 +104,6 @@ Standardize_Domain <- function(dfDomain,
 
   if (nzchar(strPrefix)) {
     dfLong$parameter_id <- paste0(strPrefix, "_", dfLong$parameter_id)
-  }
-
-  if (!is.null(strLowCol)) {
-    dfLong$low <- as.numeric(dfDomain[[strLowCol]])
-  }
-  if (!is.null(strHighCol)) {
-    dfLong$high <- as.numeric(dfDomain[[strHighCol]])
   }
 
   vSubjectCols <- intersect(

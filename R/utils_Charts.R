@@ -17,13 +17,14 @@
 #' @keywords internal
 #' @noRd
 MakeCharts <- function(
-    dfResults,
-    dfMetrics,
-    dfGroups = NULL,
-    dfBounds = NULL,
-    bDebug = FALSE,
-    strVisualizeFun = "gsm.ctas:::Visualize_CTAS",
-    ...) {
+  dfResults,
+  dfMetrics,
+  dfGroups = NULL,
+  dfBounds = NULL,
+  bDebug = FALSE,
+  strVisualizeFun = "gsm.ctas:::Visualize_CTAS",
+  ...
+) {
   strMetrics <- unique(dfMetrics$MetricID)
 
   lArgs <- list(
@@ -78,16 +79,17 @@ MakeCharts <- function(
 #' @keywords internal
 #' @noRd
 Visualize_CTAS <- function(
-    dfResults,
-    dfMetrics = NULL,
-    dfGroups = NULL,
-    dfBounds = NULL,
-    strMetricID = NULL,
-    strSnapshotDate = NULL,
-    bDebug = FALSE,
-    vResultTooltipKeys = c("Score"),
-    vOutcomeOptions = c("Score"),
-    ...) {
+  dfResults,
+  dfMetrics = NULL,
+  dfGroups = NULL,
+  dfBounds = NULL,
+  strMetricID = NULL,
+  strSnapshotDate = NULL,
+  bDebug = FALSE,
+  vResultTooltipKeys = c("Score"),
+  vOutcomeOptions = c("Score"),
+  ...
+) {
   rlang::check_installed("gsm.kri", reason = "to run `Visualize_CTAS()`.")
   rlang::check_installed("gsm.core", reason = "to run `Visualize_CTAS()`.")
 
@@ -109,7 +111,7 @@ Visualize_CTAS <- function(
   }
 
   if (!is.null(strMetricID) && !is.null(dfMetrics) &&
-      "MetricID" %in% colnames(dfMetrics)) {
+    "MetricID" %in% colnames(dfMetrics)) {
     if (!(strMetricID %in% unique(dfMetrics$MetricID))) {
       dfMetrics <- NULL
     } else {

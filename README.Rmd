@@ -104,7 +104,6 @@ ctasapp::run_ctas_app()
 ### html Report
 
 ```{r report, eval=TRUE}
-
 lModuleFlows <- workr::MakeWorkflowList(strPath = system.file("workflow/4_modules", package = "gsm.ctas"))
 
 workr::RunWorkflows(
@@ -146,25 +145,25 @@ dfInput <- Standardize_Domain(
 head(dfInput)
 
 dfResults <- Analyze_CTAS(
-  dfInput                 = dfInput,
-  bAutocorr               = TRUE,
-  bAverage                = TRUE,
-  bSD                     = TRUE,
-  bRange                  = FALSE,
+  dfInput = dfInput,
+  bAutocorr = TRUE,
+  bAverage = TRUE,
+  bSD = TRUE,
+  bRange = FALSE,
   bUniqueValueCountRelative = TRUE,
-  bOwnSiteSimilScore      = FALSE,
-  bLOF                    = FALSE,
-  nMinTimepoints          = 1,
-  nMinSubjects            = 3,
-  dMaxShareMissing        = 0.5,
-  bChangeFromBaseline     = FALSE,
-  bAutogenerate           = TRUE,
-  strScoringMethod        = "ks",
-  strPadjustMethod        = "fdr",
-  dfCustomTimeseries      = ctas::ctas_data$custom_timeseries,
+  bOwnSiteSimilScore = FALSE,
+  bLOF = FALSE,
+  nMinTimepoints = 1,
+  nMinSubjects = 3,
+  dMaxShareMissing = 0.5,
+  bChangeFromBaseline = FALSE,
+  bAutogenerate = TRUE,
+  strScoringMethod = "ks",
+  strPadjustMethod = "fdr",
+  dfCustomTimeseries = ctas::ctas_data$custom_timeseries,
   dfCustomReferenceGroups = ctas::ctas_data$custom_reference_groups,
-  nSeed                   = 1,
-  strStudyCol             = "studyid"
+  nSeed = 1,
+  strStudyCol = "studyid"
 )
 
 head(dfResults)
@@ -192,6 +191,10 @@ process. In particular, we do the following during early development:
   coverage required.
 - **Workflow Tests** - Additional unit tests confirm that core workflows
   behave as expected.
+- **Issue-Linked Tests** - Every GitHub issue is either linked to at least
+  one test proving its requirement or labelled `qcthat-nocov`.
+  [{qcthat}](https://github.com/Gilead-Public/qcthat) reports the
+  issue-test matrix on every pull request and release.
 - **Function Documentation** - Detailed documentation for each exported
   function with examples is maintained with Roxygen.
 - **Package Checks** - Standard package checks are run using GitHub
