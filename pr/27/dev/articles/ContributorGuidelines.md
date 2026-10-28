@@ -34,6 +34,21 @@ is a stub that links here.
 
 5.  Open a pull request against `main`.
 
+## Issue-linked tests (qcthat)
+
+Every issue must be covered by qcthat:
+
+- Link the test that proves the issue’s requirement by putting the issue
+  number in the `test_that()` title, e.g.
+  `test_that("Transform_Range results must match source data (#32)", ...)`.
+  qcthat ignores issue numbers in comments.
+- Issues that need no test evidence (documentation, CI, refactoring) get
+  the `qcthat-nocov` label. Obsolete issues are closed as “not planned”.
+- Document the test in the issue in this order: sample data, preparation
+  functions, compared processing paths, output alignment, expected
+  result.
+- Tests for edge cases and errors do not need an issue.
+
 ## Quality control
 
 see README.md
