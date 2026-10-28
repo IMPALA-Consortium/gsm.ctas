@@ -415,3 +415,68 @@ test_that("Write_ctasapp files meet ctasapp file requirements (#33)", {
   expect_in(unique(dfResults$parameter_id), unique(dfInput$parameter_id))
   expect_in(unique(dfResults$site), unique(dfInput$site))
 })
+
+test_that("Pipeline renders the html report (#34)", {
+  skip_if_not_installed("workr")
+  skip_if_not_installed("gsm.mapping")
+  skip_if_not_installed("gsm.kri")
+  skip_if_not(rmarkdown::pandoc_available())
+
+  lRaw <- list(
+    Raw_DM = gsm.ctas::dm,
+    Raw_LB = gsm.ctas::lb,
+    Raw_VS = gsm.ctas::vs,
+    Raw_EG = gsm.ctas::eg,
+    Raw_RS = gsm.ctas::rs,
+    Raw_Queries = gsm.ctas::queries,
+    Raw_PD = gsm.ctas::pd
+  )
+
+  lMappingWorkflows <- workr::MakeWorkflowList(
+    strPath = system.file("workflow/1_mappings", package = "gsm.ctas")
+  )
+
+  lMetricWorkflows <- workr::MakeWorkflowList(
+    strPath = system.file("workflow/2_metrics", package = "gsm.ctas")
+  )
+
+  lReportingWorkflows <- workr::MakeWorkflowList(
+    strPath = system.file("workflow/3_reporting", package = "gsm.ctas")
+  )
+
+  lModuleWorkflows <- workr::MakeWorkflowList(
+    strPath = system.file("workflow/4_modules", package = "gsm.ctas")
+  )
+
+  lMapped <- suppressWarnings(suppressMessages(workr::RunWorkflows(
+    lWorkflows = lMappingWorkflows,
+    lData = gsm.mapping::Ingest(lRaw, gsm.mapping::CombineSpecs(lMappingWorkflows))
+  )))
+
+  lAnalysis <- suppressWarnings(suppressMessages(workr::RunWorkflows(
+    lWorkflows = lMetricWorkflows,
+    lData = lMapped
+  )))
+
+  lReporting <- suppressWarnings(suppressMessages(workr::RunWorkflows(
+    lWorkflows = lReportingWorkflows,
+    lData = c(lMapped, list(
+      lAnalyzed = lAnalysis,
+      lMetricWorkflows = lMetricWorkflows
+    ))
+  )))
+
+  # The module workflow writes the report into the working directory.
+  strDir <- withr::local_tempdir()
+  withr::local_dir(strDir)
+
+  suppressWarnings(suppressMessages(workr::RunWorkflows(
+    lWorkflows = lModuleWorkflows,
+    lData = lReporting
+  )))
+
+  vReports <- list.files(strDir, pattern = "\\.html$", full.names = TRUE)
+
+  expect_length(vReports, 1)
+  expect_gt(file.size(vReports), 0)
+})
