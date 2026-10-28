@@ -158,3 +158,47 @@ test_that("Standardize_Domain results must match source data (#29)", {
 
   expect_equal(dfLBReverted, dfLBOriginal, ignore_attr = TRUE)
 })
+
+test_that("Transform_OneHot results must match source data (#30)", {
+
+  dfSubjects <- data.frame(
+    studyid = gsm.ctas::dm$STUDYID,
+    subject_id = gsm.ctas::dm$USUBJID,
+    site = gsm.ctas::dm$SITEID,
+    country = gsm.ctas::dm$COUNTRY,
+    stringsAsFactors = FALSE
+  )
+
+  dfRS <- Standardize_Domain(
+    dfDomain = gsm.ctas::rs,
+    dfSubjects = dfSubjects,
+    strTestCDCol = "RSTESTCD",
+    strTestCol = "RSTEST",
+    strValueCol = "RSSTRESC",
+    strCategory = "Disease Response"
+  )
+
+  dfOneHot <- Transform_OneHot(dfRS)
+
+  # Each observation is encoded as 1 for its own level only.
+  dfRSReverted <- dfOneHot |>
+    dplyr::filter(result == 1) |>
+    dplyr::transmute(
+      STUDYID = studyid,
+      USUBJID = subject_id,
+      RSTESTCD = parameter_category_2,
+      VISIT = visit,
+      RSSTRESC = original_category
+    ) |>
+    dplyr::arrange(dplyr::across(dplyr::everything())) |>
+    as.data.frame()
+
+  # Transform_OneHot drops missing and empty results.
+  dfRSOriginal <- gsm.ctas::rs |>
+    dplyr::filter(!is.na(RSSTRESC), RSSTRESC != "") |>
+    dplyr::select(STUDYID, USUBJID, RSTESTCD, VISIT, RSSTRESC) |>
+    dplyr::arrange(dplyr::across(dplyr::everything())) |>
+    as.data.frame()
+
+  expect_equal(dfRSReverted, dfRSOriginal, ignore_attr = TRUE)
+})
