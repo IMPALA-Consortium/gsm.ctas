@@ -202,3 +202,57 @@ test_that("Transform_OneHot results must match source data (#30)", {
 
   expect_equal(dfRSReverted, dfRSOriginal, ignore_attr = TRUE)
 })
+
+test_that("Transform_Missing results must match source data (#31)", {
+
+  dfSubjects <- data.frame(
+    studyid = gsm.ctas::dm$STUDYID,
+    subject_id = gsm.ctas::dm$USUBJID,
+    site = gsm.ctas::dm$SITEID,
+    country = gsm.ctas::dm$COUNTRY,
+    stringsAsFactors = FALSE
+  )
+
+  dfLB <- Standardize_Domain(
+    dfDomain = gsm.ctas::lb,
+    dfSubjects = dfSubjects,
+    strTestCDCol = "LBTESTCD",
+    strTestCol = "LBTEST",
+    strValueCol = "LBSTRESN",
+    strCategory = "Labs"
+  )
+
+  dfMissing <- Transform_Missing(dfLB)
+
+  # result is the running ratio of missing values, so ratio x visit count is
+  # the cumulative number of missing values; its increments are the flags.
+  dfLBReverted <- dfMissing |>
+    dplyr::arrange(subject_id, parameter_category_2, timepoint_rank) |>
+    dplyr::mutate(
+      nMissing = round(dplyr::row_number() * result),
+      bMissing = nMissing - dplyr::lag(nMissing, default = 0) == 1,
+      .by = c(subject_id, parameter_category_2)
+    ) |>
+    dplyr::transmute(
+      STUDYID = studyid,
+      USUBJID = subject_id,
+      LBTESTCD = parameter_category_2,
+      VISIT = visit,
+      LBSTRESN_MISSING = bMissing
+    ) |>
+    dplyr::arrange(dplyr::across(dplyr::everything())) |>
+    as.data.frame()
+
+  dfLBOriginal <- gsm.ctas::lb |>
+    dplyr::transmute(
+      STUDYID,
+      USUBJID,
+      LBTESTCD,
+      VISIT,
+      LBSTRESN_MISSING = is.na(LBSTRESN)
+    ) |>
+    dplyr::arrange(dplyr::across(dplyr::everything())) |>
+    as.data.frame()
+
+  expect_equal(dfLBReverted, dfLBOriginal, ignore_attr = TRUE)
+})
