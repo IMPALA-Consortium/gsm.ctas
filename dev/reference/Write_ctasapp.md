@@ -24,7 +24,7 @@ Write_ctasapp(lReporting, strDir, strFormat = "parquet")
 - lReporting:
 
   `list` Output of
-  [`workr::RunWorkflows()`](https://rdrr.io/pkg/workr/man/RunWorkflows.html)
+  [`workr::RunWorkflows()`](https://gilead-public.github.io/workr/reference/RunWorkflows.html)
   on the reporting workflows – a named list whose elements are
   themselves named lists of data frames.
 

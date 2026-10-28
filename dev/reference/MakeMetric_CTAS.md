@@ -31,7 +31,7 @@ MakeMetric_CTAS(
 - lMetricWorkflows:
 
   `list` Metric workflow YAML objects
-  ([`workr::MakeWorkflowList()`](https://rdrr.io/pkg/workr/man/MakeWorkflowList.html)
+  ([`workr::MakeWorkflowList()`](https://gilead-public.github.io/workr/reference/MakeWorkflowList.html)
   output from `inst/workflow/2_metrics`). Each element's `meta:` block
   supplies the CTAS parameter columns for the workflow whose `meta$ID`
   matches `parameter_category_3`. Metric families with no matching

@@ -113,6 +113,24 @@ development header.</p></li>
 </ol>
 </div>
 <div class="section level2">
+<h2 id="issue-linked-tests-qcthat">Issue-linked tests (qcthat)<a class="anchor" aria-label="anchor" href="#issue-linked-tests-qcthat"></a>
+</h2>
+<p>Every issue must be covered by qcthat:</p>
+<ul>
+<li>Link the test that proves the issue’s requirement by putting the
+issue number in the <code>test_that()</code> title, e.g.
+<code>test_that("Transform_Range results must match source data (#32)", ...)</code>.
+qcthat ignores issue numbers in comments.</li>
+<li>Issues that need no test evidence (documentation, CI, refactoring)
+get the <code>qcthat-nocov</code> label. Obsolete issues are closed as
+“not planned”.</li>
+<li>Document the test in the issue in this order: sample data,
+preparation functions, compared processing paths, output alignment,
+expected result.</li>
+<li>Tests for edge cases and errors do not need an issue.</li>
+</ul>
+</div>
+<div class="section level2">
 <h2 id="quality-control">Quality control<a class="anchor" aria-label="anchor" href="#quality-control"></a>
 </h2>
 <p>see README.md</p>

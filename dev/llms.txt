@@ -52,7 +52,7 @@ pak::pak("IMPALA-Consortium/gsm.ctas")
 
 `gsm.ctas` ships three gsm workflow layers in `inst/workflow/`, so a
 full run is a sequence of
-[`RunWorkflows()`](https://rdrr.io/pkg/workr/man/RunWorkflows.html)
+[`RunWorkflows()`](https://gilead-public.github.io/workr/reference/RunWorkflows.html)
 calls over SDTM input:
 
 ``` r
