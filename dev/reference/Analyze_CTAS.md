@@ -31,6 +31,7 @@ Analyze_CTAS(
   dfCustomReferenceGroups = ctas::ctas_data$custom_reference_groups,
   nSeed = NULL,
   strStudyCol = "studyid",
+  bStopOnError = TRUE,
   ...
 )
 ```
@@ -124,6 +125,14 @@ Analyze_CTAS(
   `character` Column on `dfInput` identifying the study. `NULL` disables
   the split and drops the `study` output column.
 
+- bStopOnError:
+
+  `logical` When `FALSE`, an error raised by CTAS (including CTAS
+  dropping every timeseries) is turned into a warning and a zero-row
+  `results` frame is returned, so the metric workflow still ships its
+  `input` and `untransformed` frames. Input validation errors always
+  abort.
+
 - ...:
 
   Further arguments passed to
@@ -177,7 +186,9 @@ dfResults <- Analyze_CTAS(dfValues, nSeed = 1)
 #> Caused by warning in `cor()`:
 #> ! the standard deviation is zero
 #> ℹ Run `dplyr::last_dplyr_warnings()` to see the 25 remaining warnings.
-lAnalysis <- list(ID = "numeric", results = dfResults,
-                  input = dfValues, untransformed = dfValues)
+lAnalysis <- list(
+  ID = "numeric", results = dfResults,
+  input = dfValues, untransformed = dfValues
+)
 # }
 ```

@@ -47,10 +47,9 @@ deployments of ctasapp read parquet from `embedded:`. `csv` is offered
 because the dashboard's upload tab accepts it and it needs no extra
 dependency.
 
-Empty frames are skipped (an empty `untransformed` is normal - only some
-`Input_*()` functions record original values). The function errors if
-`lReporting` contains no writable frames, so a mis-shaped input never
-silently produces an empty output directory.
+Empty frames are skipped. The function errors if `lReporting` contains
+no writable frames, so a mis-shaped input never silently produces an
+empty output directory.
 
 ## Examples
 

@@ -49,6 +49,7 @@ queries side (Reporting_Queries = list(queries)) in a single call."><meta name="
   <ul class="dropdown-menu" aria-labelledby="dropdown-examples"><li><a class="dropdown-item" href="../examples/Example_SiteCTASReport.html">Site CTAS Report</a></li>
   </ul></li>
 <li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
+<li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json"></form></li>
       </ul></div>
@@ -112,8 +113,7 @@ lists of data frames.</p></dd>
 deployments of ctasapp read parquet from <code>embedded:</code>. <code>csv</code> is offered
 because the dashboard's upload tab accepts it and it needs no extra
 dependency.</p>
-<p>Empty frames are skipped (an empty <code>untransformed</code> is normal - only some
-<code>Input_*()</code> functions record original values). The function errors if
+<p>Empty frames are skipped. The function errors if
 <code>lReporting</code> contains no writable frames, so a mis-shaped input never
 silently produces an empty output directory.</p>
     </div>

@@ -21,6 +21,7 @@ Standardize_Domain(
   strVisitNumCol = "VISITNUM",
   strLowCol = NULL,
   strHighCol = NULL,
+  strCharCol = NULL,
   strCategory,
   strPrefix = ""
 )
@@ -47,6 +48,12 @@ Standardize_Domain(
   `character` Reference-bound columns. `NULL` when the source has no
   ranges.
 
+- strCharCol:
+
+  `character` Optional character result column (e.g. `LBSTRESC`). Fills
+  `original_category` where `strValueCol` is `NA`, so qualitative
+  results stay visible in ctasapp's source data. `NULL` by default.
+
 - strCategory:
 
   `character` Constant stamped onto `parameter_category_1`.
@@ -63,12 +70,15 @@ Standardize_Domain(
 SDTM-derived columns (`visit`, `visitnum`, `value`, and `low`/`high`
 when supplied) alongside the CTAS-ready columns (`parameter_category_2`,
 `parameter_category_3 = "numeric"`, `timepoint_1_name`,
-`timepoint_rank`, `result`, `baseline`). `visitnum` and `timepoint_rank`
-are recalculated as a contiguous `1..N` `row_number()` within each
-`(subject_id, parameter_id)` group, ordered by the source `VISITNUM`
-with `VISIT` as a tiebreaker – matching ctasapp's
-`recalculate_timepoint_rank()`. The default output is ready to feed
-straight into [`Analyze_CTAS()`](Analyze_CTAS.md); use
+`timepoint_rank`, `result`, `baseline`) and the ctasapp `untransformed`
+source columns (`original_value`, `lower`, `upper`,
+`original_category`). No rows are dropped apart from subjects absent
+from `dfSubjects`, so the output can serve as the `untransformed` frame.
+`visitnum` and `timepoint_rank` are recalculated as a contiguous `1..N`
+`row_number()` within each `(subject_id, parameter_id)` group, ordered
+by the source `VISITNUM` with `VISIT` as a tiebreaker – matching
+ctasapp's `recalculate_timepoint_rank()`. The default output is ready to
+feed straight into [`Analyze_CTAS()`](Analyze_CTAS.md); use
 [`Transform_Range()`](Transform_Range.md) or
 [`Transform_Missing()`](Transform_Missing.md) to overwrite
 `result`/`parameter_category_3`/`parameter_id` for those transforms.
@@ -92,12 +102,13 @@ Standardize_Domain(
   strTestCDCol = "VSTESTCD", strTestCol = "VSTEST", strValueCol = "VSSTRESN",
   strCategory = "Vital Signs"
 )
-#> # A tibble: 1 × 17
+#> # A tibble: 1 × 21
 #>   subject_id parameter_id parameter_name          parameter_category_1
 #>   <chr>      <chr>        <chr>                   <chr>               
 #> 1 S1         SYSBP        Systolic Blood Pressure Vital Signs         
-#> # ℹ 13 more variables: parameter_category_2 <chr>, parameter_category_3 <chr>,
+#> # ℹ 17 more variables: parameter_category_2 <chr>, parameter_category_3 <chr>,
 #> #   visit <chr>, visitnum <int>, timepoint_1_name <chr>,
 #> #   timepoint_2_name <chr>, timepoint_rank <int>, value <dbl>, result <dbl>,
-#> #   baseline <dbl>, studyid <chr>, site <chr>, country <chr>
+#> #   baseline <dbl>, original_value <dbl>, lower <dbl>, upper <dbl>,
+#> #   original_category <chr>, studyid <chr>, site <chr>, country <chr>
 ```

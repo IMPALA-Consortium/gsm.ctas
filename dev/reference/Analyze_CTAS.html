@@ -35,6 +35,7 @@ per study, and returns the flat results frame ctasapp displays."><meta name="rob
   <ul class="dropdown-menu" aria-labelledby="dropdown-examples"><li><a class="dropdown-item" href="../examples/Example_SiteCTASReport.html">Site CTAS Report</a></li>
   </ul></li>
 <li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
+<li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json"></form></li>
       </ul></div>
@@ -80,6 +81,7 @@ per study, and returns the flat <code>results</code> frame ctasapp displays.</p>
 <span>  dfCustomReferenceGroups <span class="op">=</span> <span class="fu">ctas</span><span class="fu">::</span><span class="va"><a href="https://rdrr.io/pkg/ctas/man/ctas_data.html" class="external-link">ctas_data</a></span><span class="op">$</span><span class="va">custom_reference_groups</span>,</span>
 <span>  nSeed <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  strStudyCol <span class="op">=</span> <span class="st">"studyid"</span>,</span>
+<span>  bStopOnError <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  <span class="va">...</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
@@ -175,6 +177,14 @@ forwarded to <code><a href="https://rdrr.io/pkg/ctas/man/process_a_study.html" c
 <code>NULL</code> disables the split and drops the <code>study</code> output column.</p></dd>
 
 
+<dt id="arg-bstoponerror">bStopOnError<a class="anchor" aria-label="anchor" href="#arg-bstoponerror"></a></dt>
+<dd><p><code>logical</code> When <code>FALSE</code>, an error raised by CTAS
+(including CTAS dropping every timeseries) is turned into a warning and
+a zero-row <code>results</code> frame is returned, so the metric workflow still
+ships its <code>input</code> and <code>untransformed</code> frames. Input validation errors
+always abort.</p></dd>
+
+
 <dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>
 <dd><p>Further arguments passed to <code><a href="https://rdrr.io/pkg/ctas/man/process_a_study.html" class="external-link">ctas::process_a_study()</a></code>.</p></dd>
 
@@ -224,8 +234,10 @@ features individually from <code>meta:</code>.</p>
 <span class="r-wrn co"><span class="r-pr">#&gt;</span> Caused by warning in `cor()`:</span>
 <span class="r-wrn co"><span class="r-pr">#&gt;</span> <span style="color: #BBBB00;">!</span> the standard deviation is zero</span>
 <span class="r-wrn co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> Run `dplyr::last_dplyr_warnings()` to see the 25 remaining warnings.</span>
-<span class="r-in"><span><span class="va">lAnalysis</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>ID <span class="op">=</span> <span class="st">"numeric"</span>, results <span class="op">=</span> <span class="va">dfResults</span>,</span></span>
-<span class="r-in"><span>                  input <span class="op">=</span> <span class="va">dfValues</span>, untransformed <span class="op">=</span> <span class="va">dfValues</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">lAnalysis</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span></span>
+<span class="r-in"><span>  ID <span class="op">=</span> <span class="st">"numeric"</span>, results <span class="op">=</span> <span class="va">dfResults</span>,</span></span>
+<span class="r-in"><span>  input <span class="op">=</span> <span class="va">dfValues</span>, untransformed <span class="op">=</span> <span class="va">dfValues</span></span></span>
+<span class="r-in"><span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="co"># }</span></span></span>
 <span class="r-in"><span></span></span>
 </code></pre></div>

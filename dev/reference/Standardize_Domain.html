@@ -35,6 +35,7 @@ transform values without needing to know which SDTM domain fed them."><meta name
   <ul class="dropdown-menu" aria-labelledby="dropdown-examples"><li><a class="dropdown-item" href="../examples/Example_SiteCTASReport.html">Site CTAS Report</a></li>
   </ul></li>
 <li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
+<li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json"></form></li>
       </ul></div>
@@ -71,6 +72,7 @@ transform values without needing to know which SDTM domain fed them.</p>
 <span>  strVisitNumCol <span class="op">=</span> <span class="st">"VISITNUM"</span>,</span>
 <span>  strLowCol <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  strHighCol <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  strCharCol <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  <span class="va">strCategory</span>,</span>
 <span>  strPrefix <span class="op">=</span> <span class="st">""</span></span>
 <span><span class="op">)</span></span></code></pre></div>
@@ -98,6 +100,13 @@ transform values without needing to know which SDTM domain fed them.</p>
 when the source has no ranges.</p></dd>
 
 
+<dt id="arg-strcharcol">strCharCol<a class="anchor" aria-label="anchor" href="#arg-strcharcol"></a></dt>
+<dd><p><code>character</code> Optional character result column (e.g.
+<code>LBSTRESC</code>). Fills <code>original_category</code> where <code>strValueCol</code> is <code>NA</code>, so
+qualitative results stay visible in ctasapp's source data. <code>NULL</code> by
+default.</p></dd>
+
+
 <dt id="arg-strcategory">strCategory<a class="anchor" aria-label="anchor" href="#arg-strcategory"></a></dt>
 <dd><p><code>character</code> Constant stamped onto <code>parameter_category_1</code>.</p></dd>
 
@@ -114,7 +123,10 @@ always keeps the raw test code so ctasapp can stitch sibling metrics.</p></dd>
 SDTM-derived columns (<code>visit</code>, <code>visitnum</code>, <code>value</code>, and <code>low</code>/<code>high</code> when
 supplied) alongside the CTAS-ready columns (<code>parameter_category_2</code>,
 <code>parameter_category_3 = "numeric"</code>, <code>timepoint_1_name</code>, <code>timepoint_rank</code>,
-<code>result</code>, <code>baseline</code>). <code>visitnum</code> and <code>timepoint_rank</code> are recalculated
+<code>result</code>, <code>baseline</code>) and the ctasapp <code>untransformed</code> source columns
+(<code>original_value</code>, <code>lower</code>, <code>upper</code>, <code>original_category</code>). No rows are
+dropped apart from subjects absent from <code>dfSubjects</code>, so the output can
+serve as the <code>untransformed</code> frame. <code>visitnum</code> and <code>timepoint_rank</code> are recalculated
 as a contiguous <code>1..N</code> <code>row_number()</code> within each <code>(subject_id, parameter_id)</code> group, ordered by the source <code>VISITNUM</code> with <code>VISIT</code> as
 a tiebreaker – matching ctasapp's <code>recalculate_timepoint_rank()</code>.
 The default output is ready to feed straight into
@@ -140,14 +152,15 @@ meaningful for range-carrying sources such as LB.</p>
 <span class="r-in"><span>  strTestCDCol <span class="op">=</span> <span class="st">"VSTESTCD"</span>, strTestCol <span class="op">=</span> <span class="st">"VSTEST"</span>, strValueCol <span class="op">=</span> <span class="st">"VSSTRESN"</span>,</span></span>
 <span class="r-in"><span>  strCategory <span class="op">=</span> <span class="st">"Vital Signs"</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #949494;"># A tibble: 1 × 17</span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #949494;"># A tibble: 1 × 21</span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   subject_id parameter_id parameter_name          parameter_category_1</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>      <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>        <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>                   <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>               </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #BCBCBC;">1</span> S1         SYSBP        Systolic Blood Pressure Vital Signs         </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #949494;"># ℹ 13 more variables: parameter_category_2 &lt;chr&gt;, parameter_category_3 &lt;chr&gt;,</span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #949494;"># ℹ 17 more variables: parameter_category_2 &lt;chr&gt;, parameter_category_3 &lt;chr&gt;,</span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #949494;">#   visit &lt;chr&gt;, visitnum &lt;int&gt;, timepoint_1_name &lt;chr&gt;,</span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #949494;">#   timepoint_2_name &lt;chr&gt;, timepoint_rank &lt;int&gt;, value &lt;dbl&gt;, result &lt;dbl&gt;,</span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #949494;">#   baseline &lt;dbl&gt;, studyid &lt;chr&gt;, site &lt;chr&gt;, country &lt;chr&gt;</span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #949494;">#   baseline &lt;dbl&gt;, original_value &lt;dbl&gt;, lower &lt;dbl&gt;, upper &lt;dbl&gt;,</span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> <span style="color: #949494;">#   original_category &lt;chr&gt;, studyid &lt;chr&gt;, site &lt;chr&gt;, country &lt;chr&gt;</span></span>
 <span class="r-in"><span></span></span>
 </code></pre></div>
     </div>

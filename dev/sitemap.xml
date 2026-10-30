@@ -9,6 +9,7 @@
 <url><loc>/dev/authors.html</loc></url>
 <url><loc>/dev/examples/Example_SiteCTASReport.html</loc></url>
 <url><loc>/dev/index.html</loc></url>
+<url><loc>/dev/news/index.html</loc></url>
 <url><loc>/dev/reference/Analyze_CTAS.html</loc></url>
 <url><loc>/dev/reference/AssembleFeatures.html</loc></url>
 <url><loc>/dev/reference/AssertCTASInput.html</loc></url>
@@ -17,6 +18,7 @@
 <url><loc>/dev/reference/BindResults_CTAS.html</loc></url>
 <url><loc>/dev/reference/BuildCTASInput.html</loc></url>
 <url><loc>/dev/reference/BuildResults.html</loc></url>
+<url><loc>/dev/reference/EmptyCTASResults.html</loc></url>
 <url><loc>/dev/reference/EmptyCTASUntransformed.html</loc></url>
 <url><loc>/dev/reference/FindMetricMeta.html</loc></url>
 <url><loc>/dev/reference/Flag_CTAS.html</loc></url>

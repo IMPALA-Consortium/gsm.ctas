@@ -4,7 +4,9 @@ Consumes the long-format frame produced by
 [`Standardize_Domain()`](Standardize_Domain.md) and replaces `value`
 with a running missing ratio per (subject, parameter, visit) so CTAS can
 score sites on data-completeness patterns. Rows with `NA` values are
-kept because they carry the signal.
+kept because they carry the signal. Fields that are `NA` for every row
+are kept as well (their ratio is a constant `1`) and listed in a message
+so the all-missing case is explicit.
 
 ## Usage
 

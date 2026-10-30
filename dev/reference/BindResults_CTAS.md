@@ -21,20 +21,26 @@ BindResults_CTAS(lAnalysis, strName)
 
 - strName:
 
-  `character` Shard name to pluck from each entry.
+  `character` Frame name to pluck from each entry.
 
 ## Value
 
 `data.frame` The bound frame. Zero rows when no entry contained the
-shard.
+frame.
 
 ## Details
 
 `studyid` is renamed to `study` when present so the bound frames match
-the ctasapp column convention. For `"untransformed"`, rows are dropped
-only when both `original_value` and `original_category` are missing –
-numeric metrics carry `original_value`, categorical metrics carry
-`original_category`, and either signal is enough to keep the row.
+the ctasapp column convention.
+
+For `"untransformed"`, the transformation columns (`value`, `result`,
+`low`, `high`, `parameter_id`, `parameter_category_3`) are removed
+before binding, since their types differ between metrics. Rows where no
+value was reported are kept so source data stays visible in ctasapp.
+Rows are de-duplicated on the ctasapp join keys (`study`, `subject_id`,
+`parameter_category_2`, `timepoint_1_name`), keeping the row with the
+most non-missing `original_value`/`lower`/`upper`/`original_category`,
+so a field fed into several metrics appears once.
 
 ## Examples
 
