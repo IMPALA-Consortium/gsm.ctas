@@ -41,6 +41,15 @@ test_that("untransformed keeps rows without any original value", {
   expect_setequal(df$subject_id, c("s1", "s2", "s3"))
 })
 
+test_that("untransformed without join keys is returned as bound", {
+  df <- BindResults_CTAS(
+    list(A = list(untransformed = data.frame(original_value = c(1, 1)))),
+    "untransformed"
+  )
+
+  expect_equal(nrow(df), 2)
+})
+
 # The same source row arrives from every metric that reads its field; keep the fullest copy.
 test_that("untransformed is de-duplicated on the join keys across metrics", {
   dfRange <- data.frame(

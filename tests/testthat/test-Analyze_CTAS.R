@@ -152,6 +152,11 @@ test_that("Analyze_CTAS returns empty results with a warning when CTAS errors", 
       names(dfResults)
   ))
   expect_error(Analyze_CTAS(df), "engine exploded")
+
+  dfNoStudy <- suppressWarnings(
+    Analyze_CTAS(df, strStudyCol = NULL, bStopOnError = FALSE)
+  )
+  expect_false("study" %in% names(dfNoStudy))
 })
 
 test_that("Analyze_CTAS still aborts on invalid input when bStopOnError is FALSE", {
