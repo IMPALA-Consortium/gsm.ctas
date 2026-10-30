@@ -17,6 +17,7 @@ meta:
   ScoringMethod: ks
   PadjustMethod: fdr
   Seed: 20260813
+  StopOnError: false
 spec:
   Mapped_Subjects:
     studyid:
@@ -109,19 +110,13 @@ steps:
       strScoringMethod: ScoringMethod
       strPadjustMethod: PadjustMethod
       nSeed: Seed
-  # `original_category` on `Temp_CTAS_Values` carries the raw label
-  # (e.g. `"CR"`, `"Obese"`). We de-duplicate to one row per
-  # (subject x cat2 x visit) so it can flow through the `untransformed`
-  # output without repeating each observation once per level.
-  - output: Temp_CTAS_Untransformed
-    name: workr::RunQuery
-    params:
-      df: Temp_CTAS_Values
-      strQuery: "SELECT * FROM df QUALIFY ROW_NUMBER() OVER (PARTITION BY subject_id, parameter_category_2, timepoint_1_name ORDER BY parameter_id, original_category, timepoint_rank) = 1"
+      bStopOnError: StopOnError
+  # `Temp_CTAS_Long` holds one row per observation incl. missing labels;
+  # `Transform_OneHot` would repeat each observation once per level.
   - output: lAnalysis
     name: base::list
     params:
       ID: ID
       results: Temp_CTAS_Results
       input: Temp_CTAS_Values
-      untransformed: Temp_CTAS_Untransformed
+      untransformed: Temp_CTAS_Long

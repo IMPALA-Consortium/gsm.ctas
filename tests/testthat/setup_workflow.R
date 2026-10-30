@@ -41,9 +41,10 @@ if (bWorkflowRunnable) {
     pharmaversesdtm::rs_onco$USUBJID %in% dmSmall$USUBJID &
       pharmaversesdtm::rs_onco$RSTESTCD == "OVRLRESP",
   ]
+  # ECGINT is text-only, so EGSTRESN is NA for every row.
   egSmall <- pharmaversesdtm::eg[
     pharmaversesdtm::eg$USUBJID %in% dmSmall$USUBJID &
-      pharmaversesdtm::eg$EGTESTCD %in% c("HR", "QT", "RR"),
+      pharmaversesdtm::eg$EGTESTCD %in% c("HR", "QT", "RR", "ECGINT"),
   ]
 
   # Stack a two-study fixture by cloning the slice and re-labelling STUDYID

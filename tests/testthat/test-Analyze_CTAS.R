@@ -132,6 +132,35 @@ test_that("Analyze_CTAS errors informatively when no timeseries can be built", {
   )
 })
 
+# --- bStopOnError ------------------------------------------------------------
+
+test_that("Analyze_CTAS returns empty results with a warning when CTAS errors", {
+  df <- MakeInput()
+  local_mocked_bindings(
+    process_a_study = function(...) stop("engine exploded"),
+    .package = "ctas"
+  )
+
+  expect_warning(
+    dfResults <- Analyze_CTAS(df, bStopOnError = FALSE),
+    "engine exploded"
+  )
+
+  expect_equal(nrow(dfResults), 0)
+  expect_true(all(
+    c("site", "timeseries_id", "parameter_id", "feature", "fdr_corrected_pvalue_logp", "study") %in%
+      names(dfResults)
+  ))
+  expect_error(Analyze_CTAS(df), "engine exploded")
+})
+
+test_that("Analyze_CTAS still aborts on invalid input when bStopOnError is FALSE", {
+  expect_error(
+    Analyze_CTAS(MakeInput(nSites = 1), bStopOnError = FALSE),
+    "at least 2 sites"
+  )
+})
+
 # --- successful run ----------------------------------------------------------
 
 test_that("Analyze_CTAS is reproducible when nSeed is supplied", {

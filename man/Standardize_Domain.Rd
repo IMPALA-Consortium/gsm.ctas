@@ -15,6 +15,7 @@ Standardize_Domain(
   strVisitNumCol = "VISITNUM",
   strLowCol = NULL,
   strHighCol = NULL,
+  strCharCol = NULL,
   strCategory,
   strPrefix = ""
 )
@@ -30,6 +31,11 @@ Standardize_Domain(
 \item{strLowCol, strHighCol}{\code{character} Reference-bound columns. \code{NULL}
 when the source has no ranges.}
 
+\item{strCharCol}{\code{character} Optional character result column (e.g.
+\code{LBSTRESC}). Fills \code{original_category} where \code{strValueCol} is \code{NA}, so
+qualitative results stay visible in ctasapp's source data. \code{NULL} by
+default.}
+
 \item{strCategory}{\code{character} Constant stamped onto \code{parameter_category_1}.}
 
 \item{strPrefix}{\code{character} Optional prefix applied to \code{parameter_id}
@@ -41,7 +47,10 @@ always keeps the raw test code so ctasapp can stitch sibling metrics.}
 SDTM-derived columns (\code{visit}, \code{visitnum}, \code{value}, and \code{low}/\code{high} when
 supplied) alongside the CTAS-ready columns (\code{parameter_category_2},
 \code{parameter_category_3 = "numeric"}, \code{timepoint_1_name}, \code{timepoint_rank},
-\code{result}, \code{baseline}). \code{visitnum} and \code{timepoint_rank} are recalculated
+\code{result}, \code{baseline}) and the ctasapp \code{untransformed} source columns
+(\code{original_value}, \code{lower}, \code{upper}, \code{original_category}). No rows are
+dropped apart from subjects absent from \code{dfSubjects}, so the output can
+serve as the \code{untransformed} frame. \code{visitnum} and \code{timepoint_rank} are recalculated
 as a contiguous \verb{1..N} \code{row_number()} within each \verb{(subject_id, parameter_id)} group, ordered by the source \code{VISITNUM} with \code{VISIT} as
 a tiebreaker -- matching ctasapp's \code{recalculate_timepoint_rank()}.
 The default output is ready to feed straight into

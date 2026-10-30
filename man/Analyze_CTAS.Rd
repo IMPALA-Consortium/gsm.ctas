@@ -24,6 +24,7 @@ Analyze_CTAS(
   dfCustomReferenceGroups = ctas::ctas_data$custom_reference_groups,
   nSeed = NULL,
   strStudyCol = "studyid",
+  bStopOnError = TRUE,
   ...
 )
 }
@@ -77,6 +78,12 @@ forwarded to \code{\link[ctas:process_a_study]{ctas::process_a_study()}}. Defaul
 \item{strStudyCol}{\code{character} Column on \code{dfInput} identifying the study.
 \code{NULL} disables the split and drops the \code{study} output column.}
 
+\item{bStopOnError}{\code{logical} When \code{FALSE}, an error raised by CTAS
+(including CTAS dropping every timeseries) is turned into a warning and
+a zero-row \code{results} frame is returned, so the metric workflow still
+ships its \code{input} and \code{untransformed} frames. Input validation errors
+always abort.}
+
 \item{...}{Further arguments passed to \code{\link[ctas:process_a_study]{ctas::process_a_study()}}.}
 }
 \value{
@@ -122,8 +129,10 @@ dfValues <- Standardize_Domain(
   strCategory = "Vital Signs"
 )
 dfResults <- Analyze_CTAS(dfValues, nSeed = 1)
-lAnalysis <- list(ID = "numeric", results = dfResults,
-                  input = dfValues, untransformed = dfValues)
+lAnalysis <- list(
+  ID = "numeric", results = dfResults,
+  input = dfValues, untransformed = dfValues
+)
 }
 
 }

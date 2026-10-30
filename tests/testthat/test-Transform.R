@@ -191,23 +191,53 @@ test_that("Standardize_Domain breaks visitnum ties on the VISIT name", {
   expect_equal(dfLong$timepoint_rank, c(1, 2))
 })
 
+test_that("Standardize_Domain copies a character value into original_category", {
+  dfLong <- MakeRSLong()
+
+  expect_equal(
+    dfLong$original_category,
+    ifelse(nzchar(trimws(dfLong$value)), dfLong$value, NA_character_)
+  )
+  expect_true(all(is.na(dfLong$original_value)))
+})
+
 # --- Transform_Range -------------------------------------------------------------
 
-test_that("Transform_Range drops rows with an unusable reference range", {
-  dfLong <- data.frame(
+MakeRangeLong <- function(vValue, vLow, vHigh, strField = "ALT") {
+  data.frame(
     studyid = "A", subject_id = "S1", site = "701",
-    parameter_id = "ALT", parameter_name = "ALT",
-    parameter_category_1 = "Labs", parameter_category_2 = "ALT",
-    visit = c("WEEK 2", "WEEK 4"), visitnum = c(3, 4),
-    value = c(10, 40), low = c(10, NA), high = c(40, 40)
+    parameter_id = strField, parameter_name = strField,
+    parameter_category_1 = "Labs", parameter_category_2 = strField,
+    visit = paste("WEEK", seq_along(vValue)), visitnum = seq_along(vValue),
+    value = vValue, low = vLow, high = vHigh
+  )
+}
+
+test_that("dMaxShareMissingRange decides between RANGE_ and NUM_", {
+  dfLong <- MakeRangeLong(c(1, 2, 3), c(NA, 0, 0), c(NA, 4, 4))
+
+  dfRange <- suppressMessages(Transform_Range(dfLong, dMaxShareMissingRange = 0.5))
+  expect_setequal(unique(dfRange$parameter_id), "RANGE_ALT")
+  expect_equal(dfRange$result, c(NA, 0.5, 0.75))
+
+  dfNum <- suppressMessages(Transform_Range(dfLong, dMaxShareMissingRange = 0.2))
+  expect_setequal(unique(dfNum$parameter_id), "NUM_ALT")
+  expect_setequal(unique(dfNum$parameter_category_3), "numeric")
+  expect_equal(dfNum$result, c(1, 2, 3))
+})
+
+# --- Transform_Missing -----------------------------------------------------------
+
+test_that("Transform_Missing keeps an all-NA field and names it in a message (#39)", {
+  dfLong <- dplyr::bind_rows(
+    MakeRangeLong(c(NA, NA), c(0, 0), c(1, 1), "COLOR"),
+    MakeRangeLong(c(10, NA), c(0, 0), c(40, 40), "ALT")
   )
 
-  expect_warning(
-    df <- Transform_Range(dfLong),
-    "unusable reference range"
-  )
+  expect_message(df <- Transform_Missing(dfLong), "COLOR")
 
-  expect_equal(nrow(df), 1)
+  expect_equal(df$result[df$parameter_category_2 == "COLOR"], c(1, 1))
+  expect_setequal(unique(df$parameter_id), c("MISS_COLOR", "MISS_ALT"))
 })
 
 # --- Transform_OneHot -----------------------------------------------------------

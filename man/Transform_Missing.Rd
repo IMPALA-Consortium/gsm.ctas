@@ -21,7 +21,9 @@ metrics on the same field.
 Consumes the long-format frame produced by \code{\link[=Standardize_Domain]{Standardize_Domain()}} and
 replaces \code{value} with a running missing ratio per (subject, parameter,
 visit) so CTAS can score sites on data-completeness patterns. Rows with
-\code{NA} values are kept because they carry the signal.
+\code{NA} values are kept because they carry the signal. Fields that are \code{NA}
+for every row are kept as well (their ratio is a constant \code{1}) and listed
+in a message so the all-missing case is explicit.
 }
 \section{Data Specification}{
 

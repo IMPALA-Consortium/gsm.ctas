@@ -106,13 +106,27 @@ test_that("ratio_missing metric drops the autocorr feature", {
   )
 })
 
-test_that("only range_normalized publishes an untransformed shard", {
-  expect_false("untransformed" %in% names(lAnalysis$Analysis_numeric))
-  expect_false("untransformed" %in% names(lAnalysis$Analysis_ratio_missing))
-  expect_gt(nrow(lAnalysis$Analysis_range_normalized$untransformed), 0)
-  expect_true(
-    "original_value" %in% names(lAnalysis$Analysis_range_normalized$untransformed)
-  )
+test_that("an all-NA field keeps MISS_ input and raw untransformed rows (#39)", {
+  dfMissInput <- lAnalysis$Analysis_ratio_missing$input
+  vECGINT <- dfMissInput$result[dfMissInput$parameter_id == "MISS_ECGINT"]
+  expect_gt(length(vECGINT), 0)
+  expect_true(all(vECGINT == 1))
+
+  dfUntransformed <- BindResults_CTAS(lAnalysis, "untransformed")
+  dfECGINT <- dfUntransformed[dfUntransformed$parameter_category_2 == "ECGINT", ]
+  dfSource <- egSmall[
+    egSmall$EGTESTCD == "ECGINT" & !grepl("unsch", tolower(egSmall$VISIT)),
+  ]
+  expect_equal(nrow(dfECGINT), nrow(unique(dfSource[, c("STUDYID", "USUBJID", "VISIT")])))
+  expect_true(all(is.na(dfECGINT$original_value)))
+  expect_true(all(!is.na(dfECGINT$original_category)))
+})
+
+test_that("a field CTAS drops still ships input and untransformed (#39)", {
+  lNumeric <- lAnalysis$Analysis_numeric
+  expect_false("ECGINT" %in% lNumeric$results$parameter_category_2)
+  expect_true("ECGINT" %in% lNumeric$input$parameter_category_2)
+  expect_true("ECGINT" %in% lNumeric$untransformed$parameter_category_2)
 })
 
 test_that("parameter_category_3 identifies the transformation each metric ran", {

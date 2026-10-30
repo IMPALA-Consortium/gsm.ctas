@@ -16,6 +16,10 @@
 #'   `character` SDTM column names to translate.
 #' @param strLowCol,strHighCol `character` Reference-bound columns. `NULL`
 #'   when the source has no ranges.
+#' @param strCharCol `character` Optional character result column (e.g.
+#'   `LBSTRESC`). Fills `original_category` where `strValueCol` is `NA`, so
+#'   qualitative results stay visible in ctasapp's source data. `NULL` by
+#'   default.
 #' @param strCategory `character` Constant stamped onto `parameter_category_1`.
 #' @param strPrefix `character` Optional prefix applied to `parameter_id`
 #'   (e.g. `"NUM"` -> `"NUM_SYSBP"`). Empty by default; `parameter_category_2`
@@ -25,7 +29,10 @@
 #'   SDTM-derived columns (`visit`, `visitnum`, `value`, and `low`/`high` when
 #'   supplied) alongside the CTAS-ready columns (`parameter_category_2`,
 #'   `parameter_category_3 = "numeric"`, `timepoint_1_name`, `timepoint_rank`,
-#'   `result`, `baseline`). `visitnum` and `timepoint_rank` are recalculated
+#'   `result`, `baseline`) and the ctasapp `untransformed` source columns
+#'   (`original_value`, `lower`, `upper`, `original_category`). No rows are
+#'   dropped apart from subjects absent from `dfSubjects`, so the output can
+#'   serve as the `untransformed` frame. `visitnum` and `timepoint_rank` are recalculated
 #'   as a contiguous `1..N` `row_number()` within each `(subject_id,
 #'   parameter_id)` group, ordered by the source `VISITNUM` with `VISIT` as
 #'   a tiebreaker -- matching ctasapp's `recalculate_timepoint_rank()`.
@@ -57,13 +64,14 @@ Standardize_Domain <- function(dfDomain,
                                strVisitNumCol = "VISITNUM",
                                strLowCol = NULL,
                                strHighCol = NULL,
+                               strCharCol = NULL,
                                strCategory,
                                strPrefix = "") {
   AssertColumns(
     dfDomain,
     c(
       strSubjectCol, strTestCDCol, strTestCol, strValueCol,
-      strVisitCol, strVisitNumCol, strLowCol, strHighCol
+      strVisitCol, strVisitNumCol, strLowCol, strHighCol, strCharCol
     ),
     "dfDomain"
   )
@@ -96,6 +104,23 @@ Standardize_Domain <- function(dfDomain,
   if (!is.null(strHighCol)) {
     dfLong$high <- as.numeric(dfDomain[[strHighCol]])
   }
+
+  vCategory <- if (is.numeric(vValue)) {
+    rep(NA_character_, length(vValue))
+  } else {
+    as.character(vValue)
+  }
+  if (!is.null(strCharCol)) {
+    vChar <- as.character(dfDomain[[strCharCol]])
+    vCategory <- dplyr::coalesce(vCategory, ifelse(is.na(vValue), vChar, NA_character_))
+  }
+  vCategory[!is.na(vCategory) & !nzchar(trimws(vCategory))] <- NA_character_
+
+  vNA <- rep(NA_real_, nrow(dfLong))
+  dfLong$original_value <- if (is.numeric(vValue)) as.numeric(vValue) else vNA
+  dfLong$lower <- if (is.null(strLowCol)) vNA else dfLong$low
+  dfLong$upper <- if (is.null(strHighCol)) vNA else dfLong$high
+  dfLong$original_category <- vCategory
 
   # Normalize visit rank to a contiguous 1..N per (subject_id, parameter_id),
   # mirroring ctasapp's recalculate_timepoint_rank().

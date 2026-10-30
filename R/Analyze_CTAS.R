@@ -50,6 +50,11 @@
 #' @param nSeed `numeric` Optional seed for reproducibility.
 #' @param strStudyCol `character` Column on `dfInput` identifying the study.
 #'   `NULL` disables the split and drops the `study` output column.
+#' @param bStopOnError `logical` When `FALSE`, an error raised by CTAS
+#'   (including CTAS dropping every timeseries) is turned into a warning and
+#'   a zero-row `results` frame is returned, so the metric workflow still
+#'   ships its `input` and `untransformed` frames. Input validation errors
+#'   always abort.
 #' @param ... Further arguments passed to [ctas::process_a_study()].
 #'
 #' @return `data.frame` One row per (site x timeseries x feature), carrying
@@ -98,6 +103,7 @@ Analyze_CTAS <- function(dfInput,
                          dfCustomReferenceGroups = ctas::ctas_data$custom_reference_groups,
                          nSeed = NULL,
                          strStudyCol = "studyid",
+                         bStopOnError = TRUE,
                          ...) {
   AssertCTASInput(dfInput, strStudyCol = strStudyCol)
 
@@ -165,11 +171,28 @@ Analyze_CTAS <- function(dfInput,
     )
   }
 
-  lCTAS <- if (is.null(nSeed)) {
-    fnAll()
-  } else {
+  fnSeeded <- function() {
+    if (is.null(nSeed)) {
+      return(fnAll())
+    }
     rlang::check_installed("withr", "to seed `Analyze_CTAS()`.")
     withr::with_seed(nSeed, fnAll())
+  }
+
+  if (isTRUE(bStopOnError)) {
+    lCTAS <- fnSeeded()
+  } else {
+    lCTAS <- tryCatch(fnSeeded(), error = function(e) {
+      strError <- conditionMessage(e)
+      cli::cli_warn(c(
+        "{.fn Analyze_CTAS} failed; returning empty results so {.field input} and {.field untransformed} are kept.",
+        "x" = "{strError}"
+      ))
+      NULL
+    })
+    if (is.null(lCTAS)) {
+      return(EmptyCTASResults(bStudy = length(vStudies) > 0))
+    }
   }
 
   BuildResults(lCTAS = lCTAS, dfInput = dfInput, strStudyCol = strStudyCol)

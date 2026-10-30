@@ -10,11 +10,11 @@ BindResults_CTAS(lAnalysis, strName)
 \item{lAnalysis}{\code{list} Named list of metric workflow outputs, each with
 \code{results}, \code{input} and optionally \code{untransformed} frames.}
 
-\item{strName}{\code{character} Shard name to pluck from each entry.}
+\item{strName}{\code{character} Frame name to pluck from each entry.}
 }
 \value{
 \code{data.frame} The bound frame. Zero rows when no entry contained
-the shard.
+the frame.
 }
 \description{
 Stacks the \code{strName} element (\code{"results"}, \code{"input"} or \code{"untransformed"})
@@ -25,10 +25,16 @@ internally by \code{\link[=Write_ctasapp]{Write_ctasapp()}}.
 }
 \details{
 \code{studyid} is renamed to \code{study} when present so the bound frames match
-the ctasapp column convention. For \code{"untransformed"}, rows are dropped
-only when both \code{original_value} and \code{original_category} are missing --
-numeric metrics carry \code{original_value}, categorical metrics carry
-\code{original_category}, and either signal is enough to keep the row.
+the ctasapp column convention.
+
+For \code{"untransformed"}, the transformation columns (\code{value}, \code{result},
+\code{low}, \code{high}, \code{parameter_id}, \code{parameter_category_3}) are removed
+before binding, since their types differ between metrics. Rows where no
+value was reported are kept so source data stays visible in ctasapp. Rows
+are de-duplicated on the ctasapp join keys (\code{study}, \code{subject_id},
+\code{parameter_category_2}, \code{timepoint_1_name}), keeping the row with the most
+non-missing \code{original_value}/\code{lower}/\code{upper}/\code{original_category}, so a
+field fed into several metrics appears once.
 }
 \examples{
 \dontrun{
