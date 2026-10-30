@@ -87,7 +87,7 @@ test_that("ctas and gsm.ctas results match on vitals and labs sample data (#25)"
   expect_equal(dfGsmResults, dfDirectResults)
 })
 
-test_that("Standardize_Domain results must match source data (#29)", {
+test_that("Standardize_Domain results must match source data, keeping every row and field (#29, #39)", {
   dfSubjects <- data.frame(
     studyid = gsm.ctas::dm$STUDYID,
     subject_id = gsm.ctas::dm$USUBJID,
@@ -134,6 +134,9 @@ test_that("Standardize_Domain results must match source data (#29)", {
     strTestCDCol = "LBTESTCD",
     strTestCol = "LBTEST",
     strValueCol = "LBSTRESN",
+    strLowCol = "LBSTNRLO",
+    strHighCol = "LBSTNRHI",
+    strCharCol = "LBSTRESC",
     strCategory = "Labs"
   )
 
@@ -144,13 +147,24 @@ test_that("Standardize_Domain results must match source data (#29)", {
       LBTESTCD = parameter_id,
       LBTEST = parameter_name,
       VISIT = visit,
-      LBSTRESN = value
+      LBSTRESN = original_value,
+      LBSTNRLO = lower,
+      LBSTNRHI = upper,
+      LBSTRESC = original_category
     ) |>
     dplyr::arrange(dplyr::across(dplyr::everything())) |>
     as.data.frame()
 
+  # Character results are only kept where the numeric result is missing.
   dfLBOriginal <- gsm.ctas::lb |>
-    dplyr::select(STUDYID, USUBJID, LBTESTCD, LBTEST, VISIT, LBSTRESN) |>
+    dplyr::transmute(
+      STUDYID, USUBJID, LBTESTCD, LBTEST, VISIT, LBSTRESN, LBSTNRLO, LBSTNRHI,
+      LBSTRESC = ifelse(
+        is.na(LBSTRESN) & nzchar(trimws(LBSTRESC)),
+        LBSTRESC,
+        NA_character_
+      )
+    ) |>
     dplyr::arrange(dplyr::across(dplyr::everything())) |>
     as.data.frame()
 
@@ -253,7 +267,7 @@ test_that("Transform_Missing results must match source data (#31)", {
   expect_equal(dfLBReverted, dfLBOriginal, ignore_attr = TRUE)
 })
 
-test_that("Transform_Range results must match source data (#32)", {
+test_that("Transform_Range results must match source data without dropping any field (#32, #39)", {
   dfSubjects <- data.frame(
     studyid = gsm.ctas::dm$STUDYID,
     subject_id = gsm.ctas::dm$USUBJID,
@@ -273,9 +287,9 @@ test_that("Transform_Range results must match source data (#32)", {
     strCategory = "Labs"
   )
 
-  # Warns about rows it drops; those rows are excluded from the source below.
-  dfRange <- suppressWarnings(Transform_Range(dfLB))
+  dfRange <- suppressMessages(Transform_Range(dfLB))
 
+  # `NUM_` fallback fields carry the raw value; `RANGE_` fields are reverted.
   dfLBReverted <- dfRange |>
     dplyr::transmute(
       STUDYID = studyid,
@@ -284,19 +298,25 @@ test_that("Transform_Range results must match source data (#32)", {
       VISIT = visit,
       LBSTNRLO = lower,
       LBSTNRHI = upper,
-      LBSTRESN = result * (upper - lower) + lower
+      LBSTRESN = ifelse(
+        parameter_category_3 == "numeric",
+        result,
+        result * (upper - lower) + lower
+      )
     ) |>
     dplyr::arrange(dplyr::across(dplyr::everything())) |>
     as.data.frame()
 
-  # Transform_Range drops missing results and unusable reference ranges.
+  # Transform_Range falls back to raw values when most values lack a usable
+  # range, and otherwise sets unusable rows to NA.
   dfLBOriginal <- gsm.ctas::lb |>
-    dplyr::filter(
-      !is.na(LBSTRESN),
-      !is.na(LBSTNRLO),
-      !is.na(LBSTNRHI),
-      LBSTNRHI > LBSTNRLO
+    dplyr::mutate(
+      bUsable = !is.na(LBSTNRLO) & !is.na(LBSTNRHI) & LBSTNRHI > LBSTNRLO,
+      nValues = sum(!is.na(LBSTRESN)),
+      bFallback = sum(!is.na(LBSTRESN) & !bUsable) / max(nValues, 1) > 0.5,
+      .by = LBTESTCD
     ) |>
+    dplyr::mutate(LBSTRESN = ifelse(bFallback | bUsable, LBSTRESN, NA_real_)) |>
     dplyr::select(
       STUDYID, USUBJID, LBTESTCD, VISIT, LBSTNRLO, LBSTNRHI, LBSTRESN
     ) |>
@@ -304,9 +324,15 @@ test_that("Transform_Range results must match source data (#32)", {
     as.data.frame()
 
   expect_equal(dfLBReverted, dfLBOriginal, ignore_attr = TRUE)
+
+  expect_setequal(unique(dfRange$parameter_category_2), unique(gsm.ctas::lb$LBTESTCD))
+  expect_equal(
+    unique(dfRange$parameter_id[dfRange$parameter_category_2 == "ANISO"]),
+    "NUM_ANISO"
+  )
 })
 
-test_that("Write_ctasapp files meet ctasapp file requirements (#33)", {
+test_that("Write_ctasapp files meet ctasapp file requirements and carry source rows for every field (#33, #39)", {
   skip_if_not_installed("workr")
   skip_if_not_installed("gsm.mapping")
   skip_if_not_installed("arrow")
@@ -390,6 +416,50 @@ test_that("Write_ctasapp files meet ctasapp file requirements (#33)", {
   expect_contains(
     names(dfUntransformed),
     c("subject_id", "parameter_category_2", "timepoint_1_name")
+  )
+
+  vKeys <- c("study", "subject_id", "parameter_category_2", "timepoint_1_name")
+
+  expect_equal(anyDuplicated(dfUntransformed[, vKeys]), 0)
+
+  dfSourceKeys <- dplyr::bind_rows(
+    dplyr::select(lMapped$Mapped_LB, study = STUDYID, subject_id = USUBJID, parameter_category_2 = LBTESTCD, timepoint_1_name = VISIT),
+    dplyr::select(lMapped$Mapped_VS, study = STUDYID, subject_id = USUBJID, parameter_category_2 = VSTESTCD, timepoint_1_name = VISIT),
+    dplyr::select(lMapped$Mapped_EG, study = STUDYID, subject_id = USUBJID, parameter_category_2 = EGTESTCD, timepoint_1_name = VISIT),
+    dplyr::select(lMapped$Mapped_RS, study = STUDYID, subject_id = USUBJID, parameter_category_2 = RSTESTCD, timepoint_1_name = VISIT),
+    dplyr::select(lMapped$Mapped_BMI, study = STUDYID, subject_id = USUBJID, parameter_category_2 = VSTESTCD, timepoint_1_name = VISIT)
+  ) |>
+    dplyr::semi_join(lMapped$Mapped_Subjects, by = "subject_id") |>
+    dplyr::distinct() |>
+    dplyr::arrange(dplyr::across(dplyr::everything())) |>
+    as.data.frame()
+
+  expect_equal(
+    dfUntransformed[, vKeys] |>
+      dplyr::arrange(dplyr::across(dplyr::everything())) |>
+      as.data.frame(),
+    dfSourceKeys,
+    ignore_attr = TRUE
+  )
+
+  # Mirrors ctasapp prepare_ts_data_multi() without the UI site filter:
+  # ratio_missing rows never anchor the Source Data table.
+  vUntransformedCols <- setdiff(
+    names(dfUntransformed),
+    setdiff(names(dfInput), vKeys)
+  )
+
+  dfSourceTable <- dfInput |>
+    dplyr::filter(parameter_category_3 != "ratio_missing") |>
+    dplyr::left_join(
+      dfUntransformed[, vUntransformedCols, drop = FALSE] |>
+        dplyr::distinct(dplyr::across(dplyr::all_of(vKeys)), .keep_all = TRUE),
+      by = vKeys
+    )
+
+  expect_in(
+    unique(dfInput$parameter_category_2),
+    unique(dfSourceTable$parameter_category_2)
   )
 
   # queries
@@ -535,6 +605,7 @@ test_that("YAML pipeline and function-only results must be identical (#35)", {
       strTestCDCol = "VSTESTCD",
       strTestCol = "VSTEST",
       strValueCol = "VSSTRESN",
+      strCharCol = "VSSTRESC",
       strCategory = "Vital Signs"
     ),
     eg = Standardize_Domain(
@@ -543,6 +614,7 @@ test_that("YAML pipeline and function-only results must be identical (#35)", {
       strTestCDCol = "EGTESTCD",
       strTestCol = "EGTEST",
       strValueCol = "EGSTRESN",
+      strCharCol = "EGSTRESC",
       strCategory = "ECG"
     )
   )
@@ -566,7 +638,7 @@ test_that("YAML pipeline and function-only results must be identical (#35)", {
 
   # range_normalized.yaml
 
-  dfRangeInput <- suppressWarnings(Transform_Range(Standardize_Domain(
+  dfRangeLong <- Standardize_Domain(
     dfDomain = lMapped$Mapped_LB,
     dfSubjects = dfSubjects,
     strTestCDCol = "LBTESTCD",
@@ -574,8 +646,14 @@ test_that("YAML pipeline and function-only results must be identical (#35)", {
     strValueCol = "LBSTRESN",
     strLowCol = "LBSTNRLO",
     strHighCol = "LBSTNRHI",
+    strCharCol = "LBSTRESC",
     strCategory = "Labs"
-  )))
+  )
+
+  dfRangeInput <- suppressMessages(Transform_Range(
+    dfRangeLong,
+    dMaxShareMissingRange = 0.5
+  ))
 
   dfRangeResults <- suppressWarnings(Analyze_CTAS(
     dfRangeInput,
@@ -596,13 +674,14 @@ test_that("YAML pipeline and function-only results must be identical (#35)", {
 
   # ratio_missing.yaml
 
-  dfMissingInput <- Transform_Missing(dplyr::bind_rows(
+  dfMissingLong <- dplyr::bind_rows(
     lb = Standardize_Domain(
       dfDomain = lMapped$Mapped_LB,
       dfSubjects = dfSubjects,
       strTestCDCol = "LBTESTCD",
       strTestCol = "LBTEST",
       strValueCol = "LBSTRESN",
+      strCharCol = "LBSTRESC",
       strCategory = "Labs"
     ),
     vs = Standardize_Domain(
@@ -611,6 +690,7 @@ test_that("YAML pipeline and function-only results must be identical (#35)", {
       strTestCDCol = "VSTESTCD",
       strTestCol = "VSTEST",
       strValueCol = "VSSTRESN",
+      strCharCol = "VSSTRESC",
       strCategory = "Vital Signs"
     ),
     eg = Standardize_Domain(
@@ -619,9 +699,12 @@ test_that("YAML pipeline and function-only results must be identical (#35)", {
       strTestCDCol = "EGTESTCD",
       strTestCol = "EGTEST",
       strValueCol = "EGSTRESN",
+      strCharCol = "EGSTRESC",
       strCategory = "ECG"
     )
-  ))
+  )
+
+  dfMissingInput <- suppressMessages(Transform_Missing(dfMissingLong))
 
   dfMissingResults <- suppressWarnings(Analyze_CTAS(
     dfMissingInput,
@@ -642,7 +725,7 @@ test_that("YAML pipeline and function-only results must be identical (#35)", {
 
   # categorical.yaml
 
-  dfCategoricalInput <- Transform_OneHot(dplyr::bind_rows(
+  dfCategoricalLong <- dplyr::bind_rows(
     rs = Standardize_Domain(
       dfDomain = lMapped$Mapped_RS,
       dfSubjects = dfSubjects,
@@ -659,7 +742,9 @@ test_that("YAML pipeline and function-only results must be identical (#35)", {
       strValueCol = "VSSTRESC",
       strCategory = "BMI"
     )
-  ))
+  )
+
+  dfCategoricalInput <- Transform_OneHot(dfCategoricalLong)
 
   dfCategoricalResults <- suppressWarnings(Analyze_CTAS(
     dfCategoricalInput,
@@ -678,31 +763,28 @@ test_that("YAML pipeline and function-only results must be identical (#35)", {
     nSeed = 20260813
   ))
 
-  # One row per subject x field x visit, first by parameter_id, as in categorical.yaml.
-  dfCategoricalUntransformed <- dfCategoricalInput |>
-    dplyr::arrange(parameter_id, original_category, timepoint_rank) |>
-    dplyr::distinct(subject_id, parameter_category_2, timepoint_1_name, .keep_all = TRUE)
-
   # Results.yaml
 
   lFunctionAnalysis <- list(
     Analysis_numeric = list(
       results = dfNumericResults,
-      input = dfNumericInput
+      input = dfNumericInput,
+      untransformed = dfNumericInput
     ),
     Analysis_range_normalized = list(
       results = dfRangeResults,
       input = dfRangeInput,
-      untransformed = dfRangeInput
+      untransformed = dfRangeLong
     ),
     Analysis_ratio_missing = list(
       results = dfMissingResults,
-      input = dfMissingInput
+      input = dfMissingInput,
+      untransformed = dfMissingLong
     ),
     Analysis_categorical = list(
       results = dfCategoricalResults,
       input = dfCategoricalInput,
-      untransformed = dfCategoricalUntransformed
+      untransformed = dfCategoricalLong
     )
   )
 
@@ -735,7 +817,7 @@ test_that("YAML pipeline and function-only results must be identical (#35)", {
   expect_equal(lReporting$Reporting_Results$results, lFunctionResults$results)
   expect_equal(lReporting$Reporting_Results$input, lFunctionResults$input)
 
-  # categorical.yaml de-duplicates untransformed with SQL, which does not keep row order.
+  # Compare sorted, independent of row order.
   dfYamlUntransformed <- lReporting$Reporting_Results$untransformed |>
     dplyr::arrange(dplyr::across(dplyr::everything())) |>
     as.data.frame()

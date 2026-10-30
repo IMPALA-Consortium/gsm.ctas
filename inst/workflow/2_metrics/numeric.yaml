@@ -14,6 +14,7 @@ meta:
   ScoringMethod: ks
   PadjustMethod: fdr
   Seed: 20260813
+  StopOnError: false
 spec:
   Mapped_Subjects:
     studyid:
@@ -35,6 +36,8 @@ spec:
       type: character
     VSSTRESN:
       type: numeric
+    VSSTRESC:
+      type: character
     VISIT:
       type: character
     VISITNUM:
@@ -50,6 +53,8 @@ spec:
       type: character
     EGSTRESN:
       type: numeric
+    EGSTRESC:
+      type: character
     VISIT:
       type: character
     VISITNUM:
@@ -66,6 +71,7 @@ steps:
       strTestCDCol: VSTESTCD
       strTestCol: VSTEST
       strValueCol: VSSTRESN
+      strCharCol: VSSTRESC
       strCategory: Vital Signs
   - output: Temp_EG_Values
     name: gsm.ctas::Standardize_Domain
@@ -75,6 +81,7 @@ steps:
       strTestCDCol: EGTESTCD
       strTestCol: EGTEST
       strValueCol: EGSTRESN
+      strCharCol: EGSTRESC
       strCategory: ECG
   # VS and EG testcodes are disjoint, so `parameter_id` uniqueness is
   # preserved after row-binding.
@@ -100,11 +107,11 @@ steps:
       strScoringMethod: ScoringMethod
       strPadjustMethod: PadjustMethod
       nSeed: Seed
-  # `Temp_CTAS_Values` carries no `original_value`, so no `untransformed`
-  # is emitted for this metric.
+      bStopOnError: StopOnError
   - output: lAnalysis
     name: base::list
     params:
       ID: ID
       results: Temp_CTAS_Results
       input: Temp_CTAS_Values
+      untransformed: Temp_CTAS_Values

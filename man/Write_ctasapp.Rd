@@ -38,8 +38,7 @@ deployments of ctasapp read parquet from \verb{embedded:}. \code{csv} is offered
 because the dashboard's upload tab accepts it and it needs no extra
 dependency.
 
-Empty frames are skipped (an empty \code{untransformed} is normal - only some
-\verb{Input_*()} functions record original values). The function errors if
+Empty frames are skipped. The function errors if
 \code{lReporting} contains no writable frames, so a mis-shaped input never
 silently produces an empty output directory.
 }

@@ -14,6 +14,9 @@ meta:
   ScoringMethod: ks
   PadjustMethod: fdr
   Seed: 20260813
+  # Fields where most values lack a usable reference range are scored raw (`NUM_`).
+  MaxShareMissingRange: 0.5
+  StopOnError: false
 spec:
   Mapped_Subjects:
     studyid:
@@ -35,6 +38,8 @@ spec:
       type: character
     LBSTRESN:
       type: numeric
+    LBSTRESC:
+      type: character
     LBSTNRLO:
       type: numeric
     LBSTNRHI:
@@ -54,11 +59,13 @@ steps:
       strValueCol: LBSTRESN
       strLowCol: LBSTNRLO
       strHighCol: LBSTNRHI
+      strCharCol: LBSTRESC
       strCategory: Labs
   - output: Temp_CTAS_Values
     name: gsm.ctas::Transform_Range
     params:
       dfInput: Temp_CTAS_Long
+      dMaxShareMissingRange: MaxShareMissingRange
   - output: Temp_CTAS_Results
     name: gsm.ctas::Analyze_CTAS
     params:
@@ -76,12 +83,12 @@ steps:
       strScoringMethod: ScoringMethod
       strPadjustMethod: PadjustMethod
       nSeed: Seed
-  # `Transform_Range` stamps `original_value`/`lower`/`upper` onto `Temp_CTAS_Values`,
-  # which flows through as the `untransformed` shard.
+      bStopOnError: StopOnError
+  # `Temp_CTAS_Long` holds every source row (incl. NA values), independent of CTAS.
   - output: lAnalysis
     name: base::list
     params:
       ID: ID
       results: Temp_CTAS_Results
       input: Temp_CTAS_Values
-      untransformed: Temp_CTAS_Values
+      untransformed: Temp_CTAS_Long

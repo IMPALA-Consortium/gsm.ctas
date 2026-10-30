@@ -3,7 +3,9 @@
 #' Consumes the long-format frame produced by [Standardize_Domain()] and
 #' replaces `value` with a running missing ratio per (subject, parameter,
 #' visit) so CTAS can score sites on data-completeness patterns. Rows with
-#' `NA` values are kept because they carry the signal.
+#' `NA` values are kept because they carry the signal. Fields that are `NA`
+#' for every row are kept as well (their ratio is a constant `1`) and listed
+#' in a message so the all-missing case is explicit.
 #'
 #' @param dfInput `data.frame` Long-format output of [Standardize_Domain()].
 #' @param strPrefix `character` Prefix for the generated `parameter_id`.
@@ -34,6 +36,18 @@ Transform_Missing <- function(dfInput, strPrefix = "MISS") {
     ),
     "dfInput"
   )
+
+  dfFields <- dplyr::summarise(
+    dfInput,
+    bAllMissing = all(is.na(.data$value)),
+    .by = "parameter_category_2"
+  )
+  vAllMissing <- dfFields$parameter_category_2[dfFields$bAllMissing]
+  if (length(vAllMissing) > 0) {
+    cli::cli_inform(
+      "{.fn Transform_Missing}: {length(vAllMissing)} field{?s} {?is/are} 100% missing for all subjects: {.val {vAllMissing}}."
+    )
+  }
 
   dfInput |>
     dplyr::arrange(

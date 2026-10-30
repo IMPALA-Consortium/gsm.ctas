@@ -23,10 +23,12 @@ test_that("untransformed returns a zero-row frame when the shard is absent", {
   expect_equal(nrow(df), 0)
 })
 
-test_that("untransformed keeps rows with either original_value or original_category", {
+test_that("untransformed keeps rows without any original value", {
   lAnalysis <- list(
     A = list(untransformed = data.frame(
       subject_id = c("s1", "s2", "s3"),
+      parameter_category_2 = "COLOR",
+      timepoint_1_name = "WEEK 2",
       original_value = c(1.0, NA_real_, NA_real_),
       original_category = c(NA_character_, "Y", NA_character_),
       stringsAsFactors = FALSE
@@ -35,8 +37,60 @@ test_that("untransformed keeps rows with either original_value or original_categ
 
   df <- BindResults_CTAS(lAnalysis, "untransformed")
 
+  expect_equal(nrow(df), 3)
+  expect_setequal(df$subject_id, c("s1", "s2", "s3"))
+})
+
+test_that("untransformed without join keys is returned as bound", {
+  df <- BindResults_CTAS(
+    list(A = list(untransformed = data.frame(original_value = c(1, 1)))),
+    "untransformed"
+  )
+
   expect_equal(nrow(df), 2)
-  expect_setequal(df$subject_id, c("s1", "s2"))
+})
+
+# The same source row arrives from every metric that reads its field; keep the fullest copy.
+test_that("untransformed is de-duplicated on the join keys across metrics", {
+  dfRange <- data.frame(
+    studyid = c("A", "B"), subject_id = "s1", parameter_category_2 = "ALT",
+    timepoint_1_name = "WEEK 2", parameter_id = "RANGE_ALT",
+    value = c(10, 12), original_value = c(10, 12),
+    lower = c(0, 0), upper = c(40, 40), original_category = NA_character_,
+    stringsAsFactors = FALSE
+  )
+  dfMissing <- data.frame(
+    studyid = c("A", "B"), subject_id = "s1", parameter_category_2 = "ALT",
+    timepoint_1_name = "WEEK 2", parameter_id = "MISS_ALT",
+    value = c(10, 12), original_value = c(10, 12),
+    lower = NA_real_, upper = NA_real_, original_category = NA_character_,
+    stringsAsFactors = FALSE
+  )
+  dfCategorical <- data.frame(
+    studyid = "A", subject_id = "s1", parameter_category_2 = "OVRLRESP",
+    timepoint_1_name = "WEEK 2", parameter_id = "OVRLRESP",
+    value = "CR", original_value = NA_real_,
+    lower = NA_real_, upper = NA_real_, original_category = "CR",
+    stringsAsFactors = FALSE
+  )
+
+  df <- BindResults_CTAS(
+    list(
+      missing = list(untransformed = dfMissing),
+      range = list(untransformed = dfRange),
+      categorical = list(untransformed = dfCategorical)
+    ),
+    "untransformed"
+  )
+
+  expect_equal(nrow(df), 3)
+  expect_false(any(c("value", "parameter_id") %in% names(df)))
+  expect_equal(
+    df$upper[df$parameter_category_2 == "ALT"],
+    c(40, 40)
+  )
+  expect_equal(df$study[df$parameter_category_2 == "ALT"], c("A", "B"))
+  expect_equal(df$original_category[df$parameter_category_2 == "OVRLRESP"], "CR")
 })
 
 test_that("studyid is renamed to study on any shard", {

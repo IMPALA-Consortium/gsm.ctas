@@ -91,6 +91,8 @@ dfVS
 ## `Transform_Range()`
 
 Rescale each result into its reference range (`(x - low) / (high - low)`).
+Fields where most values lack a usable range (e.g. `ANISO`) are kept as raw
+`NUM_` values; rows with a missing value or range keep `result = NA`.
 
 ```{r transform_range}
 dfLBraw <- Standardize_Domain(
@@ -101,6 +103,7 @@ dfLBraw <- Standardize_Domain(
   strValueCol = "LBSTRESN",
   strLowCol = "LBSTNRLO",
   strHighCol = "LBSTNRHI",
+  strCharCol = "LBSTRESC",
   strCategory = "Labs"
 )
 
