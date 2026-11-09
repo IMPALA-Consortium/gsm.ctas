@@ -1,0 +1,34 @@
+meta:
+  Type: Reporting
+  ID: PD
+  Description: Emit Protocol Deviation records for the ctasapp Protocol Deviations tab
+  Priority: 2
+  Active: true
+spec:
+  Mapped_PD:
+    study:
+      type: character
+    site:
+      type: character
+    subject_id:
+      type: character
+    dv_seq:
+      type: integer
+    dv_term:
+      type: character
+    dv_decod:
+      type: character
+    dv_cat:
+      type: character
+    dv_scat:
+      type: character
+    dv_start_date:
+      type: Date
+    dv_end_date:
+      type: Date
+steps:
+  # Wrap as list(pd = ...) so Write_ctasapp()'s two-level walker emits pd.parquet / pd.csv.
+  - output: lReportingPD
+    name: base::list
+    params:
+      pd: Mapped_PD

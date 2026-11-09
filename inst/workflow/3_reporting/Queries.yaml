@@ -1,0 +1,43 @@
+meta:
+  Type: Reporting
+  ID: Queries
+  Description: Standardise EDC query records into the CTAS vocabulary joinable onto input / untransformed / results
+  Priority: 2
+  Active: true
+spec:
+  Mapped_Queries:
+    study:
+      type: character
+    domain:
+      type: character
+    field:
+      type: character
+    subject_id:
+      type: character
+    visit:
+      type: character
+    parameter_id:
+      type: character
+  Mapped_Subjects:
+    studyid:
+      type: character
+    subject_id:
+      type: character
+  Reporting_Results:
+    type: list
+steps:
+  - output: Reporting_Input
+    name: base::getElement
+    params:
+      object: Reporting_Results
+      name: "input"
+  - output: Reporting_Queries
+    name: gsm.ctas::Standardize_Queries
+    params:
+      dfQueries: Mapped_Queries
+      dfSubjects: Mapped_Subjects
+      dfInput: Reporting_Input
+  - output: lReportingQueries
+    name: base::list
+    params:
+      queries: Reporting_Queries

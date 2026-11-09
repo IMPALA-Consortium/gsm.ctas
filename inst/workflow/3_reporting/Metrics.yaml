@@ -1,0 +1,31 @@
+meta:
+  Type: Reporting
+  ID: Metrics
+  Description: Audit table of every CTAS field x metric family with the CTAS parameters that were passed in each metric YAML.
+  Priority: 2
+  Active: true
+  # Single source of CTAS flag thresholds; Summary.yaml and the report read Reporting_Metrics$Threshold.
+  vThreshold: [0.842, 2.326]
+spec:
+  Reporting_Results:
+    type: list
+  lMetricWorkflows:
+    type: list
+steps:
+  - output: Reporting_ResultsFrame
+    name: base::getElement
+    params:
+      object: Reporting_Results
+      name: "results"
+  - output: Reporting_InputFrame
+    name: base::getElement
+    params:
+      object: Reporting_Results
+      name: "input"
+  - output: Reporting_Metrics
+    name: gsm.ctas::MakeMetric_CTAS
+    params:
+      dfResults: Reporting_ResultsFrame
+      lMetricWorkflows: lMetricWorkflows
+      vThreshold: vThreshold
+      dfInput: Reporting_InputFrame

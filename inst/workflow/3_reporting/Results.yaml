@@ -1,0 +1,34 @@
+meta:
+  Type: Reporting
+  ID: Results
+  Description: Concatenate metric shards into common ctasapp-shaped frames
+  Priority: 1
+  Active: true
+spec:
+  lAnalyzed:
+    type: list
+steps:
+  # Stack each named shard across every metric workflow output. Bound frames
+  # match the ctasapp column contract (studyid -> study) and can be written
+  # to parquet with `Write_ctasapp()` or handed to ctasapp validators.
+  - output: Reporting_Results
+    name: gsm.ctas::BindResults_CTAS
+    params:
+      lAnalysis: lAnalyzed
+      strName: "results"
+  - output: Reporting_Input
+    name: gsm.ctas::BindResults_CTAS
+    params:
+      lAnalysis: lAnalyzed
+      strName: "input"
+  - output: Reporting_Untransformed
+    name: gsm.ctas::BindResults_CTAS
+    params:
+      lAnalysis: lAnalyzed
+      strName: "untransformed"
+  - output: lReporting
+    name: base::list
+    params:
+      results: Reporting_Results
+      input: Reporting_Input
+      untransformed: Reporting_Untransformed

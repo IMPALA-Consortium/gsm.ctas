@@ -1,0 +1,45 @@
+meta:
+  Type: Mapped
+  ID: Queries
+  Description: Raw EDC query records passed through for reporting-layer standardisation
+  Priority: 3
+spec:
+  Raw_Queries:
+    study:
+      type: character
+    domain:
+      type: character
+    field:
+      type: character
+    subject_id:
+      type: character
+    visit:
+      type: character
+    parameter_id:
+      type: character
+    query_text:
+      type: character
+    query_answer:
+      type: character
+    query_status:
+      type: character
+    query_type:
+      type: character
+    data_change:
+      type: logical
+    value_first_entry:
+      type: character
+    value_at_query_open:
+      type: character
+    value_at_query_close:
+      type: character
+    value_now:
+      type: character
+steps:
+  # Pass-through so `Mapped_Queries` is available to the reporting layer,
+  # which handles the CTAS-vocabulary standardisation.
+  - output: Mapped_Queries
+    name: workr::RunQuery
+    params:
+      df: Raw_Queries
+      strQuery: "SELECT * FROM df"

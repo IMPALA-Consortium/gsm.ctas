@@ -1,0 +1,77 @@
+meta:
+  Type: Reporting
+  ID: Summary
+  Description: Aggregate CTAS results into a gsm-shaped summary + metric + group meta package for the CTAS site report.
+  Priority: 3
+  Active: true
+  IncludeMissingness: true
+  ByFeature: false
+  vFlag: [0, 1, 2]
+  vFlagOrder: [2, 1, 0]
+  # Drop MetricIDs whose maximum Flag is below this cutoff so the CTAS report
+  # only lists fields with at least one flagged site. Set to 0 to keep every
+  # metric.
+  iMinFlag: 1
+spec:
+  Reporting_Results:
+    type: list
+  Reporting_Groups:
+    _all:
+      required: true
+  Reporting_Metrics:
+    _all:
+      required: true
+    Threshold:
+      type: character
+  Mapped_Subjects:
+    studyid:
+      type: character
+    subject_id:
+      type: character
+    site:
+      type: character
+steps:
+  - output: Reporting_ResultsFrame
+    name: base::getElement
+    params:
+      object: Reporting_Results
+      name: "results"
+  - output: Reporting_SummaryScores
+    name: gsm.ctas::Summarize_CTAS
+    params:
+      dfResults: Reporting_ResultsFrame
+      dfSubjects: Mapped_Subjects
+      bIncludeMissingness: IncludeMissingness
+      bByFeature: ByFeature
+  # Thresholds are owned by Metrics.yaml; do not redefine vThreshold in meta here.
+  - output: Reporting_ThresholdValues
+    name: base::getElement
+    params:
+      object: Reporting_Metrics
+      name: "Threshold"
+  - output: Reporting_ThresholdString
+    name: base::unique
+    params:
+      x: Reporting_ThresholdValues
+  - output: Reporting_Threshold
+    name: gsm.core::ParseThreshold
+    params:
+      strThreshold: Reporting_ThresholdString
+  - output: Reporting_Summary
+    name: gsm.ctas::Flag_CTAS
+    params:
+      dfAnalyzed: Reporting_SummaryScores
+      vThreshold: Reporting_Threshold
+      vFlag: vFlag
+      vFlagOrder: vFlagOrder
+  - output: Reporting_Summary
+    name: workr::RunQuery
+    params:
+      df: Reporting_Summary
+      strQuery: "SELECT * FROM df WHERE MetricID IN (SELECT MetricID FROM df GROUP BY MetricID HAVING MAX(Flag) >= 1)"
+  - output: lReportingSummary
+    name: base::list
+    params:
+      summary: Reporting_Summary
+      metrics: Reporting_Metrics
+      groups: Reporting_Groups

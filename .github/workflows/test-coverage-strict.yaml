@@ -1,0 +1,61 @@
+# Hard-fails when line coverage is below 100%. Runs alongside the shared
+# gsm.utils-driven test-coverage.yaml, which handles reporting + upload.
+name: test-coverage-strict
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+  workflow_dispatch:
+
+permissions: read-all
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-coverage-strict:
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: r-lib/actions/setup-pandoc@v2
+
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          use-public-rspm: true
+
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          extra-packages: any::covr, any::xml2
+          needs: coverage
+
+      - name: Test coverage must be 100%
+        shell: Rscript {0}
+        run: |
+          cov <- covr::package_coverage(
+            quiet = FALSE,
+            clean = FALSE,
+            install_path = file.path(
+              normalizePath(Sys.getenv("RUNNER_TEMP"), winslash = "/"),
+              "package"
+            )
+          )
+          pct <- covr::percent_coverage(cov)
+          cat(sprintf("Line coverage: %.4f%%\n", pct))
+          if (pct < 100) {
+            print(covr::zero_coverage(cov))
+          }
+          stopifnot(pct == 100)
+
+      - name: Upload coverage failure artifact
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-package-${{ github.run_id }}
+          path: ${{ runner.temp }}/package
+          if-no-files-found: ignore

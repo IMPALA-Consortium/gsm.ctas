@@ -5,3 +5,10 @@
 .DS_Store
 .quarto
 .Renviron
+docs
+.github/copilot-instructions.md
+pub
+ctasapp.yml
+*.html
+*.parquet
+*.csv

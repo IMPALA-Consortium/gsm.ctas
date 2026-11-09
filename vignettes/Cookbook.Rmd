@@ -1,0 +1,294 @@
+---
+title: "gsm.ctas cookbook"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{gsm.ctas cookbook}
+  %\VignetteEncoding{UTF-8}
+  %\VignetteEngine{knitr::rmarkdown}
+editor_options:
+  chunk_output_type: console
+---
+
+```{r setupcook, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+## Installation
+
+```{r installcook, eval = FALSE}
+install.packages("pak")
+pak::pak("IMPALA-Consortium/gsm.ctas")
+```
+
+## Load
+
+```{r loadcook, message = FALSE}
+suppressPackageStartupMessages(library(dplyr))
+library(workr)
+library(gsm.mapping)
+library(gsm.kri)
+library(gsm.ctas)
+```
+
+## Raw data
+
+`gsm.ctas` ships SDTM domains (`dm`, `lb`, `vs`, `eg`, `rs`) and a synthetic
+ctasapp `queries` frame.
+
+```{r rawcook}
+lRaw <- list(
+  Raw_DM = gsm.ctas::dm,
+  Raw_LB = gsm.ctas::lb,
+  Raw_VS = gsm.ctas::vs,
+  Raw_EG = gsm.ctas::eg,
+  Raw_RS = gsm.ctas::rs,
+  Raw_Queries = gsm.ctas::queries,
+  Raw_PD = gsm.ctas::pd
+)
+
+str(lRaw, max.level = 1)
+```
+
+## Mapping
+
+```{r mappingcook}
+lMappingWorkflows <- workr::MakeWorkflowList(
+  strNames = NULL,
+  strPath = system.file("workflow/1_mappings", package = "gsm.ctas"),
+  strPackage = NULL
+)
+
+lIngest <- gsm.mapping::Ingest(lRaw, gsm.mapping::CombineSpecs(lMappingWorkflows))
+
+lMapped <- suppressWarnings(suppressMessages(
+  workr::RunWorkflows(lWorkflows = lMappingWorkflows, lData = lIngest)
+))
+
+names(lMapped)
+```
+
+## `Standardize_Domain()`
+
+Rename an SDTM domain into the CTAS long vocabulary. Default output is
+numeric-ready (`parameter_category_3 = "numeric"`).
+
+```{r standardize_domain}
+dfVS <- Standardize_Domain(
+  dfDomain = lMapped$Mapped_VS,
+  dfSubjects = lMapped$Mapped_Subjects,
+  strTestCDCol = "VSTESTCD",
+  strTestCol = "VSTEST",
+  strValueCol = "VSSTRESN",
+  strCategory = "Vital Signs"
+)
+
+dfVS
+```
+
+## `Transform_Range()`
+
+Rescale each result into its reference range (`(x - low) / (high - low)`).
+Fields where most values lack a usable range (e.g. `ANISO`) are kept as raw
+`NUM_` values; rows with a missing value or range keep `result = NA`.
+
+```{r transform_range}
+dfLBraw <- Standardize_Domain(
+  dfDomain = lMapped$Mapped_LB,
+  dfSubjects = lMapped$Mapped_Subjects,
+  strTestCDCol = "LBTESTCD",
+  strTestCol = "LBTEST",
+  strValueCol = "LBSTRESN",
+  strLowCol = "LBSTNRLO",
+  strHighCol = "LBSTNRHI",
+  strCharCol = "LBSTRESC",
+  strCategory = "Labs"
+)
+
+dfRange <- Transform_Range(dfLBraw)
+
+dfRange
+```
+
+## `Transform_Missing()`
+
+Recode each observation as a 0/1 indicator of missingness for
+missingness-over-time monitoring.
+
+```{r transform_missing}
+dfMissing <- Transform_Missing(dfLBraw)
+
+dfMissing
+```
+
+## `Transform_OneHot()`
+
+Expand a categorical variable into one binary CTAS timeseries per level.
+
+```{r transform_onehot}
+dfRSraw <- Standardize_Domain(
+  dfDomain = gsm.ctas::rs %>% filter(RSTESTCD == "OVRLRESP"),
+  dfSubjects = lMapped$Mapped_Subjects,
+  strTestCDCol = "RSTESTCD",
+  strTestCol = "RSTEST",
+  strValueCol = "RSSTRESC",
+  strCategory = "Disease Response"
+)
+
+dfOneHot <- Transform_OneHot(dfRSraw)
+
+unique(dfOneHot$parameter_id)
+dfOneHot
+```
+
+## `Standardize_Queries()`
+
+Translate the ctasapp query upload schema into the CTAS long vocabulary and
+fan raw field ids out onto every transformed CTAS parameter id.
+
+```{r standardize_queries}
+dfInputSample <- Transform_Range(dfLBraw)
+
+dfQ <- Standardize_Queries(
+  dfQueries = lMapped$Mapped_Queries,
+  dfSubjects = lMapped$Mapped_Subjects,
+  dfInput = dfInputSample
+)
+
+dfQ
+```
+
+## `Analyze_CTAS()`
+
+Score one long-format CTAS frame. Returns one row per site × timeseries ×
+feature.
+
+```{r analyze_ctas}
+dfScored <- suppressWarnings(suppressMessages(
+  Analyze_CTAS(dfVS)
+))
+
+dfScored
+```
+
+Multi-study is honoured automatically when `Mapped_Subjects` carries several
+`studyid` values; results are stacked with a `study` column.
+
+## Metrics workflow
+
+```{r metrics}
+lMetricWorkflows <- workr::MakeWorkflowList(
+  strNames = NULL,
+  strPath = system.file("workflow/2_metrics", package = "gsm.ctas"),
+  strPackage = NULL
+)
+
+lAnalysis <- suppressWarnings(suppressMessages(
+  workr::RunWorkflows(lWorkflows = lMetricWorkflows, lData = lMapped)
+))
+
+names(lAnalysis)
+```
+
+## `BindResults_CTAS()`
+
+Concatenate one named frame (`"results"`, `"input"`, `"untransformed"`)
+across every metric workflow output.
+
+```{r bind_results_ctas}
+dfResultsLong <- BindResults_CTAS(lAnalysis, "results")
+
+dfResultsLong
+```
+
+## `Summarize_CTAS()` + `Flag_CTAS()`
+
+Aggregate to the gsm `dfResults` contract, then flag with left-closed
+intervals on `-log10(p)`.
+
+```{r summarize}
+dfSummary <- Summarize_CTAS(
+  dfResults = dfResultsLong,
+  dfSubjects = lMapped$Mapped_Subjects
+)
+
+dfSummary
+
+dfFlagged <- Flag_CTAS(dfSummary)
+
+dfFlagged
+
+length(unique(dfFlagged$MetricID))
+```
+
+## `MakeMetric_CTAS()`
+
+Emit the family-granular audit table (`ctas_<pc3>_<pc2>`), one row per
+field × metric family, with every CTAS parameter column from the metric
+YAMLs.
+
+```{r make_metric_ctas}
+dfInputBound <- BindResults_CTAS(lAnalysis, "input")
+
+dfMetricsAudit <- MakeMetric_CTAS(
+  dfResults = dfResultsLong,
+  lMetricWorkflows = lMetricWorkflows,
+  dfInput = dfInputBound
+)
+
+dfMetricsAudit
+```
+
+## Full workflow
+
+The mapping + metrics + reporting workflow layers chain end-to-end. The
+shared script is packaged so the cookbook and the [Site CTAS Report
+example](Example_SiteCTASReport.html) stay in sync.
+
+```{r workflow, file = system.file("examples", "workflow.R", package = "gsm.ctas")}
+```
+
+```{r workflow_show}
+names(lReporting)
+```
+
+## ctasapp
+
+[ctasapp](https://github.com/IMPALA-Consortium/ctasapp) only consumes the
+`results`, `input`, `untransformed`, `queries`, `pd` and `metrics` frames
+-- the `3_reporting` outputs `Reporting_Results`, `Reporting_Queries`,
+`Reporting_PD` and `Reporting_Metrics`. The `Summary` and `Groups` frames
+and the `4_modules` html render are not needed. Filter the reporting
+layer with `strNames` to skip the site-report-only workflows:
+
+```{r ctasapp_workflow, eval = FALSE}
+Write_ctasapp(lReporting, strDir = "pub", strFormat = "parquet")
+```
+
+Point ctasapp at the parquet folder by editing its `embedded:` block:
+
+```{r ctasapp, eval = FALSE}
+remotes::install_github("IMPALA-Consortium/ctasapp")
+file.copy(system.file("ctasapp.yml", package = "ctasapp"), "ctasapp.yml")
+# embedded:
+#   results: pub/results.parquet
+#   input: pub/input.parquet
+#   untransformed: pub/untransformed.parquet
+#   queries: pub/queries.parquet
+#   pd: pub/pd.parquet
+#   metrics: pub/metrics.parquet
+ctasapp::run_ctas_app()
+```
+
+## html Report
+
+```{r report, eval=TRUE}
+lModuleFlows <- workr::MakeWorkflowList(strPath = system.file("workflow/4_modules", package = "gsm.ctas"))
+
+workr::RunWorkflows(
+  lWorkflows = lModuleFlows,
+  lData = lReporting
+)
+```

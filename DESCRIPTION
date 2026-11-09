@@ -1,11 +1,50 @@
 Package: gsm.ctas
-Title: What the Package Does (One Line, Title Case)
-Version: 0.0.0.9000
-Authors@R: 
-    person("First", "Last", , "first.last@example.com", role = c("aut", "cre"))
-Description: What the package does (one paragraph).
-License: `use_mit_license()`, `use_gpl3_license()` or friends to pick a
-    license
+Title: Add CTAS Anomaly Detection to gsm
+Version: 0.1.0
+Authors@R: c(
+    person("Allan", "Hummer", , "allan.hummer.ext@boehringer-ingelheim.com", role = c("aut", "cre")),
+    person("Björn", "Koneswarakantha", , "bjoern.koneswarakantha@roche.com", role = "aut")
+  )
+Description: Integrates the 'ctas' clinical trial anomaly detection statistics
+    engine into the Good Statistical Monitoring ('gsm') framework. Provides
+    mappings from SDTM domains into the long-format input 'ctas' expects,
+    data preparation by data type, and writes the flat files the 'ctasapp'
+    dashboard consumes, together with declarative workflow YAML.
+License: MIT + file LICENSE
 Encoding: UTF-8
+LazyData: true
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 8.0.0
+Depends:
+    R (>= 4.1.0)
+Imports:
+    cli,
+    ctas,
+    dplyr,
+    rlang,
+    utils
+Suggests:
+    arrow,
+    covr,
+    DT,
+    gsm.core,
+    gsm.kri,
+    gsm.mapping,
+    gsm.reporting,
+    knitr,
+    pharmaversesdtm,
+    purrr,
+    rmarkdown,
+    testthat (>= 3.0.0),
+    withr,
+    workr,
+    yaml
+Config/testthat/edition: 3
+VignetteBuilder: knitr
+Remotes:
+    ctas=IMPALA-Consortium/ctas,
+    gsm.core=Gilead-Public/gsm.core@main,
+    gsm.mapping=Gilead-Public/gsm.mapping@main,
+    gsm.kri=Gilead-Public/gsm.kri@main,
+    gsm.reporting=Gilead-Public/gsm.reporting@main,
+    workr=Gilead-Public/workr@main
+Config/roxygen2/version: 8.0.0

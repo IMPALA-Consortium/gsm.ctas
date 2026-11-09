@@ -1,0 +1,35 @@
+meta:
+  Type: Mapped
+  ID: PD
+  Description: Protocol Deviation records passed through for reporting-layer emission
+  Priority: 3
+spec:
+  Raw_PD:
+    study:
+      type: character
+    site:
+      type: character
+    subject_id:
+      type: character
+    dv_seq:
+      type: integer
+    dv_term:
+      type: character
+    dv_decod:
+      type: character
+    dv_cat:
+      type: character
+    dv_scat:
+      type: character
+    dv_start_date:
+      type: Date
+    dv_end_date:
+      type: Date
+steps:
+  # Pass-through so `Mapped_PD` is available to the reporting layer, which
+  # writes it out unchanged for ctasapp's Protocol Deviations tab.
+  - output: Mapped_PD
+    name: workr::RunQuery
+    params:
+      df: Raw_PD
+      strQuery: "SELECT * FROM df"
