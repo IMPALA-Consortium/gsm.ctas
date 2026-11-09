@@ -70,7 +70,8 @@ MakeCharts <- function(
 #' @param bDebug Passed through to the `gsm.kri` widgets.
 #' @param vResultTooltipKeys Columns shown in widget tooltips.
 #' @param vOutcomeOptions Y-axis choices exposed by
-#'   [gsm.kri::Widget_BarChart()]. Default is `"Score"` only.
+#'   [gsm.kri::Widget_BarChart()] and [gsm.kri::Widget_TimeSeries()].
+#'   Default is `"Score"` only.
 #' @param ... Forwarded to the `gsm.kri` widgets.
 #'
 #' @return Named list of htmlwidgets, or `NULL` if no data survives
@@ -150,7 +151,8 @@ Visualize_CTAS <- function(
     vThreshold = vThreshold,
     bDebug = bDebug,
     vResultTooltipKeys = vResultTooltipKeys,
-    vOutcomeOptions = vOutcomeOptions,
+    # I() stops gsm.vizr's auto_unbox from turning a length-1 vector into a string.
+    vOutcomeOptions = I(vOutcomeOptions),
     ...
   )
 
@@ -179,6 +181,7 @@ Visualize_CTAS <- function(
         dfGroups = dfGroups,
         vThreshold = vThreshold,
         bDebug = bDebug,
+        vOutcomeOptions = I(vOutcomeOptions),
         ...
       )
     )

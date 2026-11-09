@@ -142,6 +142,18 @@ test_that("Visualize_CTAS adds a timeSeries widget when there are multiple snaps
   expect_s3_class(lCharts$timeSeries, "htmlwidget")
 })
 
+test_that("Visualize_CTAS sends vOutcomeOptions to the widgets as a JSON array (#38)", {
+  lCharts <- Visualize_CTAS(
+    dfResults = MakeVizFixture(bMultiSnapshot = TRUE),
+    dfMetrics = MakeMetricsFixture(),
+    dfGroups = MakeGroupsFixture(),
+    strMetricID = "ctas_AST"
+  )
+
+  expect_equal(as.character(lCharts$barChart$x$vOutcomeOptions), '["Score"]')
+  expect_equal(as.character(lCharts$timeSeries$x$vOutcomeOptions), '["Score"]')
+})
+
 test_that("MakeCharts returns a named list keyed by MetricID", {
   lCharts <- MakeCharts(
     dfResults = MakeVizFixture(),
