@@ -23,26 +23,29 @@ knitr::opts_chunk$set(warning = FALSE, message = FALSE)
 library(gsm.kri)
 library(gt)
 
-# `params$dfMetrics` is the family-granular CTAS audit
+# Use [[ not the dollar operator: rmarkdown passes the raw Rmd to pandoc, which reads paired dollars as TeX.
+# `params[["dfMetrics"]]` is the family-granular CTAS audit
 # (`ctas_<parameter_category_3>_<parameter_category_2>`); every join in the
 # report needs the field-level scheme (`ctas_<parameter_category_2>`) that
 # `Summarize_CTAS()` emits, so collapse and dedupe here. The full audit
 # stays available for the Metric Details table below.
-dfMetricsPruned <- params$dfMetrics
+dfMetricsPruned <- params[["dfMetrics"]]
 if ("parameter_category_2" %in% names(dfMetricsPruned)) {
-  dfMetricsPruned$MetricID <- paste0("ctas_", dfMetricsPruned$parameter_category_2)
+  dfMetricsPruned[["MetricID"]] <- paste0("ctas_", dfMetricsPruned[["parameter_category_2"]])
 }
 dfMetricsPruned <- dfMetricsPruned[
-  dfMetricsPruned$MetricID %in% unique(params$dfResults$MetricID), ,
+  dfMetricsPruned[["MetricID"]] %in% unique(params[["dfResults"]][["MetricID"]]), ,
   drop = FALSE
 ]
-dfMetricsPruned <- dfMetricsPruned[!duplicated(dfMetricsPruned$MetricID), , drop = FALSE]
+dfMetricsPruned <- dfMetricsPruned[!duplicated(dfMetricsPruned[["MetricID"]]), , drop = FALSE]
 
 setup <- Report_Setup(
-  dfResults = params$dfResults,
+  dfResults = params[["dfResults"]],
   dfMetrics = dfMetricsPruned,
-  dfGroups = params$dfGroups
+  dfGroups = params[["dfGroups"]]
 )
+
+vThreshold <- gsm.core::ParseThreshold(unique(params[["dfMetrics"]][["Threshold"]])[1])
 
 ```
 
@@ -62,6 +65,10 @@ Report_StudyInfo(params$dfGroups)
 
 ## Study Overview
 
+::: ctas-thresholds
+**Flag thresholds (all CTAS metrics):** Amber: Score &ge; `r vThreshold[1]` &middot; Red: Score &ge; `r vThreshold[2]`
+:::
+
 ::: flag-container
 ::: {.flag .flag-red}
 <div> `r setup$red_kris` Red CTAS metrics </div>
@@ -77,18 +84,18 @@ Report_StudyInfo(params$dfGroups)
 
 ```{r echo=FALSE, warning=FALSE, results = 'asis'}
 # subset data on latest snapshot date
-dfResults_current <- FilterByLatestSnapshotDate(params$dfResults)
+dfResults_current <- FilterByLatestSnapshotDate(params[["dfResults"]])
 
 GroupOverViz <- Widget_GroupOverview(
   dfResults = dfResults_current,
   dfMetrics = dfMetricsPruned,
-  dfGroups = params$dfGroups,
-  strGroupLevel = setup$GroupLevel,
-  strGroupSubset = switch(setup$GroupLevel,
+  dfGroups = params[["dfGroups"]],
+  strGroupLevel = setup[["GroupLevel"]],
+  strGroupSubset = switch(setup[["GroupLevel"]],
     Site = 'red',
     'all'
   ),
-  strGroupLabelKey = switch(setup$GroupLevel,
+  strGroupLabelKey = switch(setup[["GroupLevel"]],
     Site = 'InvestigatorLastName',
     NULL
   )
@@ -97,23 +104,23 @@ GroupOverViz <- Widget_GroupOverview(
 overview_viz <- list(groupOverview = GroupOverViz)
 
 # Add FlagOverTime Table if dfResults contains delta data
-if (any(grepl("_Change", names(params$dfResults)))) {
+if (any(grepl("_Change", names(params[["dfResults"]])))) {
   intSnapshots <- 12L # consider adding this as a parameter
-  strSnapshotDates <- unique(params$dfResults$SnapshotDate) %>%
+  strSnapshotDates <- unique(params[["dfResults"]][["SnapshotDate"]]) %>%
     sort(decreasing = TRUE) %>%
     head(intSnapshots)
 
   # Only include risk signals flagged at the most recent snapshot and the 12 most recent snapshots.
-  dfResultsFlagged <- params$dfResults %>%
+  dfResultsFlagged <- params[["dfResults"]] %>%
     FilterByFlags(bCurrentlyFlagged = TRUE) %>%
     dplyr::filter(
-      .data$SnapshotDate %in% strSnapshotDates
+      .data[["SnapshotDate"]] %in% strSnapshotDates
     )
 
-  overview_viz$flagOverTime <- Widget_FlagOverTime(
+  overview_viz[["flagOverTime"]] <- Widget_FlagOverTime(
     dfResults = dfResultsFlagged,
     dfMetrics = dfMetricsPruned,
-    strGroupLevel = setup$GroupLevel,
+    strGroupLevel = setup[["GroupLevel"]],
     strFootnote = glue::glue(
       "Table displays the {
         length(strSnapshotDates)
