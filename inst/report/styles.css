@@ -11,6 +11,13 @@
 body {
   font-family: 'Roboto', sans-serif;
 }
+
+.ctas-thresholds {
+  background-color: #f5f5f5;
+  border-left: 4px solid var(--blue-button-color);
+  padding: 8px 12px;
+  margin-bottom: 12px;
+}
 /* MAIN */
 
 

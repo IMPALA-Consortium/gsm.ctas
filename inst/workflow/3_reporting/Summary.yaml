@@ -6,7 +6,6 @@ meta:
   Active: true
   IncludeMissingness: true
   ByFeature: false
-  vThreshold: [0.842, 2.326]
   vFlag: [0, 1, 2]
   vFlagOrder: [2, 1, 0]
   # Drop MetricIDs whose maximum Flag is below this cutoff so the CTAS report
@@ -22,6 +21,8 @@ spec:
   Reporting_Metrics:
     _all:
       required: true
+    Threshold:
+      type: character
   Mapped_Subjects:
     studyid:
       type: character
@@ -42,11 +43,25 @@ steps:
       dfSubjects: Mapped_Subjects
       bIncludeMissingness: IncludeMissingness
       bByFeature: ByFeature
+  # Thresholds are owned by Metrics.yaml; do not redefine vThreshold in meta here.
+  - output: Reporting_ThresholdValues
+    name: base::getElement
+    params:
+      object: Reporting_Metrics
+      name: "Threshold"
+  - output: Reporting_ThresholdString
+    name: base::unique
+    params:
+      x: Reporting_ThresholdValues
+  - output: Reporting_Threshold
+    name: gsm.core::ParseThreshold
+    params:
+      strThreshold: Reporting_ThresholdString
   - output: Reporting_Summary
     name: gsm.ctas::Flag_CTAS
     params:
       dfAnalyzed: Reporting_SummaryScores
-      vThreshold: vThreshold
+      vThreshold: Reporting_Threshold
       vFlag: vFlag
       vFlagOrder: vFlagOrder
   - output: Reporting_Summary
