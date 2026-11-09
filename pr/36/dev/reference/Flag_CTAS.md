@@ -1,7 +1,7 @@
 # Flag CTAS scores with a gsm-shaped `Flag` column
 
 User-facing gsm-style flagging function that mirrors the
-[`gsm.core::Flag()`](https://rdrr.io/pkg/gsm.core/man/Flag.html)
+[`gsm.core::Flag()`](https://gilead-public.github.io/gsm.core/reference/Flag.html)
 signature but with unsigned CTAS defaults appropriate for the
 `-log10(p)` scoring scale. Adds a `Flag` column to `dfAnalyzed` based on
 left-closed intervals of the score column.
@@ -72,8 +72,8 @@ scale carries no directional information.
 
 ## See also
 
-[`gsm.core::Flag()`](https://rdrr.io/pkg/gsm.core/man/Flag.html) for the
-signed gsm-core variant.
+[`gsm.core::Flag()`](https://gilead-public.github.io/gsm.core/reference/Flag.html)
+for the signed gsm-core variant.
 
 ## Examples
 
