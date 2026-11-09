@@ -79,9 +79,10 @@ cannot silently drop them.
 `Flag` is intentionally not emitted here – run
 [`Flag_CTAS()`](Flag_CTAS.md) on the returned frame to add it. Splitting
 Summarize + Flag mirrors the
-[`gsm.core::Summarize()`](https://rdrr.io/pkg/gsm.core/man/Summarize.html)
-/ [`gsm.core::Flag()`](https://rdrr.io/pkg/gsm.core/man/Flag.html) seam
-so users can swap thresholds without re-aggregating.
+[`gsm.core::Summarize()`](https://gilead-public.github.io/gsm.core/reference/Summarize.html)
+/
+[`gsm.core::Flag()`](https://gilead-public.github.io/gsm.core/reference/Flag.html)
+seam so users can swap thresholds without re-aggregating.
 
 ## See also
 

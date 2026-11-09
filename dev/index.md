@@ -279,7 +279,7 @@ on the sister package
 - **100% line coverage.** Coverage is enforced in CI by
   [`test-coverage-strict.yaml`](.github/workflows/test-coverage-strict.yaml),
   which hard-fails when
-  [`covr::percent_coverage()`](http://covr.r-lib.org/reference/percent_coverage.md)
+  [`covr::percent_coverage()`](https://covr.r-lib.org/reference/percent_coverage.html)
   is below `100`. The existing
   [`test-coverage.yaml`](.github/workflows/test-coverage.yaml) continues
   to publish the coverage badge via the shared
