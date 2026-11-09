@@ -1,6 +1,6 @@
 Package: gsm.ctas
 Title: Add CTAS Anomaly Detection to gsm
-Version: 0.0.0.9000
+Version: 0.1.0
 Authors@R: c(
     person("Allan", "Hummer", , "allan.hummer.ext@boehringer-ingelheim.com", role = c("aut", "cre")),
     person("Björn", "Koneswarakantha", , "bjoern.koneswarakantha@roche.com", role = "aut")
